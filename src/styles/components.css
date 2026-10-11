@@ -1561,6 +1561,11 @@ a.othercard {
 /* Numbered steps inside a row, such as signing in to the Board vault. */
 .vault-steps { margin: 6px 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; color: var(--color-content-muted); }
 .vault-steps strong { color: var(--color-content-primary); }
+/* App Store and Google Play badges at the same visible height. Google's image carries its own clear space, trimmed by the negative margin. */
+.vault-badges { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vault-badges a { display: block; line-height: 0; flex-shrink: 0; }
+.vault-badges img { height: 40px; width: auto; max-width: none; }
+.vault-badges img.gp { height: 60px; margin: -10px; }
 
 .ma-note {
   background: var(--color-status-free-surface);

@@ -39,9 +39,10 @@ export default function VaultPanel() {
             <b>3. On your phone (optional)</b>
             <span>Install the Bitwarden app, then sign in as shown in step 4.</span>
           </div>
-          <div className="ma-chips">
-            <a className="b s-btn on-light xs" href={IPHONE_APP} {...out}>iPhone app</a>
-            <a className="b s-btn on-light xs" href={ANDROID_APP} {...out}>Android app</a>
+          {/* The stores' own badges, used as their guidelines ask: unaltered, each linking to the app. */}
+          <div className="vault-badges">
+            <a href={IPHONE_APP} {...out}><img src="/images/badges/app-store.svg" alt="Download on the App Store" /></a>
+            <a href={ANDROID_APP} {...out}><img className="gp" src="/images/badges/google-play.png" alt="Get it on Google Play" /></a>
           </div>
         </div>
         <div className="ma-row">
