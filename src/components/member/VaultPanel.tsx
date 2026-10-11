@@ -5,8 +5,12 @@
  * only links to it — no password ever passes through the website.
  * -------------------------------------------------------------------------- */
 const VAULT_URL = 'https://vaultwarden.silvermist.synology.me/'
-const VAULT_HOST = 'vaultwarden.silvermist.synology.me'
+const SERVER_URL = 'https://vaultwarden.silvermist.synology.me'
 const CHROME_EXTENSION = 'https://chromewebstore.google.com/detail/bitwarden-password-manager/nngceckbapebfimnlniiiahkandclblb'
+const IPHONE_APP = 'https://apps.apple.com/us/app/bitwarden-password-manager/id1137397744'
+const ANDROID_APP = 'https://play.google.com/store/apps/details?id=com.x8bit.bitwarden'
+
+const out = { target: '_blank', rel: 'noopener noreferrer' } as const
 
 export default function VaultPanel() {
   return (
@@ -21,22 +25,35 @@ export default function VaultPanel() {
             <b>1. Open the vault</b>
             <span>Sign in with your vault email and master password. This is a separate login from this website.</span>
           </div>
-          <a className="b p-btn sm" href={VAULT_URL} target="_blank" rel="noopener noreferrer">Open the vault</a>
+          <a className="b p-btn sm" href={VAULT_URL} {...out}>Open the vault</a>
         </div>
         <div className="ma-row">
           <div>
             <b>2. Add it to Chrome</b>
-            <span>
-              Install the Bitwarden extension (Vaultwarden works with Bitwarden's apps). On its sign-in screen, change
-              “Logging in on” to <strong>self-hosted</strong> and enter <strong>{VAULT_HOST}</strong> as the server.
-            </span>
+            <span>Vaultwarden works with Bitwarden's extension. Install it, then sign in as shown in step 4.</span>
           </div>
-          <a className="b s-btn on-light xs" href={CHROME_EXTENSION} target="_blank" rel="noopener noreferrer">Get the Chrome extension</a>
+          <a className="b s-btn on-light xs" href={CHROME_EXTENSION} {...out}>Get the Chrome extension</a>
         </div>
         <div className="ma-row">
           <div>
             <b>3. On your phone (optional)</b>
-            <span>Install the Bitwarden app from your app store and choose the same self-hosted server.</span>
+            <span>Install the Bitwarden app, then sign in as shown in step 4.</span>
+          </div>
+          <div className="ma-chips">
+            <a className="b s-btn on-light xs" href={IPHONE_APP} {...out}>iPhone app</a>
+            <a className="b s-btn on-light xs" href={ANDROID_APP} {...out}>Android app</a>
+          </div>
+        </div>
+        <div className="ma-row">
+          <div>
+            <b>4. Sign in to our server, not Bitwarden's</b>
+            <span>The extension and the apps start out pointed at Bitwarden's own service. Before you sign in:</span>
+            <ol className="vault-steps">
+              <li>On the sign-in screen, find <strong>Logging in on</strong> (it shows <strong>bitwarden.com</strong>) and choose <strong>Self-hosted</strong>.</li>
+              <li>Under <strong>Server URL</strong>, enter <strong>{SERVER_URL}</strong> and tap <strong>Save</strong>.</li>
+              <li>Enter your vault email, then your master password.</li>
+            </ol>
+            <span>You only do this once on each device.</span>
           </div>
         </div>
         <div className="ma-note">
