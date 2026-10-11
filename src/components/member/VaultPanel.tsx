@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------------
- * Board vault: how a Board member reaches the Board's shared passwords.
+ * Password Manager: how a Board member reaches the Institute's shared passwords.
  *
  * The vault is Vaultwarden, hosted on a Synology outside this site. This page
  * only links to it — no password ever passes through the website.
@@ -15,11 +15,20 @@ const out = { target: '_blank', rel: 'noopener noreferrer' } as const
 export default function VaultPanel() {
   return (
     <>
-      <h1>Board vault</h1>
-      <div className="ma-sub">
-        The Board's shared passwords, kept in a private vault. This page only links to it — the website never sees the passwords.
-      </div>
+      <h1>Password Manager</h1>
+      <div className="ma-sub">How the Institute keeps and shares its passwords.</div>
       <div className="ma-panel">
+        <div className="vault-intro">
+          <img src="/images/badges/vaultwarden.svg" alt="" width="48" height="48" />
+          <div>
+            <b>Vaultwarden</b>
+            <span>
+              This is how we sync our passwords for the organization. Shared logins for the Institute's accounts live in
+              one private vault, and each Board member signs in with their own account. Change a password once and it
+              updates in everyone's browser and phone. This website only links to the vault — it never sees the passwords.
+            </span>
+          </div>
+        </div>
         <div className="ma-row">
           <div>
             <b>1. Open the vault</b>

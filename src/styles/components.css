@@ -1558,9 +1558,14 @@ a.othercard {
   display: block;
 }
 .ma-row span { font-size: 13.5px; color: var(--color-content-muted); }
-/* Numbered steps inside a row, such as signing in to the Board vault. */
+/* Numbered steps inside a row, such as signing in to the Password Manager. */
 .vault-steps { margin: 6px 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; color: var(--color-content-muted); }
 .vault-steps strong { color: var(--color-content-primary); }
+/* The Password Manager page's opening: the Vaultwarden logo, its name, and what it is for. */
+.vault-intro { display: flex; gap: 16px; align-items: flex-start; padding-bottom: 16px; }
+.vault-intro img { flex-shrink: 0; }
+.vault-intro b { display: block; font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--color-content-primary); margin-bottom: 4px; }
+.vault-intro span { font-size: 14px; line-height: 1.55; color: var(--color-content-secondary); }
 /* App Store and Google Play badges at the same visible height. Google's image carries its own clear space, trimmed by the negative margin. */
 .vault-badges { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .vault-badges a { display: block; line-height: 0; flex-shrink: 0; }
