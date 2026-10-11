@@ -81,7 +81,8 @@ export default function VaultPanel() {
         </div>
         <div className="ma-note">
           <b>Don't have a login?</b> Contact James Beadle and he'll set you up.
-          Keep your master password somewhere safe — no one, including James, can recover it.
+          Keep your master password somewhere safe. If you forget it, James can invite you again: the shared
+          passwords come back, but anything you saved privately in your own account does not.
         </div>
       </div>
     </>
