@@ -66,6 +66,19 @@ export default function VaultPanel() {
             <span>You only do this once on each device.</span>
           </div>
         </div>
+        <div className="ma-row">
+          <div>
+            <b>5. Turn on two-step login</b>
+            <span>Required for every Board account. You need an authenticator app on your phone, such as Google Authenticator or Microsoft Authenticator.</span>
+            <ol className="vault-steps">
+              <li>In the vault, go to <strong>Settings</strong> → <strong>Security</strong> → <strong>Two-step login</strong>.</li>
+              <li>Next to <strong>Authenticator app</strong>, choose <strong>Manage</strong>, scan the code with your phone and enter the six digits it shows.</li>
+              <li>Choose <strong>View recovery code</strong> and keep it somewhere safe. It is the only way back in if you lose your phone.</li>
+            </ol>
+            <span>Each new device asks for a code once. After that you unlock with your master password, or Face ID or a fingerprint on your phone.</span>
+          </div>
+          <a className="b s-btn on-light xs" href={VAULT_URL} {...out}>Open the vault</a>
+        </div>
         <div className="ma-note">
           <b>Don't have a login?</b> Contact James Beadle and he'll set you up.
           Keep your master password somewhere safe — no one, including James, can recover it.
