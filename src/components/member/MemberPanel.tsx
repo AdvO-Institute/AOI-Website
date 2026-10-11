@@ -33,6 +33,7 @@ import CalendarPanel from './CalendarPanel'
 import StatsPanel from './StatsPanel'
 import RecordsPanel from './RecordsPanel'
 import ControlPanel from './ControlPanel'
+import VaultPanel from './VaultPanel'
 import PhotoCard from './PhotoCard'
 import { fmtDate } from '@/lib/dates'
 
@@ -117,6 +118,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'stats') return <StatsPanel />
   if (tab === 'records') return <RecordsPanel />
   if (tab === 'control') return <ControlPanel />
+  if (tab === 'vault') return <VaultPanel />
 
   if (PENDING[tab]) {
     return (

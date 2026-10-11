@@ -94,6 +94,8 @@ export const NAV: NavItem[] = [
   { key: 'records', label: 'Records', group: 'work', any: LEADERSHIP, when: (a) => a.committees.length > 0 || a.capabilities.includes('board') || a.capabilities.includes('full_admin') },
   { key: 'stats', label: 'Stats', group: 'work', any: [...LEADERSHIP, 'instructor_tools'] },
   { key: 'email', label: 'Email', group: 'work', any: ['full_admin', 'instructor_tools', ...MANAGES] },
+  // How to reach the Board's password vault; the passwords themselves never pass through this site.
+  { key: 'vault', label: 'Board vault', group: 'work', any: ['board'] },
 
   /* --------------------------------------------------------------- people -- */
   {
