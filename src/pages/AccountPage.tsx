@@ -12,13 +12,17 @@
  * flagged it as scaffolding to remove before public launch, and the site is now
  * public.
  * -------------------------------------------------------------------------- */
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Link } from '@/lib/router'
 import { signIn, sendMagicLink, linkError, clearLinkError } from '@/lib/supabase'
 import { activateAccount } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
-import MemberShell from '@/components/member/MemberShell'
 import { useToast } from '@/components/ui/Toast'
+
+/* The members area is the heaviest part of the site and only this page uses it,
+   so it is a separate file the browser fetches once someone is signed in. Public
+   pages never download it. */
+const MemberShell = lazy(() => import('@/components/member/MemberShell'))
 
 export default function AccountPage() {
   const toast = useToast()
@@ -82,7 +86,13 @@ export default function AccountPage() {
     setBusy(false)
   }
 
-  if (signedIn) return <MemberShell />
+  if (signedIn) {
+    return (
+      <Suspense fallback={null}>
+        <MemberShell />
+      </Suspense>
+    )
+  }
 
   return (
     <>

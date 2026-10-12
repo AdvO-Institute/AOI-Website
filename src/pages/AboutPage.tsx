@@ -111,7 +111,7 @@ export default function AboutPage() {
               <h3>You don't have to figure this out alone.</h3>
               <p>Explore our training. Connect with our community. And when you're ready, step into ownership of your future.</p>
             </div>
-            <Link to="/membership" className="b lg p-btn">Become a Member</Link>
+            <Link to="/membership" className="b lg p-btn">Join the Institute</Link>
           </div>
         </section>
     </>

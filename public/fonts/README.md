@@ -1,0 +1,1 @@
+Outfit and Figtree, variable woff2 (weights 400–800, Latin and Latin Extended subsets) as served by Google Fonts; both are licensed under the SIL Open Font License 1.1 (https://openfontlicense.org). Declared in `src/styles/fonts.css`.

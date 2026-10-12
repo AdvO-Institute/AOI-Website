@@ -24,7 +24,7 @@ export type Member = {
   id: string; first_name: string; last_name: string; credentials: string | null; email: string | null
   mobile_phone: string | null; office_phone: string | null; practice_phone: string | null
   practice_name: string | null; practice_address: string | null; practice_city: string | null; practice_state: string | null
-  practice_zip: string | null; practice_website: string | null
+  practice_zip: string | null; practice_website: string | null; photo_url: string | null
   membership_status: string | null; member_since: string | null; membership_expires: string | null
   contact_type: string | null; techniques: string[] | null; deceased_on: string | null; notes: string | null
   person_certifications: Cert[]; instructor_records: Instr[]; board_service: Board[]
@@ -32,7 +32,7 @@ export type Member = {
 }
 
 const SELECT =
-  'id,first_name,last_name,credentials,email,mobile_phone,office_phone,practice_phone,practice_name,practice_address,' +
+  'id,first_name,last_name,credentials,email,mobile_phone,office_phone,practice_phone,practice_name,practice_address,photo_url,' +
   'practice_city,practice_state,practice_zip,practice_website,membership_status,member_since,membership_expires,' +
   'contact_type,techniques,deceased_on,notes,' +
   'person_certifications(id,technique,level,cert_date,certificate_number,grandfathered,certified_by),' +
@@ -92,7 +92,7 @@ export const otherCerts = (p: Member) => (p.person_certifications ?? []).filter(
 /* ------------------------------------------------------------------ writes */
 export type Profile = Partial<Pick<Member,
   'first_name' | 'last_name' | 'credentials' | 'email' | 'mobile_phone' | 'office_phone' | 'practice_name' | 'practice_address' |
-  'practice_website' | 'membership_status' | 'member_since' | 'membership_expires' | 'contact_type' | 'techniques' | 'deceased_on'>>
+  'practice_website' | 'membership_status' | 'member_since' | 'membership_expires' | 'contact_type' | 'techniques' | 'deceased_on' | 'photo_url'>>
 
 export const saveProfile = (id: string, v: Profile) => patch('people', `id=eq.${id}`, v)
 export const createMember = (v: Profile) => insert('people', [{ ...v, membership_status: v.membership_status ?? 'active' }])

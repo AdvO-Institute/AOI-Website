@@ -73,3 +73,33 @@ export function logSignInOnce(uid: string | null | undefined): void {
     void logActivity('sign_in')
   } catch { void logActivity('sign_in') }
 }
+
+/** One committee's report for the cycle in force, as the Overview shows it. */
+export type ReportDue = {
+  committee: Access['committees'][number]
+  /** The month being reported, YYYY-MM. */
+  month: string
+  dueDate: string
+  /** Days until the due date; negative once it has passed. */
+  days: number
+  state: 'submitted' | 'draft' | 'due'
+}
+/** The current cycle's report, per committee this person leads or sits on. Empty if it cannot be read. */
+export async function myReports(access: Access): Promise<ReportDue[]> {
+  if (!access.committees.length) return []
+  try {
+    const today = dayET()
+    const cyc = currentCycle(await boardMeetings(), today)
+    const ids = access.committees.map((c) => c.id).join(',')
+    const q = await select<{ committee_id: number; status: string }>('committee_reports', `select=committee_id,status&period_ym=eq.${cyc.reportMonth}&committee_id=in.(${ids})&limit=100`)
+    const rows = q.data ?? []
+    const days = daysUntil(cyc.dueDate, today)
+    return access.committees.map((c) => {
+      const mine = rows.filter((r) => r.committee_id === c.id)
+      const state: ReportDue['state'] = mine.some((r) => r.status === 'submitted') ? 'submitted' : mine.length ? 'draft' : 'due'
+      return { committee: c, month: cyc.reportMonth, dueDate: cyc.dueDate, days, state }
+    })
+  } catch {
+    return []
+  }
+}

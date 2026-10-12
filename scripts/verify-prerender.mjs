@@ -35,10 +35,11 @@ function textInsideRoot(html) {
 }
 
 for (const path of manifest.paths) {
+  // Mirrors `fileFor` in build.mjs: `/` is index.html, everything else `<route>.html`.
   const file =
     path === '/'
       ? join(clientDir, 'index.html')
-      : join(clientDir, path.replace(/^\//, ''), 'index.html')
+      : join(clientDir, `${path.replace(/^\//, '')}.html`)
 
   let html
   try {

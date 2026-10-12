@@ -7,7 +7,7 @@ import type { Access } from '@/lib/access'
 
 const ACCESS = (window as unknown as { __ACCESS: Access }).__ACCESS
 const state = {
-  access: ACCESS, loading: false, signedIn: true,
+  access: ACCESS, loading: false, ready: true, signedIn: true,
   can: (c: string) => ACCESS.capabilities.includes(c as never),
   refresh: async () => {},
 }

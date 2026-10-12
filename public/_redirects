@@ -3,10 +3,12 @@
 # The v4.8 site was a single URL, so there are no deep links to preserve — but
 # these cover the shapes people and old bookmarks are most likely to try.
 #
-# Do NOT add a `/account/*  /account  200` rule. The member area is served from
-# /account/index.html, so Cloudflare normalises /account to /account/ with a
-# 301; a splat rule that rewrites /account/ back to /account then loops until
-# the browser gives up ("cannot follow more than 20 redirections" on refresh).
+# Every page is built as `<route>.html` (`about.html`, `account.html`), so
+# Cloudflare serves `/about` directly and redirects `/about/` back to it. Never
+# add a rule that rewrites a page to or from its slash form (for example
+# `/account/*  /account  200`): Pages already normalizes those, and a rule
+# pointing the other way loops until the browser gives up ("cannot follow more
+# than 20 redirections" on refresh).
 
 /index.html            /                                      301
 /home                  /                                      301

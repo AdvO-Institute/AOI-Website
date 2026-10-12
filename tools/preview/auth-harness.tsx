@@ -12,7 +12,7 @@ const OUT: Access = { ...A, person: null, roles: [], committees: [], capabilitie
 
 function Case({ label, access, signedIn }: { label: string; access: Access; signedIn: boolean }) {
   const state = {
-    access, loading: false, signedIn,
+    access, loading: false, ready: true, signedIn,
     can: (c: string) => access.capabilities.includes(c as never),
     refresh: async () => {},
   }

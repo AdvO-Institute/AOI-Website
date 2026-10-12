@@ -6,6 +6,7 @@
  * link. Seminars and conferences are managed from Events; meetings can be
  * added here.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -16,13 +17,13 @@ import type { Committee } from '@/lib/queries/reports'
 import { dayET, daysUntil, monthLabel, nextMonth, prevMonth } from '@/lib/queries/meetings'
 import { session } from '@/lib/supabase'
 import { logActivity } from '@/lib/queries/attention'
-import { Pill, F, Modal, Head, Sec, friendly } from './opsUi'
+import { Pill, F, Modal, Head, Sec, friendly, SafeLink, askConfirm } from './opsUi'
 
 const ZOOM_SCHEDULE = 'https://zoom.us/meeting/schedule'
 
 export default function CalendarPanel() {
   const toast = useToast()
-  const { access, can } = useAccess()
+  const { access, can, viewingAsMember } = useAccess()
   const oversight = can('full_admin') || can('board')
   const leads = access.committees.filter((c) => c.leads)
   const canAdd = oversight || leads.length > 0
@@ -33,9 +34,12 @@ export default function CalendarPanel() {
 
   const load = useCallback(async () => {
     const [r, m, c] = await Promise.all([loadCalendar(), myRegisteredEventIds(session.user?.id ?? null), loadCommittees()])
-    setError(r.error ? `The calendar could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
-    setRows(r.rows); setMine(m); setComs(c); setLoading(false)
-  }, [])
+    setError(r.error ? `The calendar could not be read. ${friendlyError(r.error)}` : null)
+    /* The database still answers an admin viewing as a member as the admin:
+     * drop drafts and the leadership-only Zoom links a member never gets. */
+    const rows = viewingAsMember ? r.rows.filter((e) => e.status !== 'draft').map((e) => (e.visibility === 'leadership' || e.visibility === 'board' ? { ...e, zoom_url: null } : e)) : r.rows
+    setRows(rows); setMine(m); setComs(c); setLoading(false)
+  }, [viewingAsMember])
   useEffect(() => { void load() }, [load])
 
   const today = dayET()
@@ -73,7 +77,7 @@ export default function CalendarPanel() {
       <div className="mb"><div className="kv">
         <span>When</span><div>{dayLabel(startDay(detail), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}{endDay(detail) !== startDay(detail) ? ` – ${dayLabel(endDay(detail), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}` : ''} · {whenLine(detail)}</div>
         {detail.location && <><span>Where</span><div>{detail.location}</div></>}
-        {detail.zoom_url ? <><span>Zoom</span><div><a className="b p-btn sm" href={detail.zoom_url} target="_blank" rel="noopener noreferrer">Join the meeting</a></div></> : detail.has_zoom ? <><span>Zoom</span><div><small className="muted">The link is shared with directors, chairs and committee members.</small></div></> : null}
+        {detail.zoom_url ? <><span>Zoom</span><div><SafeLink className="b p-btn sm" href={detail.zoom_url}>Join the meeting</SafeLink></div></> : detail.has_zoom ? <><span>Zoom</span><div><small className="muted">The link is shared with directors, chairs and committee members.</small></div></> : null}
         {detail.agenda && <><span>Agenda</span><div style={{ whiteSpace: 'pre-line' }}>{detail.agenda}</div></>}
         {detail.audience && <><span>Audience</span><div>{detail.audience}</div></>}
         {(detail.event_type === 'seminar' || detail.event_type === 'conference') && <><span>Public site</span><div>{detail.status === 'published' ? 'Published — open for registration' : 'Draft — not yet on the public site'}</div></>}
@@ -133,6 +137,6 @@ function MeetingDialog({ e, coms, oversight, onClose, onSaved, createdBy }: { e:
       <F l="Keystone"><label className="evt-tog"><input type="checkbox" checked={v.is_keystone} onChange={(ev) => setV({ ...v, is_keystone: ev.target.checked })} /> Mark with ★ on the calendar</label></F>
       <F l="Agenda / notes" full><textarea className="fi" value={v.agenda} onChange={(ev) => setV({ ...v, agenda: ev.target.value })} /></F>
     </div></div>
-    <div className="mf evt-foot"><span>{e && <button type="button" className="b d-btn sm" onClick={async () => { if (!confirm('Remove this meeting from the calendar?')) return; const r = await deleteMeeting(e.id); if (r.error) return toast(friendly(r.error)); onSaved('Meeting removed') }}>Remove</button>}</span><span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : e ? 'Save' : 'Add to calendar'}</button></span></div>
+    <div className="mf evt-foot"><span>{e && <button type="button" className="b d-btn sm" onClick={async () => { if (!(await askConfirm('Remove this meeting from the calendar?', { body: 'This cannot be undone.', ok: 'Remove', danger: true }))) return; const r = await deleteMeeting(e.id); if (r.error) return toast(friendly(r.error)); onSaved('Meeting removed') }}>Remove</button>}</span><span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : e ? 'Save' : 'Add to calendar'}</button></span></div>
   </Modal>
 }

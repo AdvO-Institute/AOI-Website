@@ -89,7 +89,7 @@ export async function searchPeople(term: string): Promise<Person[]> {
 
 export const advo = (p: Person) => (p.person_certifications ?? []).filter((c) => c.technique === 'Advanced Orthogonal')
 export const topLevel = (p: Person): Level =>
-  advo(p).reduce<Level>((best, c) => (RANK[c.level] ?? -1) > RANK[best] ? (c.level as Level) : best, 'none')
+  advo(p).reduce<Level>((best, c) => (RANK[c.level] ?? -1) > RANK[best]! ? (c.level as Level) : best, 'none')
 export const topCert = (p: Person) => { const l = topLevel(p); return advo(p).find((c) => c.level === l) ?? null }
 export const otherCerts = (p: Person) => (p.person_certifications ?? []).filter((c) => c.technique !== 'Advanced Orthogonal')
 export const bucket = (p: Person): Level | 'interest' | null => {
@@ -171,7 +171,7 @@ export async function overrideCertification(
       : await insert('person_certifications', [{ person_id: p.id, technique: 'Advanced Orthogonal', level, grandfathered: false, ...row }])
     if (w.error) return w
     // Anything above the new level is no longer valid.
-    for (const c of advo(p)) if (c.id && RANK[c.level] > RANK[level]) { const r = await remove('person_certifications', `id=eq.${c.id}`); if (r.error) return r }
+    for (const c of advo(p)) if (c.id && RANK[c.level]! > RANK[level]!) { const r = await remove('person_certifications', `id=eq.${c.id}`); if (r.error) return r }
   }
   return patch('people', `id=eq.${p.id}`, { cert_level: level, target_cert_level: target, cert_interest: interest })
 }

@@ -3,9 +3,13 @@
  * in one list, the full contact card (only what is filled in), a stepped
  * Add / Edit form, offices, roles and the running notes log.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
+import { webHref } from '@/lib/safeHref'
+import { SafeLink } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { inviteMember, type AccessReply } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
+import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
@@ -51,7 +55,7 @@ export default function ContactsPanel() {
 
   const load = useCallback(async () => {
     const r = await everyone()
-    setError(r.error ? `The contacts could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The contacts could not be read. ${friendlyError(r.error)}` : null)
     setRows(r.rows); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
@@ -128,7 +132,7 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
   // Many imported addresses already end in "City, ST ZIP"; don't repeat it.
   const tail = [p.practice_city, [p.practice_state, p.practice_zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')
   const addr = p.practice_address && p.practice_city && p.practice_address.toLowerCase().includes(p.practice_city.toLowerCase()) ? p.practice_address : [p.practice_address, tail].filter(Boolean).join(', ')
-  const web = (w: string | null) => (w ? <a href={w.startsWith('http') ? w : `https://${w}`} target="_blank" rel="noreferrer">{w}</a> : null)
+  const web = (w: string | null) => (w ? <SafeLink href={webHref(w)}>{w}</SafeLink> : null)
   const offices = p.practice_locations ?? []
   const notes = [...(p.contact_notes ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
   async function invite() {
@@ -142,7 +146,7 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
   async function save() {
     if (!note.trim()) return
     setBusy(true); const r = await addNote(p.id, note.trim(), me, meId); setBusy(false)
-    if (r.error) { toast('The note was refused: ' + r.error.slice(0, 140)); return }
+    if (r.error) { toast('The note could not be saved. ' + friendlyError(r.error)); return }
     setNote(''); await onChanged(); toast('Note added')
   }
   return (
@@ -211,6 +215,19 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
   const bodyRef = useRef<HTMLDivElement>(null)
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }))
+  /* A manager's upload lands in the headshot bucket; the address is saved with the rest of the form. */
+  const photoRef = useRef<HTMLInputElement>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const pickPhoto = async (file: File | undefined) => {
+    if (!file || !p) return
+    setPhotoBusy(true)
+    const r = await uploadPhotoFor(p.id, file)
+    setPhotoBusy(false)
+    if (photoRef.current) photoRef.current.value = ''
+    if (r.missing) return setErr('Photo uploads are being switched on — paste a link for now.')
+    if (r.error) return setErr('The photo could not be uploaded. Try a JPG or PNG under 10 MB.')
+    setV((s) => ({ ...s, photo_url: r.url ?? '' }))
+  }
   const I = (k: string, type = 'text', ph = '') => <input className="fi" type={type} value={v[k] ?? ''} onChange={set(k)} placeholder={ph} />
   const setOffice = (i: number, patch: Partial<Office>) => setOffices((o) => o.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   const hasSeat = (k: string) => seats.some((s) => s.role_key === k)
@@ -235,9 +252,9 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
     let id = p?.id ?? null
     if (id) { const r = await saveProfile(id, prof); if (r.error) { setSaving(false); setErr(friendly(r.error)); return } }
     else { const r = await createContact(prof); if (r.error || !r.id) { setSaving(false); setErr(friendly(r.error ?? 'no id returned')); return }; id = r.id }
-    const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were refused: ' + o.error.slice(0, 140)); return }
-    if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were refused: ' + r.error.slice(0, 140)); return } }
-    if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was refused: ' + n.error.slice(0, 140)); return } }
+    const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were not. ' + friendlyError(o.error)); return }
+    if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were not. ' + friendlyError(r.error)); return } }
+    if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was not. ' + friendlyError(n.error)); return } }
     setSaving(false)
     onSaved(p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.`)
   }
@@ -276,7 +293,13 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
             {step === 'bg' && <>
               <F l="CHIROPRACTIC COLLEGE">{I('alma_mater', 'text', 'e.g. Life University')}</F><F l="GRADUATION YEAR">{I('grad_year', 'number', '2012')}</F>
               <F l="NPI NUMBER">{I('npi', 'text', '10 digits')}</F>
-              <F l="HEADSHOT URL" hint="Members upload their own from their profile; paste a link here if you have one.">{I('photo_url', 'url')}</F>
+              <F l="HEADSHOT" full hint={p ? 'Members can add their own under My Account. Upload one here, or paste a link.' : 'Save the contact first, then upload a photo.'}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {v.photo_url && <span className="ctc-top" style={{ display: 'contents' }}><span className="av" style={{ width: 40, height: 40, fontSize: 13 }}><img src={v.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /></span></span>}
+                  {I('photo_url', 'url', 'https://…')}
+                  {p && <><input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Upload'}</button></>}
+                </div>
+              </F>
               <F l="BIO" full><textarea className="fi" rows={4} value={v.bio} onChange={set('bio')} placeholder="Shown on the public directory once they are a member." /></F>
             </>}
             {step === 'member' && <>
@@ -309,7 +332,7 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
 }
 
 function friendly(err: string): string {
-  if (/row-level security/.test(err)) return 'The database did not allow that — only board, the executive director and the membership committee chair can change contacts.'
+  if (/row-level security/.test(err)) return 'You don’t have permission for that. Only board, the executive director and the membership committee chair can change contacts.'
   if (/duplicate key/.test(err)) return 'Someone with that key already exists.'
-  return 'The database refused the change: ' + err.slice(0, 160)
+  return friendlyError(err)
 }

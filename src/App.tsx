@@ -7,7 +7,8 @@ import { RegistrationProvider } from '@/components/blocks/RegistrationDialog'
 import { CatalogProvider } from '@/lib/queries/CatalogProvider'
 import { AccessProvider } from '@/lib/queries/AccessProvider'
 import { routes, notFoundRoute, routeByPath } from '@/routes'
-import { renderHead } from '@/lib/seo'
+import { ORIGIN } from '@/lib/seo'
+import type { PageMeta } from '@/lib/seo'
 import PayPage from '@/pages/PayPage'
 
 /** Keeps the document head correct on client-side navigation. */
@@ -16,7 +17,7 @@ function DocumentMeta() {
   useEffect(() => {
     // Cloudflare serves client-only routes with a trailing slash (/registration-confirmed/); the table is keyed without one.
     const entry = routeByPath.get(pathname) ?? routeByPath.get(pathname.replace(/\/+$/, '') || '/')
-    const meta = entry?.meta ?? notFoundRoute.meta
+    const meta: PageMeta = entry?.meta ?? notFoundRoute.meta
     document.title = meta.title
 
     const set = (selector: string, attr: string, value: string) => {
@@ -30,7 +31,7 @@ function DocumentMeta() {
       el.setAttribute(attr, value)
     }
     set('meta[name="description"]', 'content', meta.description)
-    set('link[rel="canonical"]', 'href', `${window.location.origin}${meta.canonical ?? pathname}`)
+    set('link[rel="canonical"]', 'href', `${ORIGIN}${meta.canonical ?? pathname}`)
     set(
       'meta[name="robots"]',
       'content',
@@ -65,7 +66,7 @@ export default function App() {
                   <Route
                     path={path}
                     key={path}
-                    element={param ? <Component {...({ param } as never)} /> : <Component />}
+                    element={param ? <Component param={param} /> : <Component />}
                   />
                 ))}
                 {/* Pattern routes so a link typed by hand still resolves. */}

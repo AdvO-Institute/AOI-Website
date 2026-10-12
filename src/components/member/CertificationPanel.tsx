@@ -12,6 +12,7 @@
  * with a certification in progress first, then everyone else, both
  * alphabetical — the chair's active work is always at the top.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -22,6 +23,7 @@ import {
   LEVELS, LEVEL_LABEL, RANK, NEXT,
 } from '@/lib/queries/certifications'
 import type { Person, Requirement, Level } from '@/lib/queries/certifications'
+import { askConfirm, notice } from './opsUi'
 
 type Tab = 'all' | 'interest' | 'student' | 'level_1' | 'level_2'
 const TABS: [Tab, string][] = [['all', 'All'], ['interest', 'Interest'], ['student', 'Student'], ['level_1', 'Level 1'], ['level_2', 'Level 2']]
@@ -59,7 +61,7 @@ export default function CertificationPanel() {
     const [r, p] = await Promise.all([requirements(), register()])
     // A failed read must never look like an empty register.
     const problem = p.error ?? r.error
-    if (problem) setError(`The register could not be read — the database answered: ${problem.slice(0, 200)}`)
+    if (problem) setError(`The register could not be read. ${friendlyError(problem)}`)
     setReqs(r.rows)
     setPeople(p.rows)
     setLoading(false)
@@ -87,18 +89,18 @@ export default function CertificationPanel() {
   async function run(key: string, fn: () => Promise<{ error?: string } | { ok: true } | void>, done?: string) {
     setBusy(key)
     const r = await fn()
-    if (r && 'error' in r && r.error) toast('The database refused that change: ' + r.error.slice(0, 140))
+    if (r && 'error' in r && r.error) toast(friendlyError(r.error))
     else if (done) toast(done)
     await load()
     setBusy(null)
   }
   const initiate = (p: Person, level: Level) => run(p.id, () => setTarget(p.id, level), `${p.first_name} ${p.last_name} is now working toward ${LEVEL_LABEL[level]}.`)
-  const withdraw = (p: Person) => { if (confirm(`Stop ${p.first_name}'s progression toward ${LEVEL_LABEL[p.target_cert_level!]}? Ticked criteria stay on record.`)) void run(p.id, () => setTarget(p.id, null)) }
+  const withdraw = async (p: Person) => { if (await askConfirm(`Stop ${p.first_name}'s progression toward ${LEVEL_LABEL[p.target_cert_level!]}?`, { body: 'Ticked criteria stay on record.', ok: 'Stop progression', danger: true })) void run(p.id, () => setTarget(p.id, null)) }
   const tick = (p: Person, r: Requirement, on: boolean) => run(`${p.id}:${r.id}`, () => markRequirement(p.id, r.id, on, on ? today() : null, me, meId))
   const date = (p: Person, r: Requirement, d: string) => run(`${p.id}:${r.id}`, () => markRequirement(p.id, r.id, true, d || null, me, meId))
-  const award = (p: Person) => {
+  const award = async (p: Person) => {
     const lvl = p.target_cert_level as Level
-    if (!confirm(`Award ${LEVEL_LABEL[lvl]} to ${fullName(p)}?\n\nThis writes the certification (dated today, certified by ${me}), sets their level, and clears the progression.`)) return
+    if (!(await askConfirm(`Award ${LEVEL_LABEL[lvl]} to ${fullName(p)}?`, { body: `This writes the certification (dated today, certified by ${me}), sets their level, and clears the progression.`, ok: 'Award' }))) return
     void run(p.id, async () => { const r = await certify(p, lvl, me); if ('number' in r) toast(`${p.first_name} ${p.last_name} is now ${LEVEL_LABEL[lvl]} — certificate #${r.number}.`); return r })
   }
 
@@ -119,7 +121,7 @@ export default function CertificationPanel() {
   return (
     <>
       <div className="cert-head">
-        <div><h1>Certifications</h1><div className="ma-sub" style={{ marginBottom: 0 }}>Lock in completed criteria (date required), award levels, and set progression.</div></div>
+        <div><h1>Certifications</h1><div className="ma-sub" style={{ marginBottom: 0 }}>Record each completed step with its date, award certification levels, and track who is working toward which level.</div></div>
         <div className="cert-actions">
           {canManage && <button type="button" className="b p-btn sm" onClick={() => setManageFor('new')}>+ Add</button>}
           <button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button>
@@ -230,11 +232,11 @@ function ManageDialog({ person, me, onClose, onSaved }: { person: Person | null;
     setErr(null)
     if (!chosen) { setErr('Choose a member first.'); return }
     if (level !== 'none' && !date) { setErr('An award date is required for an achieved level.'); return }
-    if (target && RANK[target] <= RANK[level]) { setErr('“Working toward” must be above the achieved level.'); return }
+    if (target && RANK[target]! <= RANK[level]!) { setErr('“Working toward” must be above the achieved level.'); return }
     setSaving(true)
     const r = await overrideCertification(chosen, level, date || null, num || null, me, (target || null) as Level | null, interest)
     setSaving(false)
-    if (r.error) { setErr('The database refused the change: ' + r.error.slice(0, 160)); return }
+    if (r.error) { setErr(friendlyError(r.error)); return }
     onSaved(`${chosen.first_name} ${chosen.last_name} saved.`)
   }
 
@@ -278,7 +280,7 @@ function ContactCard({ person: p, reqs, me, meId, canNote, onClose, onChanged }:
   async function add() {
     const t = note.trim(); if (!t) return
     setSaving(true); const r = await addNote(p.id, t, me, meId); setSaving(false)
-    if (r.error) return alert('Could not save the note: ' + r.error.slice(0, 140))
+    if (r.error) return void notice('The note could not be saved', friendlyError(r.error))
     setNote(''); await onChanged()
   }
   const KV = ({ k, v }: { k: string; v: React.ReactNode }) => <><span>{k}</span><div>{v ?? '—'}</div></>
@@ -306,7 +308,7 @@ function ContactCard({ person: p, reqs, me, meId, canNote, onClose, onChanged }:
           <div className="sec">Certifications</div>
           <div className="kv">
             {advo(p).length === 0 && otherCerts(p).length === 0 && <KV k="—" v="None on file" />}
-            {advo(p).sort((a, b) => RANK[b.level] - RANK[a.level]).map((c) => <KV key={c.id ?? c.level} k="Advanced Orthogonal" v={`${LEVEL_LABEL[c.level]}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · Awarded ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}
+            {advo(p).sort((a, b) => RANK[b.level]! - RANK[a.level]!).map((c) => <KV key={c.id ?? c.level} k="Advanced Orthogonal" v={`${LEVEL_LABEL[c.level]}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · Awarded ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}
             {otherCerts(p).map((o) => <KV key={o.technique} k={o.technique} v={o.level === 'board_certification' ? 'Board Certified' : 'Certified'} />)}
             {prog && <KV k="In progress" v={`Working toward ${LEVEL_LABEL[p.target_cert_level!]} · ${prog.done.size}/${prog.list.length} criteria`} />}
           </div>

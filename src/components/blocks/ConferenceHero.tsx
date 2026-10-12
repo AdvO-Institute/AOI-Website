@@ -64,6 +64,11 @@ export default function ConferenceHero() {
               This year&rsquo;s theme: <b>Inflection Point.</b>
             </p>
 
+            {/* Phones only (CSS): the card and its button are a long scroll below. */}
+            <div className="cfh-lead-cta">
+              <Link to={REGISTER} className="b p-btn cfh-reg">Register for the Conference</Link>
+            </div>
+
             <p className="sub">
               Two days of advanced clinical training, imaging, research, and case studies with the
               doctors moving this work forward: cone-beam CT and three-dimensional analysis of

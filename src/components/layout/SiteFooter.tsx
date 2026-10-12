@@ -1,8 +1,14 @@
+import { useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
 import { useToast } from '@/components/ui/Toast'
+import { AS_OF } from '@/content/calendar'
 
 export default function SiteFooter() {
   const toast = useToast()
+  /* The copyright year: the build's year in the prerendered HTML (so the first
+   * client render matches it), then the visitor's own year once mounted. */
+  const [year, setYear] = useState(AS_OF.getFullYear())
+  useEffect(() => setYear(new Date().getFullYear()), [])
   return (
     <footer>
       <div className="wrap">
@@ -57,7 +63,7 @@ export default function SiteFooter() {
           </div>
         </div>
         <div className="fbot">
-          <span>© 2026 The Advanced Orthogonal Institute. All rights reserved.</span>
+          <span>© {year} The Advanced Orthogonal Institute. All rights reserved.</span>
           <span>Home of the Advanced Orthogonal technique.</span>
         </div>
       </div>

@@ -11,6 +11,9 @@ export type Article = {
   img: string
   date: string
   title: string
+  /** A shorter title for the browser tab and search results, when `title`
+   *  runs past what a search result shows. The page still shows `title`. */
+  seoTitle?: string
   ex: string
   body: string
 }
@@ -19,7 +22,7 @@ export const ARTICLES = [
   {id:'a1', cat:'RESEARCH', img:'ph-c', date:'JULY 2026', title:'X-Ray Reliability: What the Research Actually Says',
    ex:'A 1998 JMPT study found line drawings for X-ray displacement reach ICCs of 0.8–0.9 — higher than locating pathology itself.',
    body:'<p>There is a common misconception in the chiropractic community that measuring osseous displacement on X-ray is unreliable, and radiographs should only be taken to assess pathology.</p><p>However, a 1998 study published in the Journal of Manipulative and Physiological Therapeutics showed that interclass correlation coefficients (ICC) for locating pathology on X-ray was only 0.4–0.75, while line drawings for X-ray displacement had ICC\'s in the 0.8–0.9 range.</p><p>Many chiropractic schools also suggest digital palpation is all you need to determine where a patient needs to be adjusted. Despite these teachings, static and motion palpation repeatedly shows below average to poor intra-examiner reliability in the published research. Trained Advanced Orthogonal doctors utilize clinical procedures that promote the highest degree of intra and inter examiner reliability.</p>'},
-  {id:'a2', cat:'TECHNIQUE', img:'ph-b', date:'JULY 2026', title:'Corrections, Not Adjustments: The Sustainable Corrections Model',
+  {id:'a2', cat:'TECHNIQUE', img:'ph-b', date:'JULY 2026', title:'Corrections, Not Adjustments: The Sustainable Corrections Model', seoTitle:'Corrections, Not Adjustments: Sustainable Corrections',
    ex:'Why accurate upper cervical correction can normalize postural reflex loops and stabilize spinal structures.',
    body:'<p>It has become accepted in the chiropractic profession that the adjustment itself only produces a transient correction. It is expected that patients will need frequent adjusting in their initial care, and continued adjusting throughout their lifetime.</p><p>Advanced Orthogonal chiropractic teaches the concept of sustainable corrections. Accurate correction of the upper cervical spine normalizes postural reflex loops, which allow the body to permanently stabilize spinal structures, often without the need for specific exercises or physical therapy modalities.</p><p>Many Advanced Orthogonal patients have shown marked reduction in thoracolumbar scoliosis curves, and mid and low back pain conditions consistently respond favorably as a byproduct of this upper cervical correction.</p>'},
   {id:'a3', cat:'PHYSICS', img:'ph-a', date:'JUNE 2026', title:'How a Percussive Sound Wave Corrects the Atlas',

@@ -4,6 +4,8 @@
  * school approvals our preceptors hold with it (written on the Internships
  * tab, read here).
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
+import { SafeLink, askConfirm } from './opsUi'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -18,8 +20,8 @@ import { PersonCard } from './InternshipsPanel'
 function Pill({ kind = '', children }: { kind?: string; children: React.ReactNode }) { return <span className={`cpill ${kind}`}>{children}</span> }
 function F({ l, children, full = false }: { l: string; children: React.ReactNode; full?: boolean }) { return <div className={full ? 'full' : ''}><label className="flabel">{l}</label>{children}</div> }
 function friendly(err: string): string {
-  if (/row-level security/.test(err)) return 'The database did not allow that — only the executive director and board can change college records.'
-  return 'The database refused the change: ' + err.slice(0, 160)
+  if (/row-level security/.test(err)) return 'You don’t have permission for that. Only the executive director and board can change college records.'
+  return friendlyError(err)
 }
 function useEsc(onClose: () => void) { useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose]) }
 const partnerPill = (c: College) => c.active_partnership ? <Pill kind="ok">{c.partnership_type === 'teaching' ? 'Teaching' : 'Visiting'}</Pill> : null
@@ -39,7 +41,7 @@ export default function CollegesPanel() {
 
   const load = useCallback(async () => {
     const r = await loadColleges()
-    setError(r.error ? `The college list could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The college list could not be read. ${friendlyError(r.error)}` : null)
     setRows(r.rows); setLoading(false)
     void collegeCounts().then(setCounts)
   }, [])
@@ -78,7 +80,7 @@ export default function CollegesPanel() {
       <div className="bpanel"><div className="ph">{filter === 'partners' ? 'Active partnerships' : filter === 'all' ? 'All colleges' : filter === 'usa' ? 'United States' : 'International'}<span className="r">{list.length} shown · click a school for its card</span></div>
         {list.length ? list.map((c) => { const ap = counts?.approvals.get(c.id); const pp = counts?.people.get(c.id); return <div key={c.id} className="isite">
           <div><button type="button" className="pname" onClick={() => setCard(c)}>{c.name}</button> {c.accreditation && <Pill>{c.accreditation}</Pill>}{partnerPill(c)}
-            <div className="addr">{[c.city, c.state, c.country].filter(Boolean).join(', ')}{c.phone ? ` · ${c.phone}` : ''}{c.website ? <> · <a href={c.website} target="_blank" rel="noopener noreferrer">{webHost(c.website)}</a></> : null}</div>
+            <div className="addr">{[c.city, c.state, c.country].filter(Boolean).join(', ')}{c.phone ? ` · ${c.phone}` : ''}{c.website ? <> · <SafeLink href={c.website}>{webHost(c.website)}</SafeLink></> : null}</div>
             {(ap || pp) && <div className="who">{ap && <Pill kind={ap.active ? 'ok' : 'warn'}>{ap.active} preceptor{ap.active === 1 ? '' : 's'} approved{ap.other ? ` · ${ap.other} pending/lapsed` : ''}</Pill>}{pp?.students ? <Pill kind="info">{pp.students} student{pp.students === 1 ? '' : 's'} in training</Pill> : null}{pp?.leads ? <Pill>{pp.leads} other lead{pp.leads === 1 ? '' : 's'}</Pill> : null}</div>}
           </div><div className="cnts" /></div> }) : <div className="bnodata">No colleges match.</div>}
       </div>
@@ -113,15 +115,15 @@ function CollegeCard({ c, precs, sites, ints, canManage, onClose, onEdit, onOpen
           <button type="button" className="x" onClick={onClose} aria-label="Close">×</button></div>
         <div className="ctc-body">
           <div className="sec">Location &amp; contact</div>
-          <div className="kv"><span>Address</span><div>{[c.address, c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}</div>{c.phone && <><span>Phone</span><div>{c.phone}</div></>}{c.website && <><span>Website</span><div><a href={c.website} target="_blank" rel="noopener noreferrer">{webHost(c.website)}</a></div></>}<span>Partnership</span><div>{partnerText(c)}</div></div>
+          <div className="kv"><span>Address</span><div>{[c.address, c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}</div>{c.phone && <><span>Phone</span><div>{c.phone}</div></>}{c.website && <><span>Website</span><div><SafeLink href={c.website}>{webHost(c.website)}</SafeLink></div></>}<span>Partnership</span><div>{partnerText(c)}</div></div>
 
           <div className="sec">Our contact / instructor <span className="r">our people who are the liaison here</span></div>
-          {ours.length ? ours.map((x) => <div key={x.id} className="il"><span>{x.people ? <button type="button" className="plink" onClick={() => onOpenPerson(x.people!)}>{fullName(x.people)}</button> : <b>{x.name}</b>} <small>· {x.role ?? ''}</small></span>{canManage && <button type="button" className="link" onClick={async () => { if (!confirm('Remove this contact from the school?')) return; const r = await removeContact(x.id); if (r.error) return toast(friendly(r.error)); void reload() }}>remove</button>}</div>) : <div className="il"><i>No liaison recorded yet</i></div>}
+          {ours.length ? ours.map((x) => <div key={x.id} className="il"><span>{x.people ? <button type="button" className="plink" onClick={() => onOpenPerson(x.people!)}>{fullName(x.people)}</button> : <b>{x.name}</b>} <small>· {x.role ?? ''}</small></span>{canManage && <button type="button" className="link" onClick={async () => { if (!(await askConfirm('Remove this contact from the school?', { ok: 'Remove', danger: true }))) return; const r = await removeContact(x.id); if (r.error) return toast(friendly(r.error)); void reload() }}>remove</button>}</div>) : <div className="il"><i>No liaison recorded yet</i></div>}
           {canManage && adding !== 'ours' && <div className="ctc-noteform" style={{ marginTop: 8 }}><div className="r" style={{ justifyContent: 'flex-start' }}><button type="button" className="b s-btn on-light sm" onClick={() => setAdding('ours')}>+ Add our contact (from Contacts)</button></div></div>}
           {adding === 'ours' && <OurContactForm collegeId={c.id} onDone={(m) => { setAdding(null); if (m) toast(m); void reload() }} />}
 
           <div className="sec">School contact points <span className="r">the school's own people</span></div>
-          {theirs.length ? theirs.map((x) => <div key={x.id} className="il"><span><b>{x.name}</b> <small>· {[x.role, x.email, x.phone].filter(Boolean).join(' · ')}</small></span><span>{x.is_keystone && <Pill kind="gold">Keystone</Pill>}{x.is_instructor && <Pill>Instructor</Pill>}{canManage && <button type="button" className="link" style={{ marginLeft: 8 }} onClick={async () => { if (!confirm('Remove this school contact?')) return; const r = await removeContact(x.id); if (r.error) return toast(friendly(r.error)); void reload() }}>remove</button>}</span></div>) : <div className="il"><i>None recorded yet</i></div>}
+          {theirs.length ? theirs.map((x) => <div key={x.id} className="il"><span><b>{x.name}</b> <small>· {[x.role, x.email, x.phone].filter(Boolean).join(' · ')}</small></span><span>{x.is_keystone && <Pill kind="gold">Keystone</Pill>}{x.is_instructor && <Pill>Instructor</Pill>}{canManage && <button type="button" className="link" style={{ marginLeft: 8 }} onClick={async () => { if (!(await askConfirm('Remove this school contact?', { ok: 'Remove', danger: true }))) return; const r = await removeContact(x.id); if (r.error) return toast(friendly(r.error)); void reload() }}>remove</button>}</span></div>) : <div className="il"><i>None recorded yet</i></div>}
           {canManage && adding !== 'theirs' && <div className="ctc-noteform" style={{ marginTop: 8 }}><div className="r" style={{ justifyContent: 'flex-start' }}><button type="button" className="b s-btn on-light sm" onClick={() => setAdding('theirs')}>+ Add school contact</button></div></div>}
           {adding === 'theirs' && <SchoolContactForm collegeId={c.id} onDone={(m) => { setAdding(null); if (m) toast(m); void reload() }} />}
 

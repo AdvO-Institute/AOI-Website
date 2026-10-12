@@ -4,12 +4,13 @@
  *   gold  – a person's highest certification (and keystone events)
  *   cert  – any other certification level (blue)
  *   (none)– who someone is or where they are: roles, committees, schools
+ *   leader– a leadership role: Executive Director, Director, Chair (navy)
  *   ok    – done / filed / paid / current
  *   warn  – draft / pending / expiring / urgent
  *   bad   – missing / overdue / cancelled / lapsed
  * -------------------------------------------------------------------------- */
 
-export type ChipKind = '' | 'gold' | 'cert' | 'ok' | 'warn' | 'bad'
+export type ChipKind = '' | 'gold' | 'cert' | 'leader' | 'ok' | 'warn' | 'bad'
 export type Chip = { key: string; kind: ChipKind; label: string; title?: string }
 
 /** Level keys → how the Institute says them. */
@@ -45,6 +46,10 @@ export const ROLE_TITLE: Record<string, string> = {
   committee_member: 'Member',
   instructor: 'Instructor',
 }
+/** Roles that lead the Institute; their chips are navy ('leader'), never gold. */
+export const LEADER_ROLES = new Set(['executive_director', 'board_member', 'committee_chair'])
+/** The chip class for a role: 'cpill leader' for leadership roles, plain 'cpill' otherwise. */
+export const roleChipClass = (roleKey: string) => (LEADER_ROLES.has(roleKey) ? 'cpill leader' : 'cpill')
 export const INSTRUCTOR_TITLE: Record<string, string> = { instructor: 'Instructor', level_1: 'Instructor', level_2: 'Senior Instructor', senior_instructor: 'Senior Instructor' }
 
 type CertLike = { id?: number; technique: string | null; level: string | null }

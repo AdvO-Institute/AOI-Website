@@ -58,16 +58,17 @@ review, no undo. They belong to the Executive Director.
 npm install          # once
 npm run build        # prerenders every route; fails if a page loses its metadata
 npm run serve        # preview the built site at http://localhost:4173
-npx tsc --noEmit -p tsconfig.json --ignoreDeprecations 6.0   # type check
+npx tsc --noEmit -p tsconfig.json   # type check
 ```
 
 - `npm run build` must pass before a pull request. `verify-prerender.mjs` is part
   of it and is the gate that keeps pages readable to crawlers that never run
   JavaScript.
-- The type check reports a set of pre-existing errors in files nobody has touched
-  (TS7026, TS7006, TS7016, TS2503, TS7031, and missing `key` props). Do not
-  "fix" those in an unrelated pull request. Any *new* error in a file you edited
-  is yours.
+- The type check must be clean: zero errors. The GitHub Action in
+  `.github/workflows/check.yml` runs the build and the type check on every pull
+  request, so an error in a file you edited is yours to fix before review.
+- `package-lock.json` is committed so every build installs the same versions.
+  Commit it whenever `package.json` changes.
 - `tools/preview/*-harness.mjs` build standalone pages that render one members-area
   panel against sample data, for screenshots without a login.
 
@@ -81,8 +82,9 @@ npx tsc --noEmit -p tsconfig.json --ignoreDeprecations 6.0   # type check
 - Person and status chips use the `.cpill` classes and the helpers in
   `src/lib/chips.ts`. Gold is reserved for a person's highest certification.
 - Emails all render through `supabase/functions/_email/email.ts` (the "Obsidian"
-  layout). Copies of it live in each function folder that sends mail; keep them
-  identical.
+  layout). It is meant to be copied into each function folder that sends mail,
+  and the copies kept identical; no copies are in the repo yet (see
+  `OPERATIONS-TODO.md`).
 - Write for the reader, not the system: "Members awaiting RSVP", not
   "unconfirmed registrations".
 

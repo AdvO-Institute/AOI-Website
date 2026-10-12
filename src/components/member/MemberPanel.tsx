@@ -33,12 +33,11 @@ import CalendarPanel from './CalendarPanel'
 import StatsPanel from './StatsPanel'
 import RecordsPanel from './RecordsPanel'
 import ControlPanel from './ControlPanel'
+import VaultPanel from './VaultPanel'
+import PhotoCard from './PhotoCard'
+import { fmtDate } from '@/lib/dates'
 
-const date = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
-
-const money = (cents?: number) =>
-  cents === undefined || cents === null ? '—' : `$${(Math.round(cents) / 100).toLocaleString()}`
+const date = (iso?: string | null) => fmtDate(iso) || '—'
 
 function Row({ title, detail, right }: { title: string; detail: string; right?: React.ReactNode }) {
   return (
@@ -119,6 +118,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'stats') return <StatsPanel />
   if (tab === 'records') return <RecordsPanel />
   if (tab === 'control') return <ControlPanel />
+  if (tab === 'vault') return <VaultPanel />
 
   if (PENDING[tab]) {
     return (
@@ -145,7 +145,8 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
     const p = access.person
     return (
       <Panel title="Membership" lede={TIER_LABEL[access.tier]}>
-        <Row title="Status" detail={p?.membership_status ?? 'Not a member yet'} />
+        <PhotoCard />
+        <Row title="Status" detail={p?.membership_status ? p.membership_status.charAt(0).toUpperCase() + p.membership_status.slice(1) : 'No membership on file'} />
         <Row title="Member since" detail={date(p?.member_since)} />
         <Row title="Renews" detail={date(p?.membership_expires)} />
         {access.tier !== 'member' && (
@@ -181,7 +182,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
               key={i}
               title={`${c.technique ?? 'Advanced Orthogonal'} — ${c.level === 'level_2' ? 'Level 2' : c.level === 'level_1' ? 'Level 1' : (c.level ?? '—')}`}
               detail={`Certified ${date(c.cert_date)}${c.certificate_number ? ` · ${c.certificate_number}` : ''}`}
-              right={<span className="pillst st-free">ACTIVE</span>}
+              right={<span className="cpill ok">ACTIVE</span>}
             />
           ))
         )}
@@ -246,7 +247,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
     return (
       <Panel title="Board" lede="Terms, offices and elections.">
         {rows.length === 0 ? (
-          <p className="ma-empty">No board service records visible to you.</p>
+          <p className="ma-empty">No board terms to show.</p>
         ) : (
           rows.map((r) => (
             <Row
@@ -254,7 +255,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
               title={`${r.people?.first_name ?? ''} ${r.people?.last_name ?? ''}`.trim() || 'Seat'}
               detail={`${r.office ?? 'Board member'} · ${date(r.term_start)} – ${date(r.term_end)}`}
               right={
-                <span className={`pillst ${r.status === 'active' ? 'st-free' : 'st-pending'}`}>
+                <span className={`cpill ${r.status === 'active' ? 'ok' : 'warn'}`}>
                   {(r.status ?? '').toUpperCase()}
                 </span>
               }
@@ -269,9 +270,9 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'directory') {
     const rows = (data ?? []) as DirectoryPerson[]
     return (
-      <Panel title="Members" lede={`${rows.length} people you are entitled to see.`}>
+      <Panel title="Members" lede={`${rows.length} ${rows.length === 1 ? 'member' : 'members'}.`}>
         {rows.length === 0 ? (
-          <p className="ma-empty">No records visible to you.</p>
+          <p className="ma-empty">No members to show.</p>
         ) : (
           rows.slice(0, 60).map((p) => (
             <Row

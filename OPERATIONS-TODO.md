@@ -36,7 +36,10 @@ Current settings, for reference:
 - Institute notices go to `drslininger@cerebralchiropractic.com`
   (override with `NOTIFY_TO`, comma-separated)
 - Email design: "Obsidian" — `supabase/functions/_email/email.ts` is the source of
-  truth; copies live in each function folder that sends mail.
+  truth and is meant to be copied into each function folder that sends mail. No
+  copies are in the repo today: the repo versions of `stripe-webhook`,
+  `confirm-checkout` and `pay-link` still build their own plain HTML. Chris to
+  confirm what the deployed functions use, and bring the repo record in line.
 
 ## Working with a second editor
 
@@ -50,8 +53,11 @@ Still open:
 
 - Add James's GitHub username to `.github/CODEOWNERS` if he should also be a
   required reviewer on payments, email or members-area code.
-- Confirm Cloudflare Pages builds a preview deployment for every pull request, so
-  a change can be seen before it is merged.
+- Previewing a change before it is merged: rather than a preview per pull
+  request, the branch being tested is mirrored to the `preview` branch
+  (`git push -f origin <branch>:preview`) and checked at
+  https://preview.advancedorthogonal.pages.dev. One fixed address, one change at
+  a time; its members area uses the live database.
 
 ## Members area
 

@@ -7,6 +7,7 @@
  * Records. Board members see every submitted report; a chair sees their own
  * committees; the reporting-status strip is what Oversight reads.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -19,7 +20,7 @@ import type { Committee, Report, ReportDoc, ReportInput, Who, CommitteeStatus } 
 import { boardMeetings, currentCycle, previousCycle, cycleForMonth, monthLabel, fmtD, daysUntil, dayET } from '@/lib/queries/meetings'
 import type { Meeting, Cycle } from '@/lib/queries/meetings'
 import { logActivity } from '@/lib/queries/attention'
-import { Pill, Modal, Head, Sec, friendly } from './opsUi'
+import { Pill, Modal, Head, Sec, friendly, askConfirm } from './opsUi'
 import { isCommittee } from '@/lib/nav'
 
 export default function ReportsPanel({ committee }: { committee?: string } = {}) {
@@ -37,7 +38,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
 
   const load = useCallback(async () => {
     const [c, r, m, d] = await Promise.all([loadCommittees(), loadReports(), boardMeetings(), reportDocs()])
-    setError(r.error ? `The reports could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The reports could not be read. ${friendlyError(r.error)}` : null)
     setComs(c); setRows(r.rows); setMeetings(m); setDocs(d); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
@@ -54,7 +55,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
   if (loading) return <><h1>Reports</h1><div className="ma-sub">Reading the committee reports…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
 
   // opened from a committee the database does not have yet: say so rather than show every committee
-  if (committee && !coms.some((x) => isCommittee(x, committee))) return <><h1>Reports</h1><div className="ma-sub">This committee is not set up in the database yet.</div><div className="ma-panel"><p className="ma-empty">Once the Executive Director adds it, its monthly reports will appear here.</p></div></>
+  if (committee && !coms.some((x) => isCommittee(x, committee))) return <><h1>Reports</h1><div className="ma-sub">This committee hasn’t been set up yet.</div><div className="ma-panel"><p className="ma-empty">Once the Executive Director adds it, its monthly reports will appear here.</p></div></>
 
   const inView = com === 'all' ? visible : visible.filter((c) => c.id === com)
   const status = statusFor(coms, rows, cycle.reportMonth)
@@ -176,7 +177,7 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
     }
     const u = await uploadReportDoc(rep, committee, kind, title, file, who)
     setUploading(null)
-    if (u.error) return toast('Upload failed: ' + u.error.slice(0, 160))
+    if (u.error) return toast('The upload failed. ' + friendlyError(u.error))
     await onReload(); toast(`${title} attached`)
   }
   const cyc = meetings.length ? cycleForMonth(ym, meetings).meetingDate : null
@@ -190,9 +191,9 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
       <div className="fsec">Narrative</div>
       <div className="cert-grid mform" style={{ gridTemplateColumns: '1fr' }}>{t.texts.map(([k, l]) => <div key={k}><label className="flabel">{l}</label><textarea className="fi" value={v.texts[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, texts: { ...v.texts, [k]: e.target.value } })} /></div>)}</div>
       {t.docs && <><div className="fsec">Documents <span className="r">PDF from QuickBooks · stored in Records → Financials</span></div>
-        <div className="rdocs">{t.docs.map(([k, l]) => { const have = docs.filter((d) => d.kind === k); return <div key={k} className="rdocslot"><b>{l}</b>{have.map((d) => <div key={d.id} className="rdocrow"><button type="button" className="link" onClick={async () => { if (!d.storage_path) return; const u = await docUrl(d.storage_path); if (u) window.open(u, '_blank', 'noopener') }}>📄 {d.file_name}</button>{!locked && <button type="button" className="x" aria-label="Remove" onClick={async () => { if (!confirm('Remove this document?')) return; const r = await removeDoc(d); if (r.error) return toast(friendly(r.error)); await onReload() }}>×</button>}</div>)}{!locked && <label className="b s-btn on-light xs" style={{ cursor: 'pointer' }}>{uploading === k ? 'Uploading…' : have.length ? '+ Replace / add' : '+ Upload PDF'}<input type="file" accept="application/pdf,image/*" hidden disabled={!!uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(k, l.replace(/\s*\(.*\)$/, ''), f); e.target.value = '' }} /></label>}</div> })}</div></>}
+        <div className="rdocs">{t.docs.map(([k, l]) => { const have = docs.filter((d) => d.kind === k); return <div key={k} className="rdocslot"><b>{l}</b>{have.map((d) => <div key={d.id} className="rdocrow"><button type="button" className="link" onClick={async () => { if (!d.storage_path) return; const u = await docUrl(d.storage_path); if (u) window.open(u, '_blank', 'noopener') }}>📄 {d.file_name}</button>{!locked && <button type="button" className="x" aria-label="Remove" onClick={async () => { if (!(await askConfirm('Remove this document?', { ok: 'Remove', danger: true }))) return; const r = await removeDoc(d); if (r.error) return toast(friendly(r.error)); await onReload() }}>×</button>}</div>)}{!locked && <label className="b s-btn on-light xs" style={{ cursor: 'pointer' }}>{uploading === k ? 'Uploading…' : have.length ? '+ Replace / add' : '+ Upload PDF'}<input type="file" accept="application/pdf,image/*" hidden disabled={!!uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(k, l.replace(/\s*\(.*\)$/, ''), f); e.target.value = '' }} /></label>}</div> })}</div></>}
     </div>
-    <div className="mf evt-foot"><span>{savedReport?.status === 'draft' && !locked && <button type="button" className="b d-btn sm" onClick={async () => { if (!confirm('Discard this draft?')) return; const r = await discardDraft(savedReport.id); if (r.error) return toast(friendly(r.error)); onSaved('Draft discarded') }}>Discard draft</button>}</span>
+    <div className="mf evt-foot"><span>{savedReport?.status === 'draft' && !locked && <button type="button" className="b d-btn sm" onClick={async () => { if (!(await askConfirm('Discard this draft?', { body: 'This cannot be undone.', ok: 'Discard', danger: true }))) return; const r = await discardDraft(savedReport.id); if (r.error) return toast(friendly(r.error)); onSaved('Draft discarded') }}>Discard draft</button>}</span>
       <span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button>
         {!locked && savedReport?.status !== 'submitted' && <button type="button" className="b s-btn on-light sm" disabled={!!saving} onClick={() => void save('draft')}>{saving === 'draft' ? 'Saving…' : 'Save progress'}</button>}
         {!locked && <button type="button" className="b p-btn sm" disabled={!!saving} onClick={() => void save('submitted')}>{saving === 'submitted' ? 'Submitting…' : savedReport?.status === 'submitted' ? 'Save changes' : 'Submit report'}</button>}</span></div>

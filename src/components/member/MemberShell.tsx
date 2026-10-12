@@ -13,7 +13,8 @@ import { useAccess } from '@/lib/queries/AccessProvider'
 import { navFor, findNav, railKey, isCommittee, FOLDS, GROUP_LABEL } from '@/lib/nav'
 import type { NavGroup } from '@/lib/nav'
 import { roleLabel } from '@/lib/access'
-import { session } from '@/lib/supabase'
+import { roleChipClass } from '@/lib/chips'
+import { session, signOut } from '@/lib/supabase'
 import { attention, EMPTY, markEventsSeen, logSignInOnce, logActivity } from '@/lib/queries/attention'
 import type { Attention } from '@/lib/queries/attention'
 import MemberPanel from './MemberPanel'
@@ -21,8 +22,38 @@ import Overview from './Overview'
 
 const RAIL_KEY = 'aoi-rail-open'
 
+/** Waits for access to be settled before the shell draws anything that depends
+ *  on who this is. Until then — the first read in flight, or failed — a neutral
+ *  frame of the same shape holds the spot, so a Director never sees the
+ *  plain-member rail and a member never sees the sign-in card (#103). */
 export default function MemberShell() {
-  const { access } = useAccess()
+  const { ready, loading, error, refresh } = useAccess()
+  if (ready) return <Shell />
+  return (
+    <div className="ma">
+      <div className="ma-railwrap">
+        <button type="button" className="ma-railbtn" disabled>
+          <span className="lbl">Menu</span>
+          <b>Overview</b>
+        </button>
+        <nav id="ma-rail" className="ma-rail" aria-hidden="true" />
+      </div>
+      <main className="ma-main" aria-busy={loading || undefined}>
+        <h1>Member Area</h1>
+        <p className="ma-empty" role="status">{error ?? 'Checking your access…'}</p>
+        {error && (
+          <p className="ma-access-note">
+            <button type="button" onClick={() => void refresh()}>Try again</button>
+            <button type="button" onClick={() => { void signOut(); void refresh() }}>Sign out</button>
+          </p>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function Shell() {
+  const { access, error, refresh } = useAccess()
   const navigate = useNavigate()
   const { hash } = useLocation()
   const groups = navFor(access)
@@ -137,6 +168,12 @@ export default function MemberShell() {
         </div>
 
         <main className="ma-main">
+          {error && (
+            <p className="ma-access-note" role="status">
+              {error}
+              <button type="button" onClick={() => void refresh()}>Try again</button>
+            </p>
+          )}
           {tabs.length > 1 && (
             <nav className="ma-tabs" aria-label={findNav(here)?.label}>
               {tabs.map((t) => (
@@ -160,23 +197,21 @@ export default function MemberShell() {
 /** The person's roles, as chips. Shown on Overview. */
 export function RoleChips() {
   const { access } = useAccess()
-  const gold = new Set(['executive_director', 'board_member', 'committee_chair', 'research_director'])
+  // Roles are neutral chips and leadership roles navy; gold is kept for a
+  // person's highest certification (see src/lib/chips.ts).
   return (
     <div className="ma-chips">
-      {access.tier === 'member' && <span className="rolechip gold">AOI MEMBER</span>}
-      {access.tier === 'student' && <span className="rolechip">STUDENT</span>}
-      {access.tier === 'expired' && <span className="rolechip">MEMBERSHIP EXPIRED</span>}
+      {access.tier === 'member' && <span className="cpill">AOI MEMBER</span>}
+      {access.tier === 'student' && <span className="cpill">STUDENT</span>}
+      {access.tier === 'expired' && <span className="cpill bad">MEMBERSHIP EXPIRED</span>}
       {access.roles
         .filter((r) => !r.role_key.startsWith('past_'))
         .map((role) => (
-          <span
-            className={`rolechip${gold.has(role.role_key) ? ' gold' : ''}`}
-            key={`${role.role_key}-${role.committee_id ?? ''}`}
-          >
+          <span className={roleChipClass(role.role_key)} key={`${role.role_key}-${role.committee_id ?? ''}`}>
             {roleLabel(role).toUpperCase()}
           </span>
         ))}
-      {access.staff_role === 'administrator' && <span className="rolechip gold">ADMINISTRATOR</span>}
+      {access.staff_role === 'administrator' && <span className="cpill">ADMINISTRATOR</span>}
     </div>
   )
 }

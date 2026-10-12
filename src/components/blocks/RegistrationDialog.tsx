@@ -21,6 +21,7 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from '@/lib/router'
+import { refundLine } from '@/lib/refund'
 import { SEMINARS } from '@/content/seminars'
 import { session, select, invoke } from '@/lib/supabase'
 import { useCatalog } from '@/lib/queries/CatalogProvider'
@@ -117,7 +118,7 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
   const [signedInName, setSignedInName] = useState('')
   const [wantCE, setWantCE] = useState(false)
   const ref = useRef<HTMLDialogElement>(null)
-  const { access } = useAccess()
+  const { access, loading } = useAccess()
   const navigate = useNavigate()
   const catalog = useCatalog()
 
@@ -185,6 +186,33 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
   const ceOffered = overlay?.event?.ce_credits === true
   const cePrice = Number(overlay?.event?.ce_price ?? 0)
   const ceHours = String(overlay?.event?.ce_mode ?? '').split('·')[0]?.trim() || ''
+
+  /* What membership is worth on this event, from the live catalog with the
+   * content module as the fallback. Nothing to say (a free course, an
+   * internship) means no strip at all. */
+  const fullPrice = overlay?.fullPrice ?? seminar?.fullPrice ?? 0
+  const memPrice = overlay?.memPrice ?? seminar?.memPrice ?? fullPrice
+  const memberSaves = fullPrice > 0 && memPrice >= 0 ? fullPrice - memPrice : 0
+  const memberStrip =
+    freeWithMembership && fullPrice > 0
+      ? 'Members attend free — sign in for your seat'
+      : memberSaves > 0
+        ? `Members save $${memberSaves.toLocaleString()} on this seminar`
+        : null
+
+  /* States the visitor should see before typing anything, judged the same
+   * way `submit` judges them. Before the catalog has answered, the event is
+   * given the benefit of the doubt so the form is not hidden for a moment. */
+  const notice: 'apply' | 'sold_out' | 'not_open' | null =
+    seminar?.cat === 'internship'
+      ? 'apply'
+      : overlay?.soldOut
+        ? 'sold_out'
+        : overlay
+          ? (!overlay.id || !overlay.open ? 'not_open' : null)
+          : catalog.synced
+            ? 'not_open'
+            : null
 
   /** Tiers offered for this event, preferring live database configuration. */
   const tiers: Tier[] = useMemo(() => {
@@ -315,7 +343,31 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
   }
 
   const signedIn = Boolean(session.token)
+  /* Signed in, membership not yet known: show neither price nor RSVP until it is. */
+  const checking = signedIn && loading
   const badField = (f: string) => (error?.fields.includes(f) ? ' err' : '')
+
+  const goTo = (path: string) => {
+    close()
+    navigate(path)
+  }
+  const NOTICE = {
+    apply: {
+      h: 'This program is by application',
+      p: 'Internship placements are matched by the Institute to your stage of training and preferred region. Tell us about yourself and we will be in touch.',
+      btn: 'Contact the Institute',
+    },
+    sold_out: {
+      h: 'This session is sold out',
+      p: 'Every seat is taken. Ask to join the waiting list and we will let you know the moment one opens up.',
+      btn: 'Join the Waiting List',
+    },
+    not_open: {
+      h: 'Registration opens soon',
+      p: 'Registration for this event is not open yet. Tell us you are interested and we will let you know the moment it is.',
+      btn: 'Notify Me',
+    },
+  } as const
 
   return (
     <RegistrationContext.Provider value={value}>
@@ -383,6 +435,38 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
                     </button>
                   </div>
                 </div>
+              ) : notice ? (
+                <div className="reg-int">
+                  <div className="reg-int-ic">
+                    <svg
+                      width="26"
+                      height="26"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-brand-primary)"
+                      strokeWidth="2"
+                    >
+                      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+                      <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+                    </svg>
+                  </div>
+                  <h3>{NOTICE[notice].h}</h3>
+                  <p>{NOTICE[notice].p}</p>
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="b p-btn"
+                      style={{ justifyContent: 'center' }}
+                      onClick={() => goTo('/contact')}
+                    >
+                      {NOTICE[notice].btn}
+                    </button>
+                  </div>
+                </div>
+              ) : checking ? (
+                <div className="reg-auth" aria-live="polite">
+                  <span>Checking your membership…</span>
+                </div>
               ) : (
                 <form
                   onSubmit={(e) => {
@@ -428,22 +512,19 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
                         Signed in as <b>{signedInName}</b> — member pricing applies automatically.
                       </span>
                     </div>
-                  ) : (
+                  ) : memberStrip ? (
                     <div className="reg-strip">
-                      <span>Members save $200 on every Intensive and $600 on Bootcamp</span>
+                      <span>{memberStrip}</span>
                       <button
                         type="button"
                         className="b sm s-btn on-light"
                         style={{ padding: '8px 14px', fontSize: '10.5px' }}
-                        onClick={() => {
-                          close()
-                          navigate('/account')
-                        }}
+                        onClick={() => goTo('/account')}
                       >
                         Sign In
                       </button>
                     </div>
-                  )}
+                  ) : null}
 
                   {!rsvpMode && tiers.length > 1 && (
                     <fieldset className="reg-fieldset">
@@ -548,6 +629,7 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
                   {(!rsvpMode || wantCE) && (
                     <p className="reg-fineprint">
                       Payments are processed by Stripe. Card details never touch this site.
+                      {!rsvpMode && <> {refundLine(overlay?.event?.starts_at)}</>}
                     </p>
                   )}
                 </form>

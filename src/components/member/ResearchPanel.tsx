@@ -4,6 +4,8 @@
  * funding against budget with the grant & expense ledger, the overview,
  * publication details and outcomes.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
+import { SafeLink, askConfirm } from './opsUi'
 import { useCallback, useEffect, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -19,8 +21,8 @@ function Pill({ kind = '', children }: { kind?: string; children: React.ReactNod
 function F({ l, children, full = false, hint }: { l: string; children: React.ReactNode; full?: boolean; hint?: string }) { return <div className={full ? 'full' : ''}><label className="flabel">{l}</label>{children}{hint && <div className="evt-hint">{hint}</div>}</div> }
 function useEsc(onClose: () => void) { useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose]) }
 function friendly(err: string): string {
-  if (/row-level security/.test(err)) return 'The database did not allow that — only the executive director and the Research Director can change research records.'
-  return 'The database refused the change: ' + err.slice(0, 160)
+  if (/row-level security/.test(err)) return 'You don’t have permission for that. Only the executive director and the Research Director can change research records.'
+  return friendlyError(err)
 }
 const host = (u: string) => u.replace(/^https?:\/\//, '').replace(/\/$/, '')
 
@@ -36,7 +38,7 @@ export default function ResearchPanel() {
 
   const load = useCallback(async () => {
     const r = await loadProjects()
-    setError(r.error ? `The research projects could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The research projects could not be read. ${friendlyError(r.error)}` : null)
     setRows(r.rows); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
@@ -66,20 +68,20 @@ export default function ResearchPanel() {
         {cos.length > 0 && <><span>Co-investigators</span><div>{cos.map((m, i) => <span key={m.id ?? i}>{i > 0 ? ', ' : ''}{link(m)}</span>)}</div></>}
         {others.length > 0 && <><span>Team</span><div>{others.map((m, i) => <div key={m.id ?? i}>{link(m)} <small style={{ color: 'var(--color-content-muted)' }}>· {ROLE_LABEL[m.role]}</small></div>)}</div></>}
         {p.primary_location && <><span>Primary location</span><div>{p.primary_location}</div></>}
-        {p.study_url && <><span>Study site</span><div><a href={p.study_url} target="_blank" rel="noopener noreferrer">{host(p.study_url)}</a></div></>}
+        {p.study_url && <><span>Study site</span><div><SafeLink href={p.study_url}>{host(p.study_url)}</SafeLink></div></>}
       </div>
       <div className="rfund"><div className="rfl"><span><b>{money(funded(p))}</b> funded of <b>{money(p.estimated_budget)}</b> estimated budget · {pct}%</span><span className="muted">{money(received(p))} received · {money(spent(p))} spent · {money(received(p) - spent(p))} remaining · {money(overhead(p))} overhead</span></div><div className="iprog" style={{ margin: 0 }}><i style={{ width: `${pct}%` }} /></div></div>
       {p.overview && <><div className="rsec">Overview</div><div className="rtext" style={{ whiteSpace: 'pre-line' }}>{p.overview}</div></>}
       {p.published && (p.publication_citation || p.publication_doi || p.publication_url) && <><div className="rsec">Publication</div><div className="rtext">{[
         p.publication_citation ? <span key="c">{p.publication_citation}</span> : null,
         p.publication_doi ? <a key="d" href={`https://doi.org/${p.publication_doi}`} target="_blank" rel="noopener noreferrer">doi:{p.publication_doi}</a> : null,
-        p.publication_url ? <a key="u" href={p.publication_url} target="_blank" rel="noopener noreferrer">full text</a> : null,
+        p.publication_url ? <SafeLink key="u" href={p.publication_url}>full text</SafeLink> : null,
       ].filter(Boolean).map((el, i) => <span key={i}>{i > 0 ? ' · ' : ''}{el}</span>)}</div></>}
       {p.outcomes && <><div className="rsec">Outcomes <span className="r">for the Curriculum Committee</span></div><div className="rtext" style={{ whiteSpace: 'pre-line' }}>{p.outcomes}</div></>}
       <div className="rsec"><button type="button" className="link" onClick={() => setOpenLedger((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}>{open ? '▾ Hide' : '▸ Show'} grant &amp; expense ledger · {p.research_ledger.length} {p.research_ledger.length === 1 ? 'entry' : 'entries'}</button></div>
       {open && <>
         <table className="rled"><thead><tr><th>Date</th><th>Kind</th><th>Note</th><th className="num">Amount</th><th>By</th>{canManage && <th />}</tr></thead><tbody>
-          {p.research_ledger.length ? [...p.research_ledger].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map((l) => <tr key={l.id}><td>{fmtD(l.entry_date)}</td><td><Pill kind={l.kind === 'expense' ? 'warn' : l.kind === 'overhead' ? '' : 'ok'}>{KIND_LABEL[l.kind]}</Pill></td><td>{l.note}</td><td className="num">{l.kind === 'expense' ? '−' : ''}{money(l.amount)}</td><td>{l.by_name}</td>{canManage && <td><button type="button" className="link" onClick={async () => { if (!confirm('Remove this ledger entry?')) return; const r = await removeEntry(l.id); if (r.error) return toast(friendly(r.error)); await load() }}>remove</button></td>}</tr>) : <tr><td colSpan={6} style={{ color: 'var(--color-content-muted)' }}>No entries yet.</td></tr>}</tbody></table>
+          {p.research_ledger.length ? [...p.research_ledger].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map((l) => <tr key={l.id}><td>{fmtD(l.entry_date)}</td><td><Pill kind={l.kind === 'expense' ? 'warn' : l.kind === 'overhead' ? '' : 'ok'}>{KIND_LABEL[l.kind]}</Pill></td><td>{l.note}</td><td className="num">{l.kind === 'expense' ? '−' : ''}{money(l.amount)}</td><td>{l.by_name}</td>{canManage && <td><button type="button" className="link" onClick={async () => { if (!(await askConfirm('Remove this ledger entry?', { body: 'This cannot be undone.', ok: 'Remove', danger: true }))) return; const r = await removeEntry(l.id); if (r.error) return toast(friendly(r.error)); await load() }}>remove</button></td>}</tr>) : <tr><td colSpan={6} style={{ color: 'var(--color-content-muted)' }}>No entries yet.</td></tr>}</tbody></table>
         {canManage && <div className="rledadd">
           <input className="fi" type="date" value={e.date} onChange={(ev) => setEntry((s) => ({ ...s, [p.id]: { ...e, date: ev.target.value } }))} />
           <select className="fi" value={e.kind} onChange={(ev) => setEntry((s) => ({ ...s, [p.id]: { ...e, kind: ev.target.value as Kind } }))}>{(Object.entries(KIND_LABEL) as [Kind, string][]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
@@ -185,6 +187,6 @@ function ProjectDialog({ p, onClose, onSaved, onRemoved }: { p: Project | null; 
       </>}
       <F l="Outcomes & findings — for the Curriculum Committee (P&P 3.8.5)" full><textarea className="fi" value={v.outcomes} onChange={set('outcomes')} /></F>
     </div></div>
-    <div className="mf evt-foot"><span>{p && <button type="button" className="b d-btn sm" onClick={async () => { if (!confirm('Remove this project entirely? Set it to Past instead to keep the record.')) return; const r = await removeProject(p.id); if (r.error) return toast(friendly(r.error)); onRemoved() }}>Remove project</button>}</span><span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : p ? 'Save' : 'Add project'}</button></span></div>
+    <div className="mf evt-foot"><span>{p && <button type="button" className="b d-btn sm" onClick={async () => { if (!(await askConfirm('Remove this project entirely?', { body: 'This cannot be undone. Set it to Past instead to keep the record.', ok: 'Remove project', danger: true }))) return; const r = await removeProject(p.id); if (r.error) return toast(friendly(r.error)); onRemoved() }}>Remove project</button>}</span><span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : p ? 'Save' : 'Add project'}</button></span></div>
   </div></div>
 }

@@ -12,6 +12,7 @@
  * grant what the database withholds.
  * -------------------------------------------------------------------------- */
 import { useCallback, useEffect, useState } from 'react'
+import { fmtDate } from '@/lib/dates'
 import {
   pulse, allEvents, setEventStatus, committeeSeats, instructorRegister, enquiries, openTasks,
 } from '@/lib/queries/os'
@@ -27,10 +28,7 @@ const dollars = (v: unknown) => {
   return n <= 0 ? 'Free' : `$${n.toLocaleString()}`
 }
 
-const day = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-    : '—'
+const day = (iso?: string | null) => fmtDate(iso) || '—'
 
 /* ------------------------------------------------------------------ pieces */
 

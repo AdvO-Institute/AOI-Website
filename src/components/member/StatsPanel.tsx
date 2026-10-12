@@ -6,6 +6,7 @@
  * -------------------------------------------------------------------------- */
 import { useCallback, useEffect, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
+import { fmtDate } from '@/lib/dates'
 import { useToast } from '@/components/ui/Toast'
 import { live as loadLive, list as loadList, snapshots as loadSnapshots, lockMonth, saveFinancials, money, monthShort } from '@/lib/queries/stats'
 import type { Live, Snapshot, ListRow } from '@/lib/queries/stats'
@@ -69,7 +70,7 @@ export default function StatsPanel() {
         : bars((s) => (s.cert_level1 ?? 0) + (s.cert_level2 ?? 0), 'Certified doctors over time', 'Level 1 + Level 2 · revenue appears here once the Treasurer’s first report is in')}
     </div>
     {oversight && <>
-      <div className="lockrow"><span>🔒 {curSnap ? <><b>{monthLabel(cur)}</b> snapshot written {new Date(curSnap.created_at).toLocaleString()}.</> : <><b>{monthLabel(cur)}</b> has not been locked yet — the scheduled job locks each month at 12:05 am on the 1st; lock it early if the Board needs a fixed number.</>}</span>
+      <div className="lockrow"><span>🔒 {curSnap ? <><b>{monthLabel(cur)}</b> snapshot written {fmtDate(curSnap.created_at, { time: true })}.</> : <><b>{monthLabel(cur)}</b> has not been locked yet — the scheduled job locks each month at 12:05 am on the 1st; lock it early if the Board needs a fixed number.</>}</span>
         <span className="r"><button type="button" className="b s-btn on-light sm" onClick={async () => { const r = await lockMonth(cur + '-01'); if (r.error) return toast(friendly(r.error)); await load(); toast(`${monthLabel(cur)} locked — snapshot_stats() ran`); void logActivity('write', 'stats', { action: 'lock', period: cur }) }}>{curSnap ? 'Re-lock this month' : 'Lock in this month'}</button></span></div>
       <div className="trend" style={{ marginTop: 10 }}><h4>Financial figures — entered, not computed</h4><p>Revenue, institutional overhead and expenses for {monthLabel(cur)}. The Treasurer’s report carries the detail; these go on the snapshot for the trend.</p>
         <div className="fin">{(['revenue', 'institutional_overhead', 'expenses'] as const).map((k) => <div key={k}><label className="flabel">{k === 'institutional_overhead' ? 'Institutional overhead ($)' : k[0]!.toUpperCase() + k.slice(1) + ' ($)'}</label><input className="fi" type="number" value={fin[k]} onChange={(e) => setFin({ ...fin, [k]: e.target.value })} /></div>)}

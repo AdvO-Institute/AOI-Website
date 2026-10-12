@@ -3,6 +3,7 @@
  * each stamped with name, role and time. The ED and Board manage; a chair
  * sees their committee's tasks; an assignee sees and can complete their own.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -12,7 +13,7 @@ import type { Task, Assignee, Who, TaskInput } from '@/lib/queries/tasks'
 import { committees as loadCommittees } from '@/lib/queries/reports'
 import type { Committee } from '@/lib/queries/reports'
 import { logActivity } from '@/lib/queries/attention'
-import { Pill, F, Modal, Head, Sec, friendly } from './opsUi'
+import { Pill, F, Modal, Head, Sec, friendly, askConfirm } from './opsUi'
 
 export default function TasksPanel() {
   const toast = useToast()
@@ -25,7 +26,7 @@ export default function TasksPanel() {
 
   const load = useCallback(async () => {
     const [r, c] = await Promise.all([loadTasks(), loadCommittees()])
-    setError(r.error ? `The tasks could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The tasks could not be read. ${friendlyError(r.error)}` : null)
     setRows(r.rows); setComs(c); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
@@ -57,7 +58,7 @@ export default function TasksPanel() {
       <div className="ta">
         {canManage && t.status === 'done' && !t.verified_at && <button type="button" className="b s-btn on-light xs" onClick={() => void act(verifyTask(t.id, who), 'Checked off')}>Check off</button>}
         {canManage && t.status === 'open' && <button type="button" className="b s-btn on-light xs" onClick={() => setEdit(t)}>Edit</button>}
-        {canManage && <button type="button" className="x" title="Delete" onClick={() => { if (confirm('Delete this task?')) void act(deleteTask(t.id), 'Task deleted') }}>×</button>}
+        {canManage && <button type="button" className="x" title="Delete" onClick={async () => { if (await askConfirm('Delete this task?', { body: 'This cannot be undone.', ok: 'Delete', danger: true })) void act(deleteTask(t.id), 'Task deleted') }}>×</button>}
       </div>
     </div>
   }

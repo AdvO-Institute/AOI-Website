@@ -17,7 +17,7 @@ this file.
 ## Hero
 Label: Hands-On Training · Two Days
 Subtitle: One day to learn the procedure. One day of hands-on training. Come ready to jump in and move fast.
-Button: Choose Your Intensive Weekend
+Button: Register for an Intensive
 - Understand each part of the technique quickly, step by step
 - No death by PowerPoint: about 10 hours of live demonstration and hands-on practice
 - Earn 16 CE hours through Sherman College of Chiropractic

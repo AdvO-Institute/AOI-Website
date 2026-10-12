@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from '@/lib/router'
+import { refundLine } from '@/lib/refund'
 import { invoke } from '@/lib/supabase'
+import { fmtDate } from '@/lib/dates'
 
 /* ----------------------------------------------------------------------------
  * Landing after Stripe Checkout. The visitor arrives with ?session_id=…, and
@@ -49,7 +51,7 @@ export default function ConfirmPage() {
   }, [sessionId])
 
   const paid = c && c !== 'loading' && c.status === 'paid'
-  const when = paid && c.starts_at ? new Date(c.starts_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' }) : null
+  const when = paid && c.starts_at ? fmtDate(c.starts_at, { long: true }) : null
   const amount = paid && typeof c.amount_cents === 'number' ? `$${(c.amount_cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null
 
   const headline = c === 'loading' ? 'Recording your payment…'
@@ -96,12 +98,15 @@ export default function ConfirmPage() {
               <div className="n">WHAT HAPPENS NEXT</div>
               <p>
                 Your seat is reserved and your registration is recorded with the Institute. You&apos;ll receive event
-                details and reminders by email as the date approaches. If you created or have a member login, this
-                event now appears under <b>My Profile → My Registrations</b>.
+                details and reminders by email as the date approaches. If you have a member login, this event now
+                appears in the members area under <Link to="/account#events"><b>Events</b></Link>.
               </p>
+              {paid && c.kind !== 'ce_payment' && c.reg_type !== 'member' && (
+                <p>Need to cancel? {refundLine(c.starts_at)} Members can request a cancellation from the event in the members area; everyone else, <Link to="/contact">contact us</Link>.</p>
+              )}
               <div style={{ marginTop: '18px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <Link className="b p-btn" to="/seminars">Browse More Events</Link>
-                <Link className="b s-btn on-light" to="/account">My Profile</Link>
+                <Link className="b s-btn on-light" to="/account#events">My Events</Link>
               </div>
             </div>
           </div>
