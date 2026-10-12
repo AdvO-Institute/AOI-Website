@@ -34,6 +34,7 @@ import StatsPanel from './StatsPanel'
 import RecordsPanel from './RecordsPanel'
 import ControlPanel from './ControlPanel'
 import VaultPanel from './VaultPanel'
+import OrgPanel from './OrgPanel'
 import PhotoCard from './PhotoCard'
 import { fmtDate } from '@/lib/dates'
 
@@ -67,7 +68,6 @@ const PENDING: Record<string, string> = {
   internships: 'Preceptors, interns and placements',
   research: 'Research projects and grants',
   colleges: 'College relationships and outreach',
-  org: 'Committees, chairs and reporting lines',
   email: 'Institute correspondence',
 }
 
@@ -119,6 +119,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'records') return <RecordsPanel />
   if (tab === 'control') return <ControlPanel />
   if (tab === 'vault') return <VaultPanel />
+  if (tab === 'org') return <OrgPanel />
 
   if (PENDING[tab]) {
     return (
