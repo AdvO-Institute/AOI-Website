@@ -3123,3 +3123,16 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .rnum.rrow { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 640px; margin: 8px 0; }
 .tone-in .fi, .tone-in b { color: var(--color-status-success); }
 .tone-out .fi, .tone-out b { color: var(--color-status-danger); }
+
+/* Report form: compact fields, so a whole report fits without scrolling past empty space. */
+.rform .flabel { margin: 0 0 4px; }
+.rform .fi { padding: 8px 12px; margin-bottom: 0; }
+.rform .fnum { gap: 10px 14px; }
+.rform .fnum.frow { margin-bottom: 10px; }
+.rform .fnum + .fsec, .rform .fnum.frow:last-of-type { margin-bottom: 4px; }
+.rform .auto { margin-top: 3px; line-height: 1.3; }
+.rform .cert-grid.mform > div { margin-bottom: 0; }
+.rform textarea.fi { min-height: 56px; }
+.rform .fcalc { font-family: var(--font-sans); font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; padding: 4px 0 0; color: var(--color-content-primary); }
+.rform .fcalc.neg { color: var(--color-status-danger); }
+.rform .rdocs { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
