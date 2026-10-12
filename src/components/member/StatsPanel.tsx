@@ -80,11 +80,10 @@ export default function StatsPanel() {
   const cur = dayET().slice(0, 7); const curSnap = snaps.find((s) => s.period.slice(0, 7) === cur)
 
   const [mode, setMode] = useState<Mode>('quarter')
-  // Month and quarter open on the last complete one (a period in progress has partial
-  // totals); year opens on this year so far beside last year.
-  const [period, setPeriod] = useState<Period>(() => before(periodFor('quarter', dayET().slice(0, 7))))
+  // Every view opens on the period we are in, so far, beside the one before it.
+  const [period, setPeriod] = useState<Period>(() => periodFor('quarter', dayET().slice(0, 7)))
   const [from, setFrom] = useState(addM(cur, -2)); const [to, setTo] = useState(cur)
-  const pick = (m: Mode) => { setMode(m); setPeriod(m === 'custom' ? { start: from, months: Math.max(1, span(from, to)) } : m === 'year' ? periodFor(m, cur) : before(periodFor(m, cur))) }
+  const pick = (m: Mode) => { setMode(m); setPeriod(m === 'custom' ? { start: from, months: Math.max(1, span(from, to)) } : periodFor(m, cur)) }
   const prev = before(period)
   const isNow = (p: Period) => p.start <= cur && cur <= endM(p)
   const future = period.start > cur
