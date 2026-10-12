@@ -67,6 +67,7 @@ export default function MembersPanel() {
   useEffect(() => { if (canInvite) void loginStatus().then((r) => setLogins(r?.logins ?? null)).catch(() => {}) }, [canInvite])
   const [sending, setSending] = useState<string | null>(null)
   async function rowInvite(p: Member) {
+    if (!confirm(`Email ${p.first_name} ${p.last_name} an invitation to the members area at ${p.email}?`)) return
     setSending(p.id)
     const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
     setSending(null)
@@ -76,6 +77,7 @@ export default function MembersPanel() {
   }
   async function rowReset(p: Member) {
     if (!p.email) return
+    if (!confirm(`Email ${p.first_name} ${p.last_name} a password reset link at ${p.email}?`)) return
     setSending(p.id)
     const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
     setSending(null)
