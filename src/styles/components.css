@@ -3144,3 +3144,6 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .lrow .auto { text-align: right; }
 .ledger-wrap .rnum { margin: 0; }
 @media (max-width: 640px) { .fledger-wrap, .ledger-wrap { grid-template-columns: 1fr; } .lrow { grid-template-columns: 120px minmax(0, 1fr); } }
+/* Report figures are typed, not stepped: no up/down arrows. */
+.rform input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+.rform input[type='number']::-webkit-inner-spin-button, .rform input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
