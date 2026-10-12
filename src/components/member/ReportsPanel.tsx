@@ -125,7 +125,12 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
 export function ReportBody({ r, t, docs, onDoc }: { r: Report; t: Template; docs: ReportDoc[]; onDoc?: (d: ReportDoc) => void }) {
   const open = async (d: ReportDoc) => { if (onDoc) return onDoc(d); if (!d.storage_path) return; const u = await docUrl(d.storage_path); if (u) window.open(u, '_blank', 'noopener') }
   return <>
-    {t.nums && <div className="rnum">{t.nums.map(([k, l]) => { const v = num(r, k); return <div key={k}><b>{v == null ? '—' : isMoney(l) ? money(v) : v}</b><span>{l.replace(' ($)', '')}</span></div> })}{t.net && (() => { const n = netOf(Object.fromEntries(t.nums!.map(([k]) => [k, num(r, k)])), t.net); return <div><b>{n == null ? '—' : money(n)}</b><span>{t.net[0].replace(' ($)', '')}</span></div> })()}</div>}
+    {t.nums && (() => {
+      const vals = Object.fromEntries(t.nums.map(([k]) => [k, num(r, k)]))
+      const cell = (k: string) => { if (k === 'net' && t.net) { const n = netOf(vals, t.net); return <div key={k}><b>{n == null ? '—' : money(n)}</b><span>{t.net[0].replace(' ($)', '')}</span></div> } const l = t.nums!.find(([x]) => x === k)?.[1] ?? k; const v = vals[k] ?? null; return <div key={k} className={t.tone?.[k] ? `tone-${t.tone[k]}` : ''}><b>{v == null ? '—' : isMoney(l) ? money(v) : v}</b><span>{l.replace(' ($)', '')}</span></div> }
+      const rows = t.rows ?? [[...t.nums.map(([k]) => k), ...(t.net ? ['net'] : [])]]
+      return rows.map((row, i) => <div key={i} className={`rnum${t.rows ? ' rrow' : ''}`}>{row.map(cell)}</div>)
+    })()}
     {t.lists?.map(([k, l]) => <div key={k} className="rtx"><label className="flabel">{l}</label>{(r.data?.lists?.[k] ?? []).length ? <ul className="rlist">{r.data!.lists![k]!.map((n, i) => <li key={i}>{n}</li>)}</ul> : <p><i>none</i></p>}</div>)}
     {t.texts.map(([k, l]) => r.data?.texts?.[k] ? <div key={k} className="rtx"><label className="flabel">{l}</label><p>{r.data.texts[k]}</p></div> : null)}
     {!t.texts.some(([k]) => r.data?.texts?.[k]) && r.narrative && <div className="rtx"><label className="flabel">Narrative</label><p>{r.narrative}</p></div>}
@@ -189,7 +194,15 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
     <div className="mh"><div><h3>{committee.name} · {monthLabel(ym)}</h3><p>{locked ? 'This report is locked — the Board meeting has passed. Ask the Executive Director to unlock it.' : report?.status === 'submitted' ? 'Editing a submitted report — the edit is stamped with your name and time.' : `Numbers reflect the end of ${monthLabel(ym)}${cyc ? ` · for the ${fmtD(cyc)} Board meeting` : ''}. Fields marked auto are filled from the live tabs; change them if you need to.`}</p></div><button type="button" className="x" onClick={onClose} aria-label="Close">×</button></div>
     <div className="mb rform">
       {t.nums && <><div className="fsec">Numbers <span className="r">as of month end{auto && Object.keys(auto.nums).length ? <> · <button type="button" className="link" onClick={() => void fill(true)}>refresh from the tabs</button></> : null}</span></div>
-        <div className="fnum">{t.nums.map(([k, l]) => <div key={k}><label className="flabel">{l}</label><input className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · {AUTO_SOURCE[committee.key] ?? 'live'} tab says {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]}</div>}</div>)}{t.net && <div><label className="flabel">{t.net[0]}</label><input className="fi" readOnly tabIndex={-1} value={(() => { const n = netOf(v.nums, t.net); return n == null ? '' : n.toFixed(2) })()} /><div className="auto">worked out: {t.nums.find(([k]) => k === t.net![1])?.[1].replace(' ($)', '').toLowerCase()} minus {t.nums.find(([k]) => k === t.net![2])?.[1].replace(' ($)', '').toLowerCase()}</div></div>}</div></>}
+        {(() => {
+          const cell = (k: string) => {
+            if (k === 'net' && t.net) { const n = netOf(v.nums, t.net); return <div key={k}><label className="flabel">{t.net[0]}</label><input className="fi" readOnly tabIndex={-1} value={n == null ? '' : n.toFixed(2)} /><div className="auto">worked out: {t.nums!.find(([x]) => x === t.net![1])?.[1].replace(' ($)', '').toLowerCase()} minus {t.nums!.find(([x]) => x === t.net![2])?.[1].replace(' ($)', '').toLowerCase()}</div></div> }
+            const l = t.nums!.find(([x]) => x === k)?.[1] ?? k
+            return <div key={k} className={t.tone?.[k] ? `tone-${t.tone[k]}` : ''}><label className="flabel">{l}</label><input className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · {AUTO_SOURCE[committee.key] ?? 'live'} tab says {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]}</div>}</div>
+          }
+          const rows = t.rows ?? [[...t.nums!.map(([k]) => k), ...(t.net ? ['net'] : [])]]
+          return rows.map((row, i) => <div key={i} className={`fnum${t.rows ? ' frow' : ''}`}>{row.map(cell)}</div>)
+        })()}</>}
       {t.lists && <><div className="fsec">Names <span className="r">pre-filled from the {AUTO_SOURCE[committee.key] ?? 'live'} tab · one per line</span></div>
         <div className="cert-grid mform evt-grid">{t.lists.map(([k, l]) => <div key={k}><label className="flabel">{l}{auto?.lists[k] ? <span className="ok-txt"> · auto</span> : null}</label><textarea className="fi" value={(v.lists[k] ?? []).join('\n')} disabled={locked} onChange={(e) => setV({ ...v, lists: { ...v.lists, [k]: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) } })} /></div>)}</div></>}
       <div className="fsec">Narrative</div>

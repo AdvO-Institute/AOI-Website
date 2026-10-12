@@ -3117,3 +3117,9 @@ section.ov-sec { margin-top: 28px; padding: 0; }
   .sd-tbl td, .sd-tbl th { padding: 8px 10px; }
   .sd-tbl td small { display: block; margin-left: 0; }
 }
+
+/* Report numbers laid out in fixed rows (Treasurer), and money in / money out colors. */
+.rform .fnum.frow { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 640px; margin-bottom: 10px; }
+.rnum.rrow { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 640px; margin: 8px 0; }
+.tone-in .fi, .tone-in b { color: var(--color-status-success); }
+.tone-out .fi, .tone-out b { color: var(--color-status-danger); }
