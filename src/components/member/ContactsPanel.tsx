@@ -9,6 +9,7 @@ import { SafeLink } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { inviteMember, type AccessReply } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
+import { useDensity } from '@/lib/density'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
@@ -23,6 +24,16 @@ import { INSTRUCTOR_TITLE } from '@/lib/chips'
 
 const TABS: [Tab, string][] = [['all', 'All contacts'], ['lead', 'Leads'], ['member', 'Members'], ['expired', 'Expired']]
 const fmtD = (iso?: string | null) => (iso ? new Date(iso + (iso.length === 10 ? 'T12:00:00Z' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
+
+const editIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+/** The status pill's words, for the compact rows. */
+function statusText(p: Contact): string {
+  const s = state(p)
+  if (s === 'deceased') return `Deceased${p.deceased_on ? ` · ${p.deceased_on.slice(0, 4)}` : ''}`
+  if (s === 'member') return `Member${p.membership_expires ? ` · exp ${fmtD(p.membership_expires)}` : ''}`
+  if (s === 'expired') return `Expired${p.membership_expires ? ` · ${fmtD(p.membership_expires)}` : ''}`
+  return 'Lead'
+}
 
 function Pill({ kind = '', children }: { kind?: string; children: React.ReactNode }) { return <span className={`cpill ${kind}`}>{children}</span> }
 
@@ -52,6 +63,8 @@ export default function ContactsPanel() {
   const [tech, setTech] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [edit, setEdit] = useState<Contact | 'new' | null>(null)
+  /* Compact (one row per contact) or comfortable (cards), remembered on this device; phones always get the cards. */
+  const { compact, narrow, setDensity } = useDensity('aoi.contacts.density', canEdit ? 'compact' : 'comfortable')
 
   const load = useCallback(async () => {
     const r = await everyone()
@@ -89,6 +102,17 @@ export default function ContactsPanel() {
       </article>
     )
   }
+  const line = (p: Contact) => (
+    <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} aria-label={`Open ${fullName(p)}`} onClick={() => setOpen(p.id)} onKeyDown={(k) => { if (k.key === 'Enter' && k.target === k.currentTarget) setOpen(p.id) }}>
+      <span className="n">{fullName(p)}</span>
+      <span className="w">{statusText(p)}</span>
+      <span className="w ph">{p.office_phone ?? p.mobile_phone ?? <i>—</i>}</span>
+      <span className="w">{p.email ? <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()}>{p.email}</a> : <i>—</i>}</span>
+      <span className="w">{chipsFor(p, advoLevel(p), otherCerts(p)).map((x) => x.label).join(' · ') || <i>—</i>}</span>
+      <span className="ac">{canEdit && <button type="button" className="evt-ic" title="Edit contact" aria-label={`Edit ${fullName(p)}`} onClick={(e) => { e.stopPropagation(); setEdit(p) }}>{editIcon}</button>}</span>
+    </div>
+  )
+  const table = (items: Contact[]) => <div className="mem-table ctc-table"><div className="mem-row head"><span>Name</span><span>Status</span><span>Phone</span><span>Email</span><span>Certification &amp; roles</span><span /></div>{items.map(line)}</div>
   const current = open ? rows.find((x) => x.id === open) ?? null : null
 
   return (
@@ -107,11 +131,12 @@ export default function ContactsPanel() {
         </div>
         <select className="fi" style={{ margin: 0 }} value={tech} onChange={(e) => setTech(e.target.value)} aria-label="Filter by technique"><option value="">All techniques</option>{TECHNIQUES.map((t) => <option key={t}>{t}</option>)}</select>
       </div>
-      <div className="ctc-cnt">{list.length} of {counts[tab]}{q ? ` match “${q}”` : ''}{tech ? ` · ${tech}` : ''} · alphabetical by first name</div>
+      <div className="evt-bar"><span className="cnt">{list.length} of {counts[tab]}{q ? ` match “${q}”` : ''}{tech ? ` · ${tech}` : ''} · alphabetical by first name</span>
+        {!narrow && <div className="evt-segs"><div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div></div>}</div>
       {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `No one in ${tabLabel} matches “${q}”.` : 'No one in this list.'}</div>}
-      {living.map(row)}
+      {living.length > 0 && (compact ? table(living) : living.map(row))}
       {gone.length > 0 && <div className="msec">Deceased · {gone.length}</div>}
-      {gone.map(row)}
+      {gone.length > 0 && (compact ? table(gone) : gone.map(row))}
 
       {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canRoles} onClose={() => setOpen(null)} onEdit={() => { setOpen(null); setEdit(current) }} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} comms={comms} canRoles={canRoles} me={me} meId={meId} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
