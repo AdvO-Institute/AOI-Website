@@ -138,8 +138,8 @@ export function ReportBody({ r, t, docs, onDoc }: { r: Report; t: Template; docs
           <div className="lrow in"><span>{lab(plus)}</span><b>{fig(plus)}</b></div>
           <div className="lrow out"><span>− {lab(minus)}</span><b>{fig(minus)}</b></div>
           <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : money(n)}</b></div>
+          {t.nums.map(([k]) => k).filter((k) => k !== plus && k !== minus).map((k) => <div key={k} className="lrow extra"><span>{lab(k)}</span><b>{fig(k)}</b></div>)}
         </div>
-        <div className="rnum">{plain(t.nums.map(([k]) => k).filter((k) => k !== plus && k !== minus))}</div>
       </div>
     })()}
     {t.lists?.map(([k, l]) => <div key={k} className="rtx"><label className="flabel">{l}</label>{(r.data?.lists?.[k] ?? []).length ? <ul className="rlist">{r.data!.lists![k]!.map((n, i) => <li key={i}>{n}</li>)}</ul> : <p><i>none</i></p>}</div>)}
@@ -217,8 +217,8 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
               <label className="lrow in" htmlFor={`rn-${plus}`}><span>{lab(plus)}</span><div>{input(plus)}</div></label>
               <label className="lrow out" htmlFor={`rn-${minus}`}><span>− {lab(minus)}</span><div>{input(minus)}</div></label>
               <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</b></div>
+              {t.nums!.map(([k]) => k).filter((k) => k !== plus && k !== minus).map((k) => <label key={k} className="lrow extra" htmlFor={`rn-${k}`}><span>{lab(k)}</span><div>{input(k)}</div></label>)}
             </div>
-            <div className="fnum side">{t.nums!.map(([k]) => k).filter((k) => k !== plus && k !== minus).map(field)}</div>
           </div>
         })()}</>}
       {t.lists && <><div className="fsec">Names <span className="r">pre-filled from the {AUTO_SOURCE[committee.key] ?? 'live'} tab · one per line</span></div>

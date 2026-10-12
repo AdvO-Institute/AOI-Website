@@ -3128,7 +3128,7 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .rform .rdocs { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 
 /* A worked-out figure as a sum (Treasurer): gross, minus expenses, a rule, net. */
-.fledger-wrap, .ledger-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 28px; align-items: start; margin: 4px 0 8px; }
+.fledger-wrap, .ledger-wrap { max-width: 520px; margin: 4px auto 8px; }
 .fledger, .ledger { display: grid; gap: 6px; }
 .lrow { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 12px; margin: 0; cursor: default; }
 .lrow > span { font-size: 14px; color: var(--color-content-secondary); }
@@ -3142,8 +3142,8 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .lrow.net.pos b { color: var(--color-status-success); }
 .lrow.net.neg b { color: var(--color-status-danger); }
 .lrow .auto { text-align: right; }
-.ledger-wrap .rnum { margin: 0; }
-@media (max-width: 640px) { .fledger-wrap, .ledger-wrap { grid-template-columns: 1fr; } .lrow { grid-template-columns: 120px minmax(0, 1fr); } }
+.lrow.extra { margin-top: 14px; }
+@media (max-width: 640px) { .lrow { grid-template-columns: 120px minmax(0, 1fr); } }
 /* Report figures are typed, not stepped: no up/down arrows. */
 .rform input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .rform input[type='number']::-webkit-inner-spin-button, .rform input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
