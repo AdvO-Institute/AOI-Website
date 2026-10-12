@@ -122,7 +122,7 @@ export default function ContactsPanel() {
       {gone.length > 0 && (compact ? table(gone) : gone.map(row))}
 
       {current && <PersonCard key={current.id} startEditing={openEditing} p={current} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canRoles} canInvite={canRoles} canCert={can('manage_certifications')} onClose={() => setOpen(null)} onChanged={load} />}
-      {adding && <PersonCard p={null} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canRoles} canInvite={canRoles} canCert={false} onClose={() => setAdding(false)} onChanged={load} />}
+      {adding && <PersonCard p={null} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canRoles} canInvite={canRoles} canCert={can('manage_certifications')} onClose={() => setAdding(false)} onChanged={load} />}
     </>
   )
 }

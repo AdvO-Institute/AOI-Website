@@ -151,7 +151,7 @@ export default function MembersPanel() {
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
       {current && openContact?.id === current.id && <PersonCard key={current.id} startEditing={openEditing} p={openContact} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canInvite} canInvite={canInvite} canCert={can('manage_certifications')} lastIn={lastIn(current)} onClose={() => setOpen(null)} onChanged={refreshOpen} />}
-      {adding && <PersonCard p={null} newStatus="active" comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canInvite} canInvite={canInvite} canCert={false} onClose={() => setAdding(false)} onChanged={load} />}
+      {adding && <PersonCard p={null} newStatus="active" comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canInvite} canInvite={canInvite} canCert={can('manage_certifications')} onClose={() => setAdding(false)} onChanged={load} />}
     </>
   )
 }

@@ -75,8 +75,11 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
   /* A manager's upload lands in the headshot bucket; the address is saved with the rest of the form. */
   const photoRef = useRef<HTMLInputElement>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
+  const [preview, setPreview] = useState('')
   const pickPhoto = async (file: File | undefined) => {
-    if (!file || !p) return
+    if (!file) return
+    if (!p) { setPendingPhoto(file); setPreview(URL.createObjectURL(file)); if (photoRef.current) photoRef.current.value = ''; return }
     setPhotoBusy(true)
     const r = await uploadPhotoFor(p.id, file)
     setPhotoBusy(false)
@@ -89,7 +92,7 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
   const setOffice = (i: number, patch: Partial<Office>) => setOffices((o) => o.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   const hasSeat = (k: string) => seats.some((s) => s.role_key === k)
 
-  async function save(): Promise<{ ok: true; msg: string } | { ok: false; name?: true }> {
+  async function save(): Promise<{ ok: true; msg: string; id: string } | { ok: false; name?: true }> {
     setErr(null)
     if (!v.first_name!.trim() || !v.last_name!.trim()) { setErr('First and last name are required.'); return { ok: false, name: true } }
     const dead = v.membership_status === 'deceased'
@@ -109,10 +112,16 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
     const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were not. ' + friendlyError(o.error)); return { ok: false } }
     if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were not. ' + friendlyError(r.error)); return { ok: false } } }
     if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was not. ' + friendlyError(n.error)); return { ok: false } } }
+    let photoNote = ''
+    if (!p && pendingPhoto) {
+      const up = await uploadPhotoFor(id, pendingPhoto)
+      const w = up.url ? await saveProfile(id, { photo_url: up.url }) : null
+      if (!up.url || w?.error) photoNote = ' The photo could not be uploaded; add it from their card.'
+    }
     setSaving(false)
-    return { ok: true, msg: p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.` }
+    return { ok: true, id, msg: (p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.`) + photoNote }
   }
-  return { p, canRoles, v, set, I, tq, setTq, offices, setOffices, setOffice, seats, setSeats, hasSeat, err, saving, save, reset, photoRef, photoBusy, pickPhoto }
+  return { p, canRoles, v, set, I, tq, setTq, offices, setOffices, setOffice, seats, setSeats, hasSeat, err, saving, save, reset, photoRef, photoBusy, pickPhoto, pendingPhoto, preview }
 }
 export type ContactForm = ReturnType<typeof useContactForm>
 
@@ -149,7 +158,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
   const canChange = canEdit || canCert
   const [editing, setEditing] = useState(isNew || (startEditing && canChange))
   const editP = editing && canEdit
-  const editC = editing && canCert && !isNew
+  const editC = editing && canCert
   // The certification record carries what the contact list doesn't (the level being worked toward, interest), so it is read when editing starts.
   const [rec, setRec] = useState<Person | null>(null)
   const [cv, setCv] = useState<CertForm | null>(null)
@@ -157,22 +166,27 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
   const [certErr, setCertErr] = useState<string | null>(null)
   const [certSaving, setCertSaving] = useState(false)
   useEffect(() => {
-    if (!editC || rec) return
+    if (!editC || rec || cv) return
+    if (isNew) { const x: CertForm = { level: 'none', date: '', num: '', target: '', interest: false }; setCv(x); setCv0(x); return }
     void personById(p.id).then((r) => {
       if (!r.row) { setCertErr(r.error ? friendlyError(r.error) : 'Could not read their certification record.'); return }
       const c = topCert(r.row)
       const x: CertForm = { level: (c?.level as Level) ?? 'none', date: c?.cert_date ?? '', num: c?.certificate_number ?? '', target: (r.row.target_cert_level as Level) ?? '', interest: !!r.row.cert_interest }
       setRec(r.row); setCv(x); setCv0(x)
     })
-  }, [editC, rec, p.id])
+  }, [editC, rec, cv, isNew, p.id])
   const startEdit = () => { f.reset(); setRec(null); setCv(null); setCertErr(null); setEditing(true) }
   const cancel = () => { if (isNew) return onClose(); f.reset(); setCertErr(null); setEditing(false) }
   async function saveAll() {
     setCertErr(null)
-    const certForm = editC && rec && cv && JSON.stringify(cv) !== JSON.stringify(cv0) ? cv : null
+    const certForm = editC && (rec || isNew) && cv && JSON.stringify(cv) !== JSON.stringify(cv0) ? cv : null
     if (certForm && certForm.level !== 'none' && !certForm.date) { setCertErr('An award date is required for an achieved level.'); setTab('certification'); return }
     if (certForm && certForm.target && RANK[certForm.target]! <= RANK[certForm.level]!) { setCertErr('“Working toward” must be above the achieved level.'); setTab('certification'); return }
-    if (editP) { const r = await f.save(); if (!r.ok) { if (r.name) setTab('profile'); return } if (isNew) { await onChanged(); toast(r.msg); onClose(); return } }
+    if (editP) { const r = await f.save(); if (!r.ok) { if (r.name) setTab('profile'); return } if (isNew) {
+      // The record exists now; a certification problem is reported, not retried here (that would add them twice).
+      const c = certForm ? await overrideCertification({ id: r.id, person_certifications: [] } as unknown as Person, certForm.level, certForm.date || null, certForm.num || null, me, certForm.target || null, certForm.interest) : null
+      await onChanged(); toast(c?.error ? `${r.msg} The certification was not saved; set it from their card.` : r.msg); onClose(); return
+    } }
     if (certForm && rec) {
       setCertSaving(true)
       const c = await overrideCertification(rec, certForm.level, certForm.date || null, certForm.num || null, me, certForm.target || null, certForm.interest)
@@ -196,7 +210,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
   const instr = (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
   const activeBoard = (p.board_service ?? []).some((b) => b.status === 'active')
   const fail = (r: { error?: string }) => { if (r.error) { toast(friendlyError(r.error)); return true } return false }
-  const tabs: [CardTab, string][] = isNew ? [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['notes', 'Notes']] : [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
+  const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
 
   async function welcome() {
     if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
@@ -236,7 +250,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
   return (
     <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && !editing && onClose()}>
       <div className={`cert-modal ctc-card cc${editing ? ' editing' : ''}`} role="dialog" aria-modal="true">
-        <div className="ctc-top"><div className="av">{isNew ? '+' : p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
+        <div className="ctc-top"><div className="av">{isNew ? (f.preview ? <img src={f.preview} alt="" /> : '+') : p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
           <div style={{ flex: 1, minWidth: 0 }}><h3>{isNew ? (`${v.first_name} ${v.last_name}`.trim() || (newStatus === 'never' ? 'New contact' : 'New member')) : fullName(p)}</h3>{isNew ? <div className="ti">Only a name is required. Fill in more as you learn it.</div> : <>{p.title && <div className="ti">{p.title}</div>}<div className="cert-chips" style={{ marginBottom: 0 }}><StatusPill p={p} /><RoleChips p={p} /></div></>}</div>
           <div className="cc-ctl"><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button>
             {canChange && (editing
@@ -258,7 +272,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
             <div className="kv"><Row k="Email">{I('email', 'email')}</Row><Row k="Mobile">{I('mobile_phone', 'tel')}</Row><Row k="Personal phone">{I('personal_phone', 'tel')}</Row></div>
             <div className="sec">Headshot &amp; bio</div>
             <div className="kv">
-              <Row k="Headshot"><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{I('photo_url', 'url', 'https://…')}<input ref={f.photoRef} type="file" accept="image/*" hidden onChange={(e) => void f.pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={f.photoBusy || isNew} onClick={() => f.photoRef.current?.click()}>{f.photoBusy ? 'Uploading…' : 'Upload'}</button></div>{isNew && <div className="evt-hint">Save them first to upload a photo, or paste a link.</div>}</Row>
+              <Row k="Headshot"><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{I('photo_url', 'url', 'https://…')}<input ref={f.photoRef} type="file" accept="image/*" hidden onChange={(e) => void f.pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={f.photoBusy} onClick={() => f.photoRef.current?.click()}>{f.photoBusy ? 'Uploading…' : isNew && f.pendingPhoto ? 'Change' : 'Upload'}</button></div>{isNew && f.pendingPhoto && <div className="evt-hint">{f.pendingPhoto.name} — uploads when you save.</div>}</Row>
               <Row k="Bio"><textarea className="fi" rows={4} value={v.bio} onChange={set('bio')} placeholder="Shown on the public directory once they are a member." aria-label="Bio" /></Row>
             </div>
           </> : <>
