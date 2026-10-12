@@ -67,7 +67,7 @@ export default function MembersPanel() {
   useEffect(() => { if (canInvite) void loginStatus().then((r) => setLogins(r?.logins ?? null)).catch(() => {}) }, [canInvite])
   const [sending, setSending] = useState<string | null>(null)
   async function rowInvite(p: Member) {
-    if (!confirm(`Email ${p.first_name} ${p.last_name} an invitation to the members area at ${p.email}?`)) return
+    if (!(await askConfirm(`Invite ${p.first_name} ${p.last_name}?`, { body: `An email with a link to set up their members-area login goes to ${p.email}.`, ok: 'Send invite' }))) return
     setSending(p.id)
     const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
     setSending(null)
@@ -77,7 +77,7 @@ export default function MembersPanel() {
   }
   async function rowReset(p: Member) {
     if (!p.email) return
-    if (!confirm(`Email ${p.first_name} ${p.last_name} a password reset link at ${p.email}?`)) return
+    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} a password reset?`, { body: `An email with a link to choose a new password goes to ${p.email}. Their current password keeps working until they change it.`, ok: 'Send reset' }))) return
     setSending(p.id)
     const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
     setSending(null)
@@ -282,7 +282,7 @@ function InviteAllDialog({ onClose }: { onClose: () => void }) {
   const toggle = (id?: string) => id && setSkip((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const missing = (rows ?? []).filter((r) => !r.would_invite)
   async function send() {
-    if (!confirm(`Email a set-your-password link to ${sendable.length} member${sendable.length === 1 ? '' : 's'} now?`)) return
+    if (!(await askConfirm(`Send ${sendable.length} invitation${sendable.length === 1 ? '' : 's'}?`, { body: `Each person ticked gets one email with a link to set up their members-area login.`, ok: 'Send' }))) return
     setBusy(true)
     const ids = sendable.map((x) => x.id).filter((x): x is string => !!x)
     const r = await inviteAllMembers(false, ids.length === sendable.length ? ids : undefined).catch(() => null)
