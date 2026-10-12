@@ -15,6 +15,7 @@
 import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
+import { useDensity } from '@/lib/density'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
@@ -55,6 +56,9 @@ export default function CertificationPanel() {
   const [busy, setBusy] = useState<string | null>(null)
   const [manageFor, setManageFor] = useState<Person | null | 'new'>(null)
   const [contactFor, setContactFor] = useState<Person | null>(null)
+  /* Compact (one row per person; a click opens their card in place) or comfortable (the cards). */
+  const { compact, narrow, setDensity } = useDensity('aoi.certs.density', canManage ? 'compact' : 'comfortable')
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setError(null)
@@ -118,6 +122,53 @@ export default function CertificationPanel() {
   if (loading) return <><h1>Certifications</h1><div className="ma-sub">Reading the register…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
 
   const tabLabel = TABS.find(([k]) => k === tab)![1]
+  const card = (p: Person) => {
+    const l = topLevel(p), c = topCert(p), prog = progressFor(p, reqs)
+    const meta = c ? [c.grandfathered ? `Grandfathered on ${fmt(c.cert_date)}` : c.cert_date ? `Certified ${fmt(c.cert_date)}${c.certified_by ? ' · ' + c.certified_by : ''}` : '', c.certificate_number ? `Certificate #${c.certificate_number}` : ''].filter(Boolean).join(' · ') : ''
+    const next = NEXT[l]
+    return (
+      <div className="cert-card" key={p.id}>
+        <div className="cert-ph">
+          <div className="cert-nm">
+            <a href="#" onClick={(e) => { e.preventDefault(); setContactFor(p) }}>{fullName(p)}</a>
+            {l !== 'none' && <Pill kind={l === 'level_2' ? 'ok' : 'info'}>{LEVEL_LABEL[l]}</Pill>}
+            {otherCerts(p).map((o) => <Pill key={o.technique} kind="ok">{o.technique === 'Atlas Orthogonal' ? 'AO' : o.technique} · {o.level === 'board_certification' ? 'Board Certified' : 'Certified'}</Pill>)}
+          </div>
+          <div className="cert-actions">
+            {p.target_cert_level && <Pill kind="warn">Working toward {LEVEL_LABEL[p.target_cert_level]}</Pill>}
+            {canManage && <button type="button" className="b s-btn on-light xs" onClick={() => setManageFor(p)}>··· Override</button>}
+          </div>
+        </div>
+        {meta && <div className="cert-meta">{meta}</div>}
+
+        {prog ? (() => {
+          const done = prog.list.filter((r) => prog.done.has(r.id)), dated = done.filter((r) => prog.done.get(r.id)!.completed_date)
+          const ready = dated.length === prog.list.length && prog.list.length > 0, pct = prog.list.length ? Math.round(done.length / prog.list.length * 100) : 0
+          return <>
+            <div className="cert-prog"><i style={{ width: `${pct}%` }} /></div>
+            <div className="cert-progtxt">{done.length}/{prog.list.length} requirements complete · {pct}%{done.length > dated.length ? ` · ${done.length - dated.length} need a date` : ''}</div>
+            {prog.list.map((r) => { const d = prog.done.get(r.id); const id = `rq_${p.id}_${r.id}`; return (
+              <div className={`cert-req${d ? ' done' : ''}`} key={r.id}>
+                <input type="checkbox" id={id} checked={!!d} disabled={!canManage || busy === `${p.id}:${r.id}`} onChange={(e) => void tick(p, r, e.target.checked)} />
+                <label htmlFor={id}>{r.label}</label>
+                {d && <span className="when">Completed <input type="date" className={d.completed_date ? '' : 'need'} value={d.completed_date ?? ''} disabled={!canManage} onChange={(e) => void date(p, r, e.target.value)} aria-label="Completion date" />{d.completed_date && d.approved_by_name ? ` · ${d.approved_by_name}` : ''}</span>}
+              </div>) })}
+            {canManage && <div className="cert-certify">
+              <button type="button" className="b p-btn" disabled={!ready || busy === p.id} onClick={() => award(p)}>✓ Certify — {LEVEL_LABEL[p.target_cert_level!]}</button>
+              <span className="hint">{ready ? 'Every criterion is complete and dated.' : 'Complete & date every criterion to certify.'}</span>
+              <button type="button" className="t-link" style={{ marginLeft: 'auto', color: 'var(--color-content-muted)' }} onClick={() => withdraw(p)}>Stop progression</button>
+            </div>}
+          </>
+        })() : l === 'none' ? <>
+          <div className="cert-st">{p.cert_interest ? 'Interested / in conversation — not yet pursuing a level.' : 'No certification on file.'}</div>
+          {canManage && <><div className="cert-sep" /><button type="button" className="b s-btn on-light sm" disabled={busy === p.id} onClick={() => initiate(p, p.contact_type === 'student' ? 'student' : 'level_1')}>Initiate {p.contact_type === 'student' ? 'Student' : 'Level 1'} Certification</button></>}
+        </> : <>
+          <div className="cert-st">Fully certified — no active progression.</div>
+          {canManage && next && <><div className="cert-sep" /><button type="button" className="b s-btn on-light sm" disabled={busy === p.id} onClick={() => initiate(p, next)}>Initiate {LEVEL_LABEL[next]} Certification</button></>}
+        </>}
+      </div>
+    )
+  }
   return (
     <>
       <div className="cert-head">
@@ -146,53 +197,26 @@ export default function CertificationPanel() {
       </div>
 
       {rows.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `No one in ${tabLabel} matches “${q}”.` : 'No one in this list.'}</div>}
-      {rows.map((p) => {
-        const l = topLevel(p), c = topCert(p), prog = progressFor(p, reqs)
-        const meta = c ? [c.grandfathered ? `Grandfathered on ${fmt(c.cert_date)}` : c.cert_date ? `Certified ${fmt(c.cert_date)}${c.certified_by ? ' · ' + c.certified_by : ''}` : '', c.certificate_number ? `Certificate #${c.certificate_number}` : ''].filter(Boolean).join(' · ') : ''
-        const next = NEXT[l]
-        return (
-          <div className="cert-card" key={p.id}>
-            <div className="cert-ph">
-              <div className="cert-nm">
-                <a href="#" onClick={(e) => { e.preventDefault(); setContactFor(p) }}>{fullName(p)}</a>
-                {l !== 'none' && <Pill kind={l === 'level_2' ? 'ok' : 'info'}>{LEVEL_LABEL[l]}</Pill>}
-                {otherCerts(p).map((o) => <Pill key={o.technique} kind="ok">{o.technique === 'Atlas Orthogonal' ? 'AO' : o.technique} · {o.level === 'board_certification' ? 'Board Certified' : 'Certified'}</Pill>)}
+      {rows.length > 0 && <div className="evt-bar"><span className="cnt">{rows.length} {rows.length === 1 ? 'person' : 'people'}{q ? ` matching “${q}”` : ''}</span>
+        {!narrow && <div className="evt-segs"><div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div></div>}</div>}
+      {rows.length > 0 && (compact
+        ? <div className="mem-table cert-table"><div className="mem-row head"><span>Name</span><span>Level</span><span>Awarded</span><span>Certificate</span><span>In progress</span></div>
+          {rows.map((p) => {
+            const l = topLevel(p), c = topCert(p), prog = progressFor(p, reqs), open = expanded === p.id
+            const progress = prog ? `Working toward ${LEVEL_LABEL[p.target_cert_level!]} · ${prog.done.size}/${prog.list.length}` : p.cert_interest ? 'Interested' : ''
+            const others = otherCerts(p).map((o) => o.technique === 'Atlas Orthogonal' ? 'AO' : o.technique).join(', ')
+            return <div key={p.id} style={{ display: 'contents' }}>
+              <div className={`mem-row${open ? ' open' : ''}`} role="button" tabIndex={0} aria-expanded={open} onClick={() => setExpanded(open ? null : p.id)} onKeyDown={(e) => e.key === 'Enter' && setExpanded(open ? null : p.id)}>
+                <span className="n">{fullName(p)}</span>
+                <span className="w">{l === 'none' ? <i>—</i> : LEVEL_LABEL[l]}{others && <i> · {others}</i>}</span>
+                <span className="w ph">{c?.cert_date ? `${c.grandfathered ? 'Grandfathered ' : ''}${fmt(c.cert_date)}` : <i>—</i>}</span>
+                <span className="w ph">{c?.certificate_number ? `#${c.certificate_number}` : <i>—</i>}</span>
+                <span className="w">{progress || <i>—</i>}</span>
               </div>
-              <div className="cert-actions">
-                {p.target_cert_level && <Pill kind="warn">Working toward {LEVEL_LABEL[p.target_cert_level]}</Pill>}
-                {canManage && <button type="button" className="b s-btn on-light xs" onClick={() => setManageFor(p)}>··· Override</button>}
-              </div>
+              {open && <div className="mem-x">{card(p)}</div>}
             </div>
-            {meta && <div className="cert-meta">{meta}</div>}
-
-            {prog ? (() => {
-              const done = prog.list.filter((r) => prog.done.has(r.id)), dated = done.filter((r) => prog.done.get(r.id)!.completed_date)
-              const ready = dated.length === prog.list.length && prog.list.length > 0, pct = prog.list.length ? Math.round(done.length / prog.list.length * 100) : 0
-              return <>
-                <div className="cert-prog"><i style={{ width: `${pct}%` }} /></div>
-                <div className="cert-progtxt">{done.length}/{prog.list.length} requirements complete · {pct}%{done.length > dated.length ? ` · ${done.length - dated.length} need a date` : ''}</div>
-                {prog.list.map((r) => { const d = prog.done.get(r.id); const id = `rq_${p.id}_${r.id}`; return (
-                  <div className={`cert-req${d ? ' done' : ''}`} key={r.id}>
-                    <input type="checkbox" id={id} checked={!!d} disabled={!canManage || busy === `${p.id}:${r.id}`} onChange={(e) => void tick(p, r, e.target.checked)} />
-                    <label htmlFor={id}>{r.label}</label>
-                    {d && <span className="when">Completed <input type="date" className={d.completed_date ? '' : 'need'} value={d.completed_date ?? ''} disabled={!canManage} onChange={(e) => void date(p, r, e.target.value)} aria-label="Completion date" />{d.completed_date && d.approved_by_name ? ` · ${d.approved_by_name}` : ''}</span>}
-                  </div>) })}
-                {canManage && <div className="cert-certify">
-                  <button type="button" className="b p-btn" disabled={!ready || busy === p.id} onClick={() => award(p)}>✓ Certify — {LEVEL_LABEL[p.target_cert_level!]}</button>
-                  <span className="hint">{ready ? 'Every criterion is complete and dated.' : 'Complete & date every criterion to certify.'}</span>
-                  <button type="button" className="t-link" style={{ marginLeft: 'auto', color: 'var(--color-content-muted)' }} onClick={() => withdraw(p)}>Stop progression</button>
-                </div>}
-              </>
-            })() : l === 'none' ? <>
-              <div className="cert-st">{p.cert_interest ? 'Interested / in conversation — not yet pursuing a level.' : 'No certification on file.'}</div>
-              {canManage && <><div className="cert-sep" /><button type="button" className="b s-btn on-light sm" disabled={busy === p.id} onClick={() => initiate(p, p.contact_type === 'student' ? 'student' : 'level_1')}>Initiate {p.contact_type === 'student' ? 'Student' : 'Level 1'} Certification</button></>}
-            </> : <>
-              <div className="cert-st">Fully certified — no active progression.</div>
-              {canManage && next && <><div className="cert-sep" /><button type="button" className="b s-btn on-light sm" disabled={busy === p.id} onClick={() => initiate(p, next)}>Initiate {LEVEL_LABEL[next]} Certification</button></>}
-            </>}
-          </div>
-        )
-      })}
+          })}</div>
+        : rows.map(card))}
 
       {manageFor && <ManageDialog person={manageFor === 'new' ? null : manageFor} me={me} onClose={() => setManageFor(null)} onSaved={async (msg) => { setManageFor(null); await load(); toast(msg) }} />}
       {contactFor && <ContactCard person={people.find((x) => x.id === contactFor.id) ?? contactFor} reqs={reqs} me={me} meId={meId} canNote={canManage} onClose={() => setContactFor(null)} onChanged={load} />}

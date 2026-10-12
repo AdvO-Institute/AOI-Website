@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { inviteAllMembers, inviteMember, loginStatus, requestReset, type AccessReply, type InviteRow } from '@/lib/queries/access'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useAccess } from '@/lib/queries/AccessProvider'
+import { useDensity } from '@/lib/density'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
@@ -29,18 +30,7 @@ const TABS: [Tab, string][] = [['all', 'All members'], ['current', 'Current'], [
 const LVL = CERT_LABEL
 const fmt = (d?: string | null) => (d ? new Date(d.slice(0, 10) + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 const byFirst = (a: Member, b: Member) => a.first_name.localeCompare(b.first_name, undefined, { sensitivity: 'base' }) || a.last_name.localeCompare(b.last_name, undefined, { sensitivity: 'base' })
-type Density = 'compact' | 'comfortable'
-const DENSITY_KEY = 'aoi.members.density'
-const stored = <T extends string>(key: string, ok: readonly T[], fallback: T): T => { try { const v = localStorage.getItem(key); if (v && (ok as readonly string[]).includes(v)) return v as T } catch { /* no storage */ } return fallback }
-const store = (key: string, v: string) => { try { localStorage.setItem(key, v) } catch { /* no storage */ } }
 const editIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-/** True on phone-width screens; follows the window as it is resized. */
-function useNarrow(): boolean {
-  const q = '(max-width: 860px)'
-  const [n, setN] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
-  useEffect(() => { const m = window.matchMedia(q); const f = () => setN(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f) }, [])
-  return n
-}
 const Pill = ({ children, kind = '' }: { children: React.ReactNode; kind?: string }) => <span className={`cpill ${kind}`}>{children}</span>
 
 function StatusPill({ p }: { p: Member }) {
@@ -72,10 +62,7 @@ export default function MembersPanel() {
   const [edit, setEdit] = useState<Member | 'new' | null>(null)
   /* Compact (one row per member) or comfortable (cards), remembered on this
    * device. Phones always get the cards. */
-  const narrow = useNarrow()
-  const [density, setDensityState] = useState<Density>(() => stored(DENSITY_KEY, ['compact', 'comfortable'] as const, canEdit ? 'compact' : 'comfortable'))
-  const setDensity = (v: Density) => { setDensityState(v); store(DENSITY_KEY, v) }
-  const compact = density === 'compact' && !narrow
+  const { compact, narrow, setDensity } = useDensity('aoi.members.density', canEdit ? 'compact' : 'comfortable')
 
   const load = useCallback(async () => {
     const r = await roster()
