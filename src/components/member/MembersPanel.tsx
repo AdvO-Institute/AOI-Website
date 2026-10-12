@@ -22,7 +22,7 @@ import { Chips as PersonChips, chipsFor } from './PersonChips'
 import { CERT_LABEL } from '@/lib/chips'
 import { askConfirm, askForm, askText } from './opsUi'
 import { ManageDialog } from './CertificationPanel'
-import { personById, type Person } from '@/lib/queries/certifications'
+import { personById, topLevel, LEVEL_LABEL, type Person } from '@/lib/queries/certifications'
 
 type Tab = 'all' | 'current' | 'recent' | 'inactive' | 'deceased'
 // Deceased members keep their record but sit in their own tab, last, and out of All members.
@@ -146,21 +146,13 @@ export default function MembersPanel() {
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
       {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}
-      {edit && <EditDialog p={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
+      {edit && <EditDialog p={edit === 'new' ? null : edit} me={me} onChanged={load} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
 }
 
 function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast()
-  const { can } = useAccess()
-  const canCert = can('manage_certifications')
-  const [certFor, setCertFor] = useState<Person | null>(null)
-  async function editCert() {
-    const r = await personById(p.id)
-    if (!r.row) { toast(r.error ? friendlyError(r.error) : 'Could not read their certification record.'); return }
-    setCertFor(r.row)
-  }
   const [inviting, setInviting] = useState(false)
   async function invite() {
     setInviting(true)
@@ -191,7 +183,7 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
           <div className="sec">Classification</div><div className="kv"><KV k="Type" v={p.contact_type === 'student' ? 'Student' : 'Doctor'} /><KV k="Technique(s)" v={(p.techniques ?? []).join(', ') || null} />{instr && <KV k="Instructor track" v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} />}</div>
           <div className="sec">Membership</div><div className="kv"><KV k="Status" v={s === 'deceased' ? `Deceased${p.deceased_on ? ' · ' + fmt(p.deceased_on) : ''}` : s === 'current' ? <>Active member {activeBoard(p) && <Pill kind="ok">Director — complimentary</Pill>}</> : s === 'recent' ? 'Recently expired — reactivatable' : 'Inactive'} /><KV k="Member since" v={p.member_since} /><KV k="Expires" v={p.membership_expires} /></div>
           <div className="sec">Certifications</div><div className="kv">{(p.person_certifications ?? []).length === 0 && <KV k="—" v="None on file" />}{(p.person_certifications ?? []).map((c) => <KV key={c.id} k={c.technique} v={`${LVL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}</div>
-          {canCert && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => void editCert()}>✎ Edit certification</button></div>}
+          <div className="act"><CertEdit p={p} me={me} onChanged={onChanged} /></div>
           {instr && <><div className="sec">Instructor</div><div className="kv"><KV k={instr.technique ?? 'Advanced Orthogonal'} v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} /></div>{canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { const why = await askText('End instructor service', { label: 'Reason (optional)', placeholder: 'e.g. Retired from teaching' }, { ok: 'End service', danger: true }); if (why === null) return; if (!fail(await endInstructor(p, why))) { toast('Instructor service ended.'); await onChanged() } }}>End instructor service</button></div>}</>}
           {boards.length > 0 && <><div className="sec">Board service</div><div className="kv">{boards.map((b) => <KV key={b.id} k={b.term_label ?? `${b.term_start ?? ''}–${b.term_end ?? ''}`} v={b.status === 'active' ? 'Active board member' : b.status === 'nominee' ? 'Nominee' : 'Past board member'} />)}</div>{active && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return; if (!fail(await endBoard(p))) { toast('Board service ended.'); await onChanged() } }}>End board service</button></div>}</>}
           <div className="sec">Notes (running log)</div>
@@ -201,12 +193,31 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
           {canEdit && <><textarea className="fi" value={note} placeholder="Add a note…" onChange={(e) => setNote(e.target.value)} style={{ marginTop: 8, minHeight: 70 }} /><div className="act"><button type="button" className="b s-btn on-light sm" disabled={!note.trim()} onClick={async () => { if (!fail(await addNote(p.id, note.trim(), me, meId))) { setNote(''); await onChanged() } }}>Add note</button></div></>}
         </div>
       </div>
-      {certFor && <ManageDialog person={certFor} me={me} onClose={() => setCertFor(null)} onSaved={async (m) => { setCertFor(null); await onChanged(); toast(m) }} />}
     </div>
   )
 }
 
-function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => void; onSaved: (m: string) => void }) {
+/* Certification Committee only: opens the Certification page's Override popup for this member. */
+function CertEdit({ p, me, onChanged, showLevel }: { p: Member; me: string; onChanged: () => Promise<void>; showLevel?: boolean }) {
+  const toast = useToast()
+  const { can } = useAccess()
+  const [rec, setRec] = useState<Person | null>(null)
+  const [open, setOpen] = useState(false)
+  const [level, setLevel] = useState(LEVEL_LABEL[advoLevel(p) || 'none'])
+  if (!can('manage_certifications')) return null
+  async function read() {
+    const r = await personById(p.id)
+    if (!r.row) { toast(r.error ? friendlyError(r.error) : 'Could not read their certification record.'); return null }
+    setRec(r.row); setLevel(LEVEL_LABEL[topLevel(r.row)]); return r.row
+  }
+  return <>
+    {showLevel && <div><label className="flabel">ADVANCED ORTHOGONAL</label><div style={{ padding: '10px 0' }}>{level}</div></div>}
+    <div style={showLevel ? { alignSelf: 'end' } : undefined}><button type="button" className="b s-btn on-light xs" onClick={async () => { if (await read()) setOpen(true) }}>✎ Edit certification</button></div>
+    {open && rec && <ManageDialog person={rec} me={me} onClose={() => setOpen(false)} onSaved={async (m) => { setOpen(false); await read(); await onChanged(); toast(m) }} />}
+  </>
+}
+
+function EditDialog({ p, me, onClose, onSaved, onChanged }: { p: Member | null; me: string; onClose: () => void; onSaved: (m: string) => void; onChanged: () => Promise<void> }) {
   const [v, setV] = useState<Record<string, string>>({
     first_name: p?.first_name ?? '', last_name: p?.last_name ?? '', credentials: p?.credentials ?? 'DC', contact_type: p?.contact_type ?? 'doctor',
     email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: p?.office_phone ?? '', practice_website: p?.practice_website ?? '',
@@ -242,7 +253,7 @@ function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => 
   return (
     <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cert-modal wide" role="dialog" aria-modal="true">
-        <div className="mh"><div><h3>{p ? `Edit — ${fullName(p)}` : 'Add a member'}</h3><p>The people record. Roles, board seats and certifications are managed from their own tabs.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+        <div className="mh"><div><h3>{p ? `Edit — ${fullName(p)}` : 'Add a member'}</h3><p>The people record. Roles and board seats are managed from their own tabs.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
         <div className="mb">{err && <div className="cert-err">{err}</div>}
           <div className="cert-grid mform">
             <div className="cert-fh full" style={{ borderTop: 0, paddingTop: 0 }}>Identity</div><MF k="first_name" l="FIRST NAME" type="text" full={false} v={v} set={set} /><MF k="last_name" l="LAST NAME" type="text" full={false} v={v} set={set} /><MF k="credentials" l="CREDENTIALS" type="text" full={false} v={v} set={set} /><div><label className="flabel" htmlFor="m_type">TYPE</label><select className="fi" id="m_type" value={v.contact_type} onChange={set('contact_type')}><option value="doctor">Doctor</option><option value="student">Student</option></select></div>
@@ -258,6 +269,7 @@ function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => 
               <div className="evt-hint">{p ? 'Members can add their own under My Account. Upload one here, or paste a link.' : 'Save the member first, then upload a photo.'}</div>
             </div>
             <div className="cert-fh full">Membership</div><div><label className="flabel" htmlFor="m_status">STATUS</label><select className="fi" id="m_status" value={v.status} onChange={set('status')}><option value="active">Active</option><option value="expired">Expired</option><option value="never">Never a member</option><option value="deceased">Deceased</option></select></div><MF k="deceased_on" l="DATE OF PASSING (IF DECEASED)" type="date" full={false} v={v} set={set} /><MF k="member_since" l="MEMBER SINCE" type="date" full={false} v={v} set={set} /><MF k="membership_expires" l="EXPIRES" type="date" full={false} v={v} set={set} />
+            {p && <CertSection p={p} me={me} onChanged={onChanged} />}
           </div>
         </div>
         <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button></div>
@@ -267,6 +279,13 @@ function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => 
 }
 
 /** Module-level so React keeps the input mounted (and focused) between keystrokes. */
+// The Certification heading only appears for people who can edit it.
+function CertSection({ p, me, onChanged }: { p: Member; me: string; onChanged: () => Promise<void> }) {
+  const { can } = useAccess()
+  if (!can('manage_certifications')) return null
+  return <><div className="cert-fh full">Certification</div><CertEdit p={p} me={me} onChanged={onChanged} showLevel /></>
+}
+
 function MF({ k, l, type, full, v, set }: { k: string; l: string; type: string; full: boolean; v: Record<string, string>; set: (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void }) {
   return <div className={full ? 'full' : ''}><label className="flabel" htmlFor={`m_${k}`}>{l}</label><input className="fi" id={`m_${k}`} type={type} value={v[k] ?? ''} onChange={set(k)} /></div>
 }
