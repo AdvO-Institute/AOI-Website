@@ -2086,6 +2086,7 @@ a.othercard {
 /* Member detail: close, then Edit (or Cancel / Save) stacked at the top right. */
 .cc .cc-ctl { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: 0 0 auto; }
 .cc .cc-btns { display: flex; gap: 6px; }
+.cc .cc-btns .p-btn:hover { transform: none; } /* stays level with Cancel */
 .cc.editing .kv { align-items: center; }
 .cc.editing .kv .fi { padding: 6px 10px; font-size: 13.5px; margin: 0; }
 .mform.cert-grid > div:last-child { grid-column: auto; }

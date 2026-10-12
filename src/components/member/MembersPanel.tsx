@@ -197,6 +197,7 @@ function ContactCard({ startEditing = false, p, me, meId, canEdit, canInvite, la
   type CardTab = 'profile' | 'business' | 'membership' | 'certification' | 'notes'
   const [tab, setTab] = useState<CardTab>('profile')
   const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['membership', 'Membership & service'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
+  const canCert = useAccess().can('manage_certifications')
   /* Edit turns the fields of every tab into inputs in place; Save writes them all at once. */
   const [editing, setEditing] = useState(startEditing && canEdit)
   const [v, setV] = useState<Record<string, string>>(() => fromMember(p))
@@ -261,7 +262,7 @@ function ContactCard({ startEditing = false, p, me, meId, canEdit, canInvite, la
           </>}
           {tab === 'business' && <>
           <div className="sec">Office location</div>
-          <div className="loc">{!editing && <><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && <Pill kind="info">Primary</Pill>}</>}<div className="kv" style={{ marginTop: editing ? 0 : 8 }}>{editing && <KV k="Practice name" v={inp('practice_name')} />}<KV k="Office phone" v={ed('office_phone', p.office_phone ?? p.practice_phone)} /><KV k="Address" v={ed('practice_address', p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null))} /><KV k="Website" v={editing ? inp('practice_website') : p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
+          <div className="loc">{!editing && <><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && locs.length > 0 && <Pill kind="info">Primary</Pill>}</>}<div className="kv" style={{ marginTop: editing ? 0 : 8 }}>{editing && <KV k="Practice name" v={inp('practice_name')} />}<KV k="Office phone" v={ed('office_phone', p.office_phone ?? p.practice_phone)} /><KV k="Address" v={ed('practice_address', p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null))} /><KV k="Website" v={editing ? inp('practice_website') : p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
           {locs.map((l) => <div className="loc" key={l.id}><b>{l.name}</b><div className="kv" style={{ marginTop: 8 }}><KV k="Office phone" v={l.phone} /><KV k="Address" v={l.address} /><KV k="Website" v={l.website} /></div></div>)}
           {canEdit && <button type="button" className="t-link" onClick={async () => { const v = await askForm('Add a second location', [{ key: 'n', label: 'Location name', required: true }, { key: 'a', label: 'Address' }, { key: 'w', label: 'Website', placeholder: 'https://' }], { ok: 'Add location' }); if (!v) return; if (!fail(await addLocation(p.id, v.n ?? '', v.a ?? '', v.w ?? ''))) await onChanged() }}>+ Add second location</button>}
           </>}
@@ -271,7 +272,8 @@ function ContactCard({ startEditing = false, p, me, meId, canEdit, canInvite, la
           </>}
           {tab === 'certification' && <>
           <div className="sec">Certifications</div><div className="kv">{(p.person_certifications ?? []).length === 0 && <KV k="—" v="None on file" />}{(p.person_certifications ?? []).map((c) => <KV key={c.id} k={c.technique} v={`${LVL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}</div>
-          <div className="act"><CertEdit p={p} me={me} onChanged={onChanged} /></div>
+          {canCert ? <div className="act"><CertEdit p={p} me={me} onChanged={onChanged} /></div>
+            : <p className="muted" style={{ marginTop: 10 }}>Only the Executive Director and the Certification Committee chair or co-chair can change certifications.</p>}
           {instr && <><div className="sec">Instructor</div><div className="kv"><KV k={instr.technique ?? 'Advanced Orthogonal'} v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} /></div>{canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { const why = await askText('End instructor service', { label: 'Reason (optional)', placeholder: 'e.g. Retired from teaching' }, { ok: 'End service', danger: true }); if (why === null) return; if (!fail(await endInstructor(p, why))) { toast('Instructor service ended.'); await onChanged() } }}>End instructor service</button></div>}</>}
           </>}
           {tab === 'notes' && <>
