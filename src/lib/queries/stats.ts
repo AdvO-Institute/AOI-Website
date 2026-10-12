@@ -35,3 +35,13 @@ export async function saveFinancials(period: string, v: { revenue: number | null
 }
 export const money = (n: number | null | undefined) => n == null ? '—' : '$' + Math.round(Number(n)).toLocaleString('en-US')
 export const monthShort = (period: string) => new Date(period.slice(0, 7) + '-15T12:00:00Z').toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })
+
+/** Registrations made between two dates (paid or free, not cancelled), and the
+ *  money they brought in. `to` is exclusive. Null when the list cannot be read. */
+export async function registrationsBetween(from: string, to: string): Promise<{ count: number; cents: number } | null> {
+  const base = `payment_status=in.(paid,free)&registration_status=neq.cancelled&created_at=gte.${from}&created_at=lt.${to}&limit=5000`
+  let q = await select<{ price_paid_cents: number | null; ce_paid_cents?: number | null }>('event_registrations', `select=price_paid_cents,ce_paid_cents&${base}`)
+  if (q.error) q = await select<{ price_paid_cents: number | null }>('event_registrations', `select=price_paid_cents&${base}`)
+  if (q.error || !q.data) return null
+  return { count: q.data.length, cents: q.data.reduce((s, r) => s + Number(r.price_paid_cents ?? 0) + Number(r.ce_paid_cents ?? 0), 0) }
+}
