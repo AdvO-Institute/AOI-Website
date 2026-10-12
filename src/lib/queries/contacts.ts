@@ -15,7 +15,7 @@ import { select, patch, insert, remove, headers, SB_URL, ensureSession } from '@
 export const TECHNIQUES = ['Advanced Orthogonal', 'Atlas Orthogonal', 'Atlas Orthometrics', 'Orthospinology', 'EPIC', 'NUCCA', 'Blair']
 export const ROLE_LABEL: Record<string, string> = {
   executive_director: 'Executive Director', past_executive_director: 'Past Executive Director', board_member: 'Director',
-  past_board_member: 'Past Director', treasurer: 'Treasurer', instructor: 'Instructor', committee_chair: 'Chair', committee_cochair: 'Co-chair',
+  past_board_member: 'Past Director', board_chair: 'Chair of the Board', vice_chair: 'Vice Chair', secretary: 'Secretary', treasurer: 'Treasurer', instructor: 'Instructor', committee_chair: 'Chair', committee_cochair: 'Co-chair',
   committee_member: 'Committee Member', research_director: 'Research Director',
 }
 export const LEVEL_LABEL: Record<string, string> = { none: '', student: 'Student Certification', level_1: 'Certified Level 1', level_2: 'Certified Level 2', board_certification: 'Board Certified', certified: 'Certified' }
