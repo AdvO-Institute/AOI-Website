@@ -55,7 +55,7 @@ export default function OrgPanel() {
       <section className="org-tier">
         <h2>Committees <small>each files a monthly report to the Board</small></h2>
         <div className="org-coms">{committees.map((c) => {
-          const chair = c.key === 'research' ? who('research_director', c.id).concat(who('committee_chair', c.id)) : who('committee_chair', c.id)
+          const chair = c.key === 'research' ? [...who('research_director', c.id), ...who('committee_chair', c.id)].filter((p, i, all) => all.findIndex((x) => x.id === p.id) === i) : who('committee_chair', c.id)
           const co = who('committee_cochair', c.id)
           const members = who('committee_member', c.id)
           return <div key={c.id} className="org-com">
