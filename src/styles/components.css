@@ -3147,3 +3147,27 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 /* Report figures are typed, not stepped: no up/down arrows. */
 .rform input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .rform input[type='number']::-webkit-inner-spin-button, .rform input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Org Chart: the Board and its officers, the ED, then the committees. */
+.org { display: flex; flex-direction: column; align-items: stretch; }
+.org-tier { background: var(--color-surface-raised); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 18px 20px; }
+.org-tier h2 { font-family: var(--font-label); font-weight: 600; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--color-brand-primary); margin: 0 0 12px; }
+.org-tier h2 small { font-family: var(--font-sans); font-weight: 400; font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--color-content-muted); margin-left: 8px; }
+.org-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.org-row.one { grid-template-columns: minmax(0, 320px); justify-content: center; }
+.org-seat { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); padding: 10px 12px; background: var(--color-surface-base); display: flex; flex-direction: column; gap: 2px; }
+.org-seat > span { font-family: var(--font-label); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-content-muted); }
+.org-seat b { font-size: 14.5px; font-weight: 600; color: var(--color-content-primary); }
+.org-seat i { font-size: 13.5px; color: var(--color-content-tertiary); }
+.org-seat.lead { border-color: var(--color-brand-primary); }
+.org-seat.open { border-style: dashed; }
+.org-dirs { margin-top: 12px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.org-dirs span, .org-mem span { font-family: var(--font-label); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-content-muted); margin-right: 4px; }
+.org-line { width: 2px; height: 22px; background: var(--color-border-strong); margin: 0 auto; }
+.org-coms { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.org-com { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--color-surface-base); }
+.org-com h3 { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin: 0; color: var(--color-content-primary); }
+.org-com .org-seat { background: var(--color-surface-raised); }
+.org-mem { font-size: 13px; color: var(--color-content-secondary); }
+.org-mem i { color: var(--color-content-tertiary); }
+@media (max-width: 760px) { .org-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
