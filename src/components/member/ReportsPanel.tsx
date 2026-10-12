@@ -32,6 +32,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
   const canSubmit = useCallback((cid: number) => can('full_admin') || leads.has(cid), [can, leads])
   const [coms, setComs] = useState<Committee[]>([]); const [rows, setRows] = useState<Report[]>([]); const [meetings, setMeetings] = useState<Meeting[]>([]); const [docs, setDocs] = useState<ReportDoc[]>([])
   const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null)
+  const [earlier, setEarlier] = useState(false)
   const [com, setCom] = useState<number | 'all'>('all'); const [q, setQ] = useState(''); const [openIds, setOpenIds] = useState<Set<number>>(new Set())
   const [form, setForm] = useState<{ report: Report | null; committee: Committee; ym: string } | null>(null)
   const [view, setView] = useState<Report | null>(null)
@@ -74,6 +75,8 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
   const filed = rows.filter((r) => inView.some((c) => c.id === r.committee_id) && isLocked(r)).length
 
   const openForm = (c: Committee, ym: string, report: Report | null) => setForm({ report, committee: c, ym })
+  // Any earlier month: opens the report if one was filed, or a blank one to file late.
+  const openMonth = (c: Committee, ym: string) => { setEarlier(false); const r = rows.find((x) => x.committee_id === c.id && x.period_ym === ym) ?? null; if (r?.status === 'submitted') setView(r); else openForm(c, ym, r) }
   const onStatus = (s: CommitteeStatus) => { if (s.report) { if (s.report.status === 'submitted') setView(s.report); else if (canSubmit(s.c.id)) openForm(s.c, cycle.reportMonth, s.report) } else if (canSubmit(s.c.id)) openForm(s.c, cycle.reportMonth, null); else setCom(s.c.id) }
 
   const card = (r: Report) => {
@@ -93,7 +96,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
 
   return <>
     <Head title="Reports" lede={<>Each chair files their committee’s monthly report here — numbers as of the end of the month, names pulled from the live tabs, and the narrative. The Board meets the third Tuesday; the report on <b>{monthLabel(cycle.reportMonth)}</b> is due <b>{fmtD(cycle.dueDate)}</b> for the <b>{fmtD(cycle.meetingDate)}</b> meeting.</>}
-      right={<a className="b s-btn on-light sm" href="#records">Records archive{filed ? ` · ${filed}` : ''}</a>} />
+      right={<>{coms.some((c) => canSubmit(c.id)) && <button type="button" className="b s-btn on-light sm" onClick={() => setEarlier(true)}>+ Earlier month</button>}<a className="b s-btn on-light sm" href="#records">Records archive{filed ? ` · ${filed}` : ''}</a></>} />
     {error && <div className="cert-err" role="alert">{error}</div>}
     {oversight && <>
       <Sec r="missing first · click a card to open the report">Reporting status · {monthLabel(cycle.reportMonth)}</Sec>
@@ -113,6 +116,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
 
     {form && <ReportForm key={`${form.committee.id}-${form.ym}-${form.report?.id ?? 'new'}`} committee={form.committee} ym={form.ym} report={form.report} meetings={meetings} docs={docs.filter((d) => d.report_id === form.report?.id)} who={who} oversight={oversight} onClose={() => setForm(null)}
       onSaved={async (m) => { setForm(null); await load(); toast(m); void logActivity('write', 'reports', { action: m, committee: form.committee.key, ym: form.ym }) }} onReload={load} />}
+    {earlier && <EarlierDialog coms={coms.filter((c) => canSubmit(c.id))} max={cycle.reportMonth} onPick={openMonth} onClose={() => setEarlier(false)} />}
     {view && <ReportView r={view} committee={coms.find((c) => c.id === view.committee_id)} docs={docs.filter((d) => d.report_id === view.id)} oversight={oversight} canEdit={canSubmit(view.committee_id) && !isLocked(view)} onEdit={() => { const c = coms.find((x) => x.id === view.committee_id); setView(null); if (c) openForm(c, view.period_ym ?? cycle.reportMonth, view) }} onUnlock={async () => { const r = await unlockReport(view.id); if (r.error) return toast(friendly(r.error)); setView(null); await load(); toast('Report unlocked — it is editable until you lock it again or the next daily lock runs') }} onClose={() => setView(null)} />}
   </>
 }
@@ -197,5 +201,20 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
       <span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button>
         {!locked && savedReport?.status !== 'submitted' && <button type="button" className="b s-btn on-light sm" disabled={!!saving} onClick={() => void save('draft')}>{saving === 'draft' ? 'Saving…' : 'Save progress'}</button>}
         {!locked && <button type="button" className="b p-btn sm" disabled={!!saving} onClick={() => void save('submitted')}>{saving === 'submitted' ? 'Submitting…' : savedReport?.status === 'submitted' ? 'Save changes' : 'Submit report'}</button>}</span></div>
+  </Modal>
+}
+
+/** Pick a committee and any month up to the current report month. */
+function EarlierDialog({ coms, max, onPick, onClose }: { coms: Committee[]; max: string; onPick: (c: Committee, ym: string) => void; onClose: () => void }) {
+  const [cid, setCid] = useState<number>(coms[0]?.id ?? 0)
+  const [ym, setYm] = useState('')
+  const c = coms.find((x) => x.id === cid)
+  return <Modal onClose={onClose}>
+    <div className="mh"><div><h3>Open an earlier month</h3><p>See a report that was filed, or file one late. Late reports still feed Stats.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+    <div className="mb"><div className="cert-grid mform">
+      <div><label className="flabel" htmlFor="er-c">Committee</label><select id="er-c" className="fi" value={cid} onChange={(e) => setCid(Number(e.target.value))}>{coms.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
+      <div><label className="flabel" htmlFor="er-m">Month</label><input id="er-m" className="fi" type="month" value={ym} max={max} onChange={(e) => setYm(e.target.value)} /></div>
+    </div></div>
+    <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={!c || !ym || ym > max} onClick={() => c && onPick(c, ym)}>Open</button></div>
   </Modal>
 }
