@@ -69,6 +69,12 @@ export async function everyone(): Promise<{ rows: Contact[]; error?: string }> {
   return { rows: out }
 }
 
+/** One person with everything attached — the card opened from the Members page. */
+export async function contactById(id: string): Promise<{ row: Contact | null; error?: string }> {
+  const r = await select<Contact>('people', `select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`)
+  return r.data ? { row: r.data[0] ?? null } : { row: null, error: r.error ?? 'unknown' }
+}
+
 export async function committees(): Promise<Committee[]> {
   const r = await select<Committee>('committees', 'select=id,key,name&order=name.asc')
   return r.data ?? []

@@ -8,7 +8,7 @@
  * -------------------------------------------------------------------------- */
 import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { inviteAllMembers, inviteMember, loginStatus, requestReset, type AccessReply, type InviteRow } from '@/lib/queries/access'
+import { inviteAllMembers, loginStatus, type InviteRow } from '@/lib/queries/access'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useDensity } from '@/lib/density'
@@ -16,13 +16,14 @@ import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
   roster, state, tabOf, fullName, activeBoard, currentInstructor, advoLevel, otherCerts,
-  saveProfile, createMember, addNote, addLocation, endInstructor, endBoard,
+  saveProfile, createMember,
 } from '@/lib/queries/members'
 import type { Member, Profile } from '@/lib/queries/members'
 import { Chips as PersonChips, chipsFor } from './PersonChips'
 import { CERT_LABEL } from '@/lib/chips'
-import { askConfirm, askForm, askText } from './opsUi'
-import { personById, topCert, overrideCertification, LEVELS, RANK, type Person, type Level } from '@/lib/queries/certifications'
+import { askConfirm } from './opsUi'
+import { PersonCard } from './PersonCard'
+import { contactById, committees as loadCommittees, type Contact, type Committee } from '@/lib/queries/contacts'
 
 type Tab = 'all' | 'current' | 'recent' | 'inactive' | 'deceased'
 // Deceased members keep their record but sit in their own tab, last, and out of All members.
@@ -59,6 +60,15 @@ export default function MembersPanel() {
   const [open, setOpen] = useState<string | null>(null)
   const [openEditing, setOpenEditing] = useState(false) // the pencil opens the card already in edit mode
   const show = (id: string, editing = false) => { setOpenEditing(editing); setOpen(id) }
+  /* The card is the same one Contacts uses, so it reads the full record (offices, background, roles) when a member is opened. */
+  const [openContact, setOpenContact] = useState<Contact | null>(null)
+  const [comms, setComms] = useState<Committee[]>([])
+  useEffect(() => { if (canEdit) void loadCommittees().then(setComms) }, [canEdit])
+  useEffect(() => {
+    if (!open) { setOpenContact(null); return }
+    void contactById(open).then((r) => { if (r.row) setOpenContact(r.row); else toast(r.error ? friendlyError(r.error) : 'Could not read that record.') })
+  }, [open, toast])
+  const refreshOpen = async () => { await load(); if (open) { const r = await contactById(open); if (r.row) setOpenContact(r.row) } }
   const [edit, setEdit] = useState<Member | 'new' | null>(null)
   /* Compact (one row per member) or comfortable (cards), remembered on this
    * device. Phones always get the cards. */
@@ -74,24 +84,6 @@ export default function MembersPanel() {
   // function can read. Until it answers, a row just says whether a login exists.
   const [logins, setLogins] = useState<Record<string, { last_sign_in_at: string | null }> | null>(null)
   useEffect(() => { if (canInvite) void loginStatus().then((r) => setLogins(r?.logins ?? null)).catch(() => {}) }, [canInvite])
-  const [sending, setSending] = useState<string | null>(null)
-  async function rowInvite(p: Member) {
-    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
-    setSending(p.id)
-    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
-    setSending(null)
-    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
-    toast(`Welcome letter emailed to ${r.email ?? p.email}`)
-    await load()
-  }
-  async function rowReset(p: Member) {
-    if (!p.email) return
-    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} a password reset?`, { body: `An email with a link to choose a new password goes to ${p.email}. Their current password keeps working until they change it.`, ok: 'Send reset' }))) return
-    setSending(p.id)
-    const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
-    setSending(null)
-    toast(r?.ok ? `Password reset link emailed to ${p.email}` : 'Could not send it. Please try again in a moment.')
-  }
 
   const counts = useMemo(() => { const c: Record<Tab, number> = { all: 0, current: 0, recent: 0, inactive: 0, deceased: 0 }; for (const p of rows) { const t = tabOf(p) as Tab; if (t !== 'deceased') c.all++; c[t]++ } return c }, [rows])
   const list = useMemo(() => {
@@ -160,155 +152,12 @@ export default function MembersPanel() {
         : list.map(card))}
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
-      {current && <ContactCard key={current.id} startEditing={openEditing} p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} lastIn={lastIn(current)} sending={sending === current.id} onInvite={() => void rowInvite(current)} onReset={() => void rowReset(current)} onClose={() => setOpen(null)} onChanged={load} />}
+      {current && openContact?.id === current.id && <PersonCard key={current.id} startEditing={openEditing} p={openContact} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canInvite} canInvite={canInvite} canCert={can('manage_certifications')} lastIn={lastIn(current)} onClose={() => setOpen(null)} onChanged={refreshOpen} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
 }
 
-/* A label and its value. Lives outside the card so an input inside it keeps focus while typing. */
-function KV({ k, v }: { k: string; v: React.ReactNode }) { return <><span>{k}</span><div>{v ?? '—'}</div></> }
-const fromMember = (p: Member): Record<string, string> => ({
-  first_name: p.first_name ?? '', last_name: p.last_name ?? '', credentials: p.credentials ?? '', contact_type: p.contact_type ?? 'doctor',
-  email: p.email ?? '', mobile_phone: p.mobile_phone ?? '', office_phone: p.office_phone ?? '', practice_website: p.practice_website ?? '',
-  practice_name: p.practice_name ?? '', practice_address: p.practice_address ?? '', techniques: (p.techniques ?? []).join(', '),
-  status: p.deceased_on ? 'deceased' : (p.membership_status ?? 'active'), deceased_on: p.deceased_on ?? '', member_since: p.member_since ?? '', membership_expires: p.membership_expires ?? '',
-  photo_url: p.photo_url ?? '',
-})
-
-function ContactCard({ startEditing = false, p, me, meId, canEdit, canInvite, lastIn, sending, onInvite, onReset, onClose, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; lastIn: string; sending: boolean; onInvite: () => void; onReset: () => void; onClose: () => void; onChanged: () => Promise<void>; startEditing?: boolean }) {
-  const toast = useToast()
-  const [note, setNote] = useState('')
-  const noteCount = (p.contact_notes ?? []).length + (p.notes ? 1 : 0)
-  type CardTab = 'profile' | 'business' | 'membership' | 'certification' | 'notes'
-  const [tab, setTab] = useState<CardTab>('profile')
-  const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['membership', 'Membership & service'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
-  const canCert = useAccess().can('manage_certifications')
-  /* Edit turns the fields of every tab into inputs in place; Save writes them all at once. */
-  const canChange = canEdit || canCert
-  const [editing, setEditing] = useState(startEditing && canChange)
-  const editP = editing && canEdit // profile, business and membership fields
-  const editC = editing && canCert // certification fields
-  /* The certification record carries what the roster doesn't (the level being worked toward, interest), so it is read when editing starts. */
-  const [rec, setRec] = useState<Person | null>(null)
-  type CertForm = { level: Level; date: string; num: string; target: Level | ''; interest: boolean }
-  const [cv, setCv] = useState<CertForm | null>(null)
-  const [cv0, setCv0] = useState<CertForm | null>(null)
-  useEffect(() => {
-    if (!editC || rec) return
-    void personById(p.id).then((r) => {
-      if (!r.row) { setErr(r.error ? friendlyError(r.error) : 'Could not read their certification record.'); return }
-      const c = topCert(r.row)
-      const f: CertForm = { level: (c?.level as Level) ?? 'none', date: c?.cert_date ?? '', num: c?.certificate_number ?? '', target: (r.row.target_cert_level as Level) ?? '', interest: !!r.row.cert_interest }
-      setRec(r.row); setCv(f); setCv0(f)
-    })
-  }, [editC, rec, p.id])
-  const [v, setV] = useState<Record<string, string>>(() => fromMember(p))
-  const [err, setErr] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const startEdit = () => { setV(fromMember(p)); setErr(null); setRec(null); setCv(null); setEditing(true) }
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV((x) => ({ ...x, [k]: e.target.value }))
-  const inp = (k: string, type = 'text', placeholder?: string) => <input className="fi" type={type} value={v[k] ?? ''} placeholder={placeholder} onChange={set(k)} aria-label={k.replace(/_/g, ' ')} />
-  const ed = (k: string, view: React.ReactNode, type = 'text') => editP ? inp(k, type) : view
-  const photoRef = useRef<HTMLInputElement>(null)
-  const [photoBusy, setPhotoBusy] = useState(false)
-  async function pickPhoto(file: File | undefined) {
-    if (!file) return
-    setPhotoBusy(true)
-    const r = await uploadPhotoFor(p.id, file)
-    setPhotoBusy(false)
-    if (photoRef.current) photoRef.current.value = ''
-    if (r.missing) return setErr('Photo uploads are being switched on — paste a link for now.')
-    if (r.error) return setErr('The photo could not be uploaded. Try a JPG or PNG under 10 MB.')
-    setV((x) => ({ ...x, photo_url: r.url ?? '' }))
-  }
-  async function save() {
-    setErr(null)
-    const certChanged = editC && rec && cv && JSON.stringify(cv) !== JSON.stringify(cv0)
-    if (certChanged && cv.level !== 'none' && !cv.date) { setErr('An award date is required for an achieved level.'); setTab('certification'); return }
-    if (certChanged && cv.target && RANK[cv.target]! <= RANK[cv.level]!) { setErr('“Working toward” must be above the achieved level.'); setTab('certification'); return }
-    if (certChanged) {
-      setSaving(true)
-      const c = await overrideCertification(rec, cv.level, cv.date || null, cv.num || null, me, cv.target || null, cv.interest)
-      setSaving(false)
-      if (c.error) { setErr(friendlyError(c.error)); return }
-    }
-    if (!editP) { setEditing(false); await onChanged(); toast(certChanged ? 'Certification saved.' : 'No changes.'); return }
-    if (!v.first_name?.trim() || !v.last_name?.trim()) { setErr('First and last name are required.'); setTab('profile'); return }
-    const dead = v.status === 'deceased'
-    const prof: Profile = { photo_url: v.photo_url || null, first_name: v.first_name.trim(), last_name: v.last_name.trim(), credentials: v.credentials || null, contact_type: v.contact_type ?? 'doctor', email: v.email || null, mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, practice_website: v.practice_website || null, practice_name: v.practice_name || null, practice_address: v.practice_address || null, techniques: (v.techniques ?? '').split(',').map((x) => x.trim()).filter(Boolean), member_since: v.member_since || null, membership_expires: v.membership_expires || null, deceased_on: dead ? (v.deceased_on || new Date().toISOString().slice(0, 10)) : null }
-    if (!dead) prof.membership_status = v.status
-    setSaving(true); const r = await saveProfile(p.id, prof); setSaving(false)
-    if (r.error) { setErr(friendlyError(r.error)); return }
-    setEditing(false); await onChanged(); toast('Saved.')
-  }
-  const s = state(p), instr = currentInstructor(p), boards = p.board_service ?? [], active = boards.find((b) => b.status === 'active')
-  // Escape leaves edit mode first, and only closes the card when nothing is being edited.
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; if (editing) setEditing(false); else onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose, editing])
-  const fail = (r: { error?: string }) => { if (r.error) { toast(friendlyError(r.error)); return true } return false }
-  const locs = (p.practice_locations ?? []).slice().sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
-  return (
-    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && !editing && onClose()}>
-      <div className={`cert-modal wide cc${editing ? ' editing' : ''}`} role="dialog" aria-modal="true">
-        <div className="mh"><div><h3>{fullName(p)}</h3>
-          <div className="cert-chips" style={{ margin: '8px 0 0' }}><StatusPill p={p} /><Chips p={p} /></div>
-        </div><div className="cc-ctl"><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button>
-          {canChange && (editing
-            ? <div className="cc-btns"><button type="button" className="b s-btn on-light xs" onClick={() => { setEditing(false); setErr(null) }}>Cancel</button><button type="button" className="b p-btn xs" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button></div>
-            : <button type="button" className="b s-btn on-light xs" onClick={startEdit}>✎ Edit</button>)}
-        </div></div>
-        <div className="evt-tabs" role="tablist">{tabs.map(([k, l]) => <button type="button" role="tab" aria-selected={tab === k} key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-        <div className="mb cc-body">
-          {err && <div className="cert-err" role="alert">{err}</div>}
-          {tab === 'profile' && <>
-          <div className="sec">Contact</div><div className="kv">{editP && <><KV k="First name" v={inp('first_name')} /><KV k="Last name" v={inp('last_name')} /><KV k="Credentials" v={inp('credentials', 'text', 'DC')} /></>}<KV k="Email" v={ed('email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null, 'email')} /><KV k="Mobile" v={ed('mobile_phone', p.mobile_phone)} />
-            {editP && <KV k="Headshot" v={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{inp('photo_url', 'url', 'https://…')}<input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Upload'}</button></div>} />}</div>
-          <div className="sec">Classification</div><div className="kv"><KV k="Type" v={editP ? <select className="fi" value={v.contact_type} onChange={set('contact_type')} aria-label="Type"><option value="doctor">Doctor</option><option value="student">Student</option></select> : p.contact_type === 'student' ? 'Student' : 'Doctor'} /><KV k="Technique(s)" v={editP ? inp('techniques', 'text', 'Comma separated') : (p.techniques ?? []).join(', ') || null} />{instr && <KV k="Instructor track" v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} />}</div>
-          {canInvite && !p.deceased_on && <>
-            <div className="sec">Members area</div>
-            <div className="kv"><KV k="Login" v={!p.email ? 'No email on file' : p.auth_user_id ? 'Set up' : 'Not set up yet'} /><KV k="Last signed in" v={lastIn} /></div>
-            {p.email && <div className="act" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              {p.auth_user_id && <button type="button" className="b s-btn on-light xs" disabled={sending} onClick={onReset}>Send password reset</button>}
-              <button type="button" className="b s-btn on-light xs" disabled={sending} onClick={onInvite}>Send welcome letter</button>
-            </div>}
-          </>}
-          </>}
-          {tab === 'business' && <>
-          <div className="sec">Office location</div>
-          <div className="loc">{!editP && <><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && locs.length > 0 && <Pill kind="info">Primary</Pill>}</>}<div className="kv" style={{ marginTop: editP ? 0 : 8 }}>{editP && <KV k="Practice name" v={inp('practice_name')} />}<KV k="Office phone" v={ed('office_phone', p.office_phone ?? p.practice_phone)} /><KV k="Address" v={ed('practice_address', p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null))} /><KV k="Website" v={editP ? inp('practice_website') : p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
-          {locs.map((l) => <div className="loc" key={l.id}><b>{l.name}</b><div className="kv" style={{ marginTop: 8 }}><KV k="Office phone" v={l.phone} /><KV k="Address" v={l.address} /><KV k="Website" v={l.website} /></div></div>)}
-          {canEdit && <button type="button" className="t-link" onClick={async () => { const v = await askForm('Add a second location', [{ key: 'n', label: 'Location name', required: true }, { key: 'a', label: 'Address' }, { key: 'w', label: 'Website', placeholder: 'https://' }], { ok: 'Add location' }); if (!v) return; if (!fail(await addLocation(p.id, v.n ?? '', v.a ?? '', v.w ?? ''))) await onChanged() }}>+ Add second location</button>}
-          </>}
-          {tab === 'membership' && <>
-          <div className="sec">Membership</div><div className="kv"><KV k="Status" v={editP ? <select className="fi" value={v.status} onChange={set('status')} aria-label="Status"><option value="active">Active</option><option value="expired">Expired</option><option value="never">Never a member</option><option value="deceased">Deceased</option></select> : s === 'deceased' ? `Deceased${p.deceased_on ? ' · ' + fmt(p.deceased_on) : ''}` : s === 'current' ? <>Active member {activeBoard(p) && <Pill kind="ok">Director — complimentary</Pill>}</> : s === 'recent' ? 'Recently expired — reactivatable' : 'Inactive'} />{editP && v.status === 'deceased' && <KV k="Date of passing" v={inp('deceased_on', 'date')} />}<KV k="Member since" v={ed('member_since', p.member_since, 'date')} /><KV k="Expires" v={ed('membership_expires', p.membership_expires, 'date')} /></div>
-          {boards.length > 0 && <><div className="sec">Board service</div><div className="kv">{boards.map((b) => <KV key={b.id} k={b.term_label ?? `${b.term_start ?? ''}–${b.term_end ?? ''}`} v={b.status === 'active' ? 'Active board member' : b.status === 'nominee' ? 'Nominee' : 'Past board member'} />)}</div>{active && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return; if (!fail(await endBoard(p))) { toast('Board service ended.'); await onChanged() } }}>End board service</button></div>}</>}
-          </>}
-          {tab === 'certification' && <>
-          {!editC && <><div className="sec">Certifications</div><div className="kv">{(p.person_certifications ?? []).length === 0 && <KV k="—" v="None on file" />}{(p.person_certifications ?? []).map((c) => <KV key={c.id} k={c.technique} v={`${LVL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}</div></>}
-          {editC && <>
-            <div className="sec">Advanced Orthogonal</div>
-            {!cv ? <p className="muted">Reading their certification record…</p> : <div className="kv">
-              <KV k="Level" v={<select className="fi" value={cv.level} onChange={(e) => setCv({ ...cv, level: e.target.value as Level })} aria-label="Level">{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>} />
-              <KV k="Date awarded" v={<input className="fi" type="date" value={cv.date} onChange={(e) => setCv({ ...cv, date: e.target.value })} aria-label="Date awarded" />} />
-              <KV k="Certificate #" v={<input className="fi" value={cv.num} placeholder="Optional" onChange={(e) => setCv({ ...cv, num: e.target.value })} aria-label="Certificate number" />} />
-              <KV k="Working toward" v={<select className="fi" value={cv.target} onChange={(e) => setCv({ ...cv, target: e.target.value as Level | '' })} aria-label="Working toward"><option value="">None (not pursuing)</option>{LEVELS.slice(1).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>} />
-              <KV k="Interested" v={<label className="cert-tog" style={{ margin: 0 }}><input type="checkbox" checked={cv.interest} onChange={(e) => setCv({ ...cv, interest: e.target.checked })} /> In conversation about the next level</label>} />
-            </div>}
-          </>}
-          {!canCert && <p className="muted" style={{ marginTop: 10 }}>Only the Executive Director and the Certification Committee chair or co-chair can change certifications.</p>}
-          {instr && <><div className="sec">Instructor</div><div className="kv"><KV k={instr.technique ?? 'Advanced Orthogonal'} v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} /></div>{canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { const why = await askText('End instructor service', { label: 'Reason (optional)', placeholder: 'e.g. Retired from teaching' }, { ok: 'End service', danger: true }); if (why === null) return; if (!fail(await endInstructor(p, why))) { toast('Instructor service ended.'); await onChanged() } }}>End instructor service</button></div>}</>}
-          </>}
-          {tab === 'notes' && <>
-          {p.notes && <div className="ma-row"><div><b style={{ fontWeight: 500 }}>{p.notes}</b><span>From the original record</span></div></div>}
-          {(p.contact_notes ?? []).length === 0 && !p.notes && <p className="muted">No notes yet.</p>}
-          {(p.contact_notes ?? []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at)).map((n) => <div className="ma-row" key={n.id}><div><b style={{ fontWeight: 500 }}>{n.text}</b><span>{n.by_name ?? '—'} · {fmt(n.created_at)}</span></div></div>)}
-          {canEdit && <><textarea className="fi" value={note} placeholder="Add a note…" onChange={(e) => setNote(e.target.value)} style={{ marginTop: 8, minHeight: 70 }} /><div className="act"><button type="button" className="b s-btn on-light sm" disabled={!note.trim()} onClick={async () => { if (!fail(await addNote(p.id, note.trim(), me, meId))) { setNote(''); await onChanged() } }}>Add note</button></div></>}
-          </>}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => void; onSaved: (m: string) => void }) {
   const [v, setV] = useState<Record<string, string>>({

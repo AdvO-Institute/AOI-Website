@@ -2087,6 +2087,11 @@ a.othercard {
 .cc .cc-ctl { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: 0 0 auto; }
 .cc .cc-btns { display: flex; gap: 6px; }
 .cc .cc-btns .p-btn:hover { transform: none; } /* stays level with Cancel */
+/* Person card, edit mode: city/state/ZIP on one line, checkbox groups that wrap. */
+.cc .cc-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; }
+.cc .cc-wrap { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.cc .ctc-chk.cc-chk { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin-top: 0; }
+.cc .kv .evt-rows { display: grid; gap: 6px; }
 /* Contact card in edit mode: the Add-contact fields, condensed to match the member view. */
 .ctc-card.editing .cert-grid { gap: 0 14px; padding: 6px 0 14px; }
 .ctc-card.editing .flabel { margin: 10px 0 4px; }

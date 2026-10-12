@@ -4,26 +4,20 @@
  * Add / Edit form, offices, roles and the running notes log.
  * -------------------------------------------------------------------------- */
 import { friendlyError } from '@/lib/friendlyError'
-import { webHref } from '@/lib/safeHref'
-import { SafeLink, askConfirm } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { inviteMember, requestReset, type AccessReply } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useDensity } from '@/lib/density'
-import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
-  everyone, committees as loadCommittees, saveProfile, createContact, addNote, saveOffices, saveRoles,
-  TECHNIQUES, ROLE_LABEL, LEVEL_LABEL, fullName, state, tabOf, duesLapsed, advoLevel, otherCerts, initials,
+  everyone, committees as loadCommittees,
+  TECHNIQUES, ROLE_LABEL, LEVEL_LABEL, fullName, state, tabOf, advoLevel, otherCerts,
 } from '@/lib/queries/contacts'
-import type { Contact, Committee, Office, Profile, Seat, Tab } from '@/lib/queries/contacts'
-import { ResearchSection } from './ResearchPanel'
-import { Chips, chipsFor } from './PersonChips'
-import { INSTRUCTOR_TITLE } from '@/lib/chips'
+import type { Contact, Committee, Tab } from '@/lib/queries/contacts'
+import { PersonCard, StatusPill, RoleChips, useContactForm, fmtD, ROLE_TOGGLES, type ContactForm } from './PersonCard'
+import { chipsFor } from './PersonChips'
 
 const TABS: [Tab, string][] = [['all', 'All contacts'], ['lead', 'Leads'], ['member', 'Members'], ['expired', 'Expired']]
-const fmtD = (iso?: string | null) => (iso ? new Date(iso + (iso.length === 10 ? 'T12:00:00Z' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 
 const editIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
 /** The status pill's words, for the compact rows. */
@@ -35,18 +29,7 @@ function statusText(p: Contact): string {
   return 'Lead'
 }
 
-function Pill({ kind = '', children }: { kind?: string; children: React.ReactNode }) { return <span className={`cpill ${kind}`}>{children}</span> }
 
-function StatusPill({ p }: { p: Contact }) {
-  const s = state(p)
-  if (s === 'deceased') return <Pill kind="dec">Deceased{p.deceased_on ? ` · ${p.deceased_on.slice(0, 4)}` : ''}</Pill>
-  if (s === 'member') return <Pill kind="ok">Member{p.membership_expires ? ` · exp ${fmtD(p.membership_expires)}` : ''}</Pill>
-  if (s === 'expired') return <Pill kind="warn">Expired{p.membership_expires ? ` · ${fmtD(p.membership_expires)}` : ''}</Pill>
-  return <Pill kind="lead">Lead</Pill>
-}
-function RoleChips({ p }: { p: Contact }) {
-  return <Chips list={chipsFor(p, advoLevel(p), otherCerts(p))} />
-}
 
 export default function ContactsPanel() {
   const toast = useToast()
@@ -140,7 +123,7 @@ export default function ContactsPanel() {
       {gone.length > 0 && <div className="msec">Deceased · {gone.length}</div>}
       {gone.length > 0 && (compact ? table(gone) : gone.map(row))}
 
-      {current && <ContactCard key={current.id} startEditing={openEditing} p={current} comms={comms} me={me} meId={meId} canEdit={canEdit} canInvite={canRoles} canRoles={canRoles} onClose={() => setOpen(null)} onChanged={load} />}
+      {current && <PersonCard key={current.id} startEditing={openEditing} p={current} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canRoles} canInvite={canRoles} canCert={can('manage_certifications')} onClose={() => setOpen(null)} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} comms={comms} canRoles={canRoles} me={me} meId={meId} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
@@ -152,129 +135,10 @@ export default function ContactsPanel() {
 
 type Step = 'who' | 'practice' | 'bg' | 'member' | 'notes'
 const STEPS: [Step, string][] = [['who', 'Name & contact'], ['practice', 'Practice & locations'], ['bg', 'Background'], ['member', 'Membership & roles'], ['notes', 'Notes']]
-type V = Record<string, string>
-const ROLE_TOGGLES = ['executive_director', 'board_member', 'board_chair', 'vice_chair', 'secretary', 'instructor', 'past_board_member', 'past_executive_director']
 
 
-type CardTab = 'profile' | 'business' | 'membership' | 'certification' | 'notes'
-const CARD_TABS: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', 'Notes']]
-const STEP_TAB: Record<Step, CardTab> = { who: 'profile', bg: 'profile', practice: 'business', member: 'membership', notes: 'notes' }
 
-function ContactCard({ p, comms, me, meId, canEdit, canInvite, canRoles, startEditing = false, onClose, onChanged }: { p: Contact; comms: Committee[]; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; canRoles: boolean; startEditing?: boolean; onClose: () => void; onChanged: () => Promise<void> }) {
-  const toast = useToast()
-  const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [tab, setTab] = useState<CardTab>('profile')
-  /* Edit turns the fields of every tab into inputs in place; Save writes them all at once. */
-  const f = useContactForm(p, canRoles, me, meId)
-  const [editing, setEditing] = useState(startEditing && canEdit)
-  const startEdit = () => { f.reset(); setEditing(true) }
-  const cancel = () => { f.reset(); setEditing(false) }
-  async function saveAll() {
-    const r = await f.save()
-    if (!r.ok) { if (r.step) setTab(STEP_TAB[r.step]); return }
-    setEditing(false); await onChanged(); toast(r.msg)
-  }
-  // Escape leaves edit mode first, and only closes the card when nothing is being edited.
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; if (editing) cancel(); else onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) })
-  const s = state(p)
-  const kv = (k: string, v: React.ReactNode) => (v ? <><span>{k}</span><div>{v}</div></> : null)
-  // Many imported addresses already end in "City, ST ZIP"; don't repeat it.
-  const tail = [p.practice_city, [p.practice_state, p.practice_zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-  const addr = p.practice_address && p.practice_city && p.practice_address.toLowerCase().includes(p.practice_city.toLowerCase()) ? p.practice_address : [p.practice_address, tail].filter(Boolean).join(', ')
-  const web = (w: string | null) => (w ? <SafeLink href={webHref(w)}>{w}</SafeLink> : null)
-  const offices = p.practice_locations ?? []
-  const notes = [...(p.contact_notes ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
-  async function welcome() {
-    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
-    setBusy(true)
-    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
-    setBusy(false)
-    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
-    toast(`Welcome letter emailed to ${r.email ?? p.email}`)
-    await onChanged()
-  }
-  async function reset() {
-    if (!p.email) return
-    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} a password reset?`, { body: `An email with a link to choose a new password goes to ${p.email}. Their current password keeps working until they change it.`, ok: 'Send reset' }))) return
-    setBusy(true)
-    const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
-    setBusy(false)
-    toast(r?.ok ? `Password reset link emailed to ${p.email}` : 'Could not send it. Please try again in a moment.')
-  }
-  async function addTheNote() {
-    if (!note.trim()) return
-    setBusy(true); const r = await addNote(p.id, note.trim(), me, meId); setBusy(false)
-    if (r.error) { toast('The note could not be saved. ' + friendlyError(r.error)); return }
-    setNote(''); await onChanged(); toast('Note added')
-  }
-  const tabs = CARD_TABS.map(([k, l]): [CardTab, string] => [k, k === 'notes' && notes.length + (p.notes ? 1 : 0) ? `${l} (${notes.length + (p.notes ? 1 : 0)})` : l])
-  return (
-    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && !editing && onClose()}>
-      <div className={`cert-modal ctc-card cc${editing ? ' editing' : ''}`} role="dialog" aria-modal="true">
-        <div className="ctc-top"><div className="av">{p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
-          <div style={{ flex: 1, minWidth: 0 }}><h3>{fullName(p)}</h3>{p.title && <div className="ti">{p.title}</div>}<div className="cert-chips" style={{ marginBottom: 0 }}><StatusPill p={p} /><RoleChips p={p} /></div></div>
-          <div className="cc-ctl"><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button>
-            {canEdit && (editing
-              ? <div className="cc-btns"><button type="button" className="b s-btn on-dark xs" onClick={cancel}>Cancel</button><button type="button" className="b p-btn xs" disabled={f.saving} onClick={() => void saveAll()}>{f.saving ? 'Saving…' : 'Save'}</button></div>
-              : <button type="button" className="b s-btn on-dark xs" onClick={startEdit}>✎ Edit</button>)}
-          </div></div>
-        <div className="evt-tabs" role="tablist">{tabs.map(([k, l]) => <button type="button" role="tab" aria-selected={tab === k} key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-        <div className="ctc-body cc-body">
-          {editing && f.err && <div className="cert-err" role="alert" style={{ marginTop: 14 }}>{f.err}</div>}
-          {tab === 'profile' && (editing
-            ? <div className="cert-grid mform evt-grid"><WhoFields f={f} /><BgFields f={f} /></div>
-            : <>
-              <Sec title="Contact" items={[kv('Email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null), kv('Mobile', p.mobile_phone), kv('Personal', p.personal_phone)]} />
-              <Sec title="Classification" items={[kv('Type', p.contact_type === 'doctor' ? 'Doctor' : p.contact_type === 'student' ? 'Student' : p.contact_type === 'staff' ? 'Staff' : p.contact_type), kv('Technique(s)', (p.techniques ?? []).join(', '))]} />
-              <Sec title="Background" items={[kv('Chiropractic college', p.alma_mater), kv('Graduated', p.grad_year), kv('NPI', p.npi)]} />
-              {p.bio && <><div className="sec">Bio</div><p style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{p.bio}</p></>}
-              <ResearchSection personId={p.id} />
-              {canInvite && !p.deceased_on && <>
-                <div className="sec">Members area</div>
-                <div className="kv"><span>Login</span><div>{!p.email ? 'No email on file' : p.auth_user_id ? 'Set up' : 'Not set up yet'}</div></div>
-                {p.email && <div className="act" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  {p.auth_user_id && <button type="button" className="b s-btn on-light xs" disabled={busy} onClick={() => void reset()}>Send password reset</button>}
-                  <button type="button" className="b s-btn on-light xs" disabled={busy} onClick={() => void welcome()}>Send welcome letter</button>
-                </div>}
-              </>}
-            </>)}
-          {tab === 'business' && (editing
-            ? <div className="cert-grid mform evt-grid"><PracticeFields f={f} /></div>
-            : <>
-              <Sec title="Practice" items={[kv('Practice', p.practice_name), kv('Office phone', p.office_phone ?? p.practice_phone), kv('Address', addr ? <>{addr}<br /><a href={`https://maps.google.com/?q=${encodeURIComponent([p.practice_name, addr].filter(Boolean).join(', '))}`} target="_blank" rel="noreferrer">Open in maps</a></> : null), kv('Website', web(p.practice_website))]} />
-              {offices.length > 0 && <><div className="sec">Other offices</div>{offices.map((o) => <div key={o.id} className="kv" style={{ marginBottom: 10 }}>{kv(o.name || 'Office', <>{[o.address, [o.city, [o.state, o.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ')}{o.phone ? <><br />{o.phone}</> : null}{o.website ? <><br />{web(o.website)}</> : null}{(o.is_internship_site || o.is_seminar_venue) && <div className="cert-chips" style={{ marginTop: 6, marginBottom: 0 }}>{o.is_internship_site && <Pill>Internship site</Pill>}{o.is_seminar_venue && <Pill>Seminar venue</Pill>}</div>}</>)}</div>)}</>}
-              {!p.practice_name && !addr && !p.practice_website && offices.length === 0 && <p className="muted" style={{ marginTop: 14 }}>No practice on file.</p>}
-            </>)}
-          {tab === 'membership' && (editing
-            ? <div className="cert-grid mform evt-grid"><MemberFields f={f} comms={comms} /></div>
-            : <>
-              <Sec title="Membership" items={s === 'lead' ? [kv('Status', 'Never a member')] : [kv('Status', s === 'member' ? (duesLapsed(p) ? 'Current — dues lapsed, stays current as a Director' : 'Current member') : s === 'expired' ? 'Expired' : 'Deceased'), kv('Member since', fmtD(p.member_since)), kv(s === 'member' && !duesLapsed(p) ? 'Renews' : 'Dues lapsed on', fmtD(p.membership_expires)), kv('Profile', p.profile_completed ? 'Complete' : null)]} />
-              {canEdit && s === 'lead' && <p className="muted" style={{ marginTop: 8 }}>Becomes a member automatically when they join on the website.</p>}
-              {(p.person_roles ?? []).length > 0 && <><div className="sec">Roles &amp; committees</div>{(p.person_roles ?? []).map((r) => <div key={r.id} className="ctc-note" style={{ padding: '8px 12px' }}>{ROLE_LABEL[r.role_key] ?? r.role_key}{r.committees?.name ? ` · ${r.committees.name}` : ''}{r.instructor_level ? ` · ${INSTRUCTOR_TITLE[r.instructor_level] ?? r.instructor_level}` : ''}</div>)}</>}
-              <Sec title="Board service" items={(p.board_service ?? []).map((b) => kv(`Term ${b.term_label ?? ''}`, `${b.status ?? ''}${b.term_start ? ` · ${fmtD(b.term_start)} – ${b.term_end ? fmtD(b.term_end) : 'present'}` : ''}`))} />
-              <Sec title="Instructor" items={(p.instructor_records ?? []).map((i) => kv(i.level === 'senior_instructor' ? 'Senior instructor' : 'Instructor', `${i.status ?? ''}${i.technique ? ` · ${i.technique}` : ''}${i.instructor_date ? ` · since ${fmtD(i.instructor_date)}` : ''}`))} />
-            </>)}
-          {tab === 'certification' && <>
-            <Sec title="Certifications" items={(p.person_certifications ?? []).map((c) => kv(c.technique, `${LEVEL_LABEL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered' : ''}${c.cert_date ? ` on ${fmtD(c.cert_date)}` : ''}${c.certificate_number ? ` · Certificate #${c.certificate_number}` : ''}${c.certified_by ? ` · ${c.certified_by}` : ''}`))} />
-            {(p.person_certifications ?? []).length === 0 && <p className="muted" style={{ marginTop: 14 }}>No certification on file.</p>}
-            <p className="muted" style={{ marginTop: 10 }}>Certifications are changed by the Executive Director and the Certification Committee chair or co-chair, on the Members or Certifications page.</p>
-          </>}
-          {tab === 'notes' && <>
-            <div className="sec">Notes (running log)</div>
-            {notes.length === 0 && !p.notes && <p className="muted">No notes yet.</p>}
-            {notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Institute'} · {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small></div>)}
-            {p.notes && <div className="ctc-note">{p.notes}<small>Imported note</small></div>}
-            {canEdit && <div className="ctc-noteform"><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note — how we met, what they're interested in, a call…" /><div className="r"><button type="button" className="b s-btn on-light sm" disabled={busy || !note.trim()} onClick={() => void addTheNote()}>Add note</button></div></div>}
-          </>}
-        </div>
-      </div>
-    </div>
-  )
-}
 
-/* A section heading and its label/value rows; hidden when every row is empty. Module-level so it keeps its children mounted. */
-function Sec({ title, items }: { title: string; items: React.ReactNode[] }) { const has = items.some(Boolean); return has ? <><div className="sec">{title}</div><div className="kv">{items}</div></> : null }
 
 function F({ l, children, full = false, hint }: { l: string; children: React.ReactNode; full?: boolean; hint?: string }) {
   return <div className={full ? 'full' : ''}><label className="flabel">{l}</label>{children}{hint && <div className="evt-hint">{hint}</div>}</div>
@@ -283,69 +147,6 @@ function Tog({ on, onChange, l, sub }: { on: boolean; onChange: (ev: React.Chang
   return <label className={`evt-tog${on ? ' on' : ''}`}><input type="checkbox" checked={on} onChange={onChange} /><span><b>{l}</b>{sub && <small>{sub}</small>}</span></label>
 }
 
-/** The contact form: its fields' state and the save. Shared by the card's in-place editor and the Add contact window. */
-function useContactForm(p: Contact | null, canRoles: boolean, me: string, meId: string | null) {
-  const init = (): V => ({
-    first_name: p?.first_name ?? '', last_name: p?.last_name ?? '', credentials: p?.credentials ?? 'DC', title: p?.title ?? '', contact_type: p?.contact_type ?? 'doctor',
-    email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: p?.office_phone ?? '', personal_phone: p?.personal_phone ?? '',
-    practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', practice_city: p?.practice_city ?? '', practice_state: p?.practice_state ?? '', practice_zip: p?.practice_zip ?? '', practice_phone: p?.practice_phone ?? '', practice_website: p?.practice_website ?? '',
-    alma_mater: p?.alma_mater ?? '', grad_year: p?.grad_year ? String(p.grad_year) : '', npi: p?.npi ?? '', photo_url: p?.photo_url ?? '', bio: p?.bio ?? '',
-    membership_status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? 'never'), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '', newNote: '',
-  })
-  const initSeats = (): Seat[] => (p?.person_roles ?? []).map((r) => ({ role_key: r.role_key, committee_id: r.committee_id }))
-  const [v, setV] = useState<V>(init)
-  const [tq, setTq] = useState<string[]>(p?.techniques ?? [])
-  const [offices, setOffices] = useState<Office[]>(p?.practice_locations ?? [])
-  const [seats, setSeats] = useState<Seat[]>(initSeats)
-  const instrLevel = (p?.person_roles ?? []).find((r) => r.role_key === 'instructor')?.instructor_level ?? null
-  const [err, setErr] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  /** Back to what the record says now — before each edit, and on Cancel. */
-  const reset = () => { setV(init()); setTq(p?.techniques ?? []); setOffices(p?.practice_locations ?? []); setSeats(initSeats()); setErr(null) }
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }))
-  /* A manager's upload lands in the headshot bucket; the address is saved with the rest of the form. */
-  const photoRef = useRef<HTMLInputElement>(null)
-  const [photoBusy, setPhotoBusy] = useState(false)
-  const pickPhoto = async (file: File | undefined) => {
-    if (!file || !p) return
-    setPhotoBusy(true)
-    const r = await uploadPhotoFor(p.id, file)
-    setPhotoBusy(false)
-    if (photoRef.current) photoRef.current.value = ''
-    if (r.missing) return setErr('Photo uploads are being switched on — paste a link for now.')
-    if (r.error) return setErr('The photo could not be uploaded. Try a JPG or PNG under 10 MB.')
-    setV((s) => ({ ...s, photo_url: r.url ?? '' }))
-  }
-  const I = (k: string, type = 'text', ph = '') => <input className="fi" type={type} value={v[k] ?? ''} onChange={set(k)} placeholder={ph} />
-  const setOffice = (i: number, patch: Partial<Office>) => setOffices((o) => o.map((x, j) => (j === i ? { ...x, ...patch } : x)))
-  const hasSeat = (k: string) => seats.some((s) => s.role_key === k)
-
-  async function save(): Promise<{ ok: true; msg: string } | { ok: false; step?: Step }> {
-    setErr(null)
-    if (!v.first_name!.trim() || !v.last_name!.trim()) { setErr('First and last name are required.'); return { ok: false, step: 'who' } }
-    const dead = v.membership_status === 'deceased'
-    const prof: Profile = {
-      first_name: v.first_name!.trim(), last_name: v.last_name!.trim(), credentials: v.credentials || null, title: v.title || null, contact_type: v.contact_type || 'doctor',
-      email: v.email || null, mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, personal_phone: v.personal_phone || null,
-      practice_name: v.practice_name || null, practice_address: v.practice_address || null, practice_city: v.practice_city || null, practice_state: v.practice_state || null, practice_zip: v.practice_zip || null, practice_phone: v.practice_phone || null, practice_website: v.practice_website || null,
-      alma_mater: v.alma_mater || null, grad_year: v.grad_year ? Number(v.grad_year) : null, npi: v.npi || null, photo_url: v.photo_url || null, bio: v.bio || null,
-      techniques: tq, member_since: v.member_since || null, membership_expires: v.membership_expires || null,
-      deceased_on: dead ? (v.deceased_on || new Date().toISOString().slice(0, 10)) : null,
-    }
-    if (!dead) prof.membership_status = v.membership_status
-    setSaving(true)
-    let id = p?.id ?? null
-    if (id) { const r = await saveProfile(id, prof); if (r.error) { setSaving(false); setErr(friendly(r.error)); return { ok: false } } }
-    else { const r = await createContact(prof); if (r.error || !r.id) { setSaving(false); setErr(friendly(r.error ?? 'no id returned')); return { ok: false } }; id = r.id }
-    const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were not. ' + friendlyError(o.error)); return { ok: false } }
-    if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were not. ' + friendlyError(r.error)); return { ok: false } } }
-    if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was not. ' + friendlyError(n.error)); return { ok: false } } }
-    setSaving(false)
-    return { ok: true, msg: p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.` }
-  }
-  return { p, canRoles, v, set, I, tq, setTq, offices, setOffices, setOffice, seats, setSeats, hasSeat, err, saving, save, reset, photoRef, photoBusy, pickPhoto }
-}
-type ContactForm = ReturnType<typeof useContactForm>
 
 /* The form's sections. Each renders into a .cert-grid form grid, in the card's tabs and in the Add contact window. */
 function WhoFields({ f }: { f: ContactForm }) {
@@ -422,7 +223,7 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
   const go = (s: Step) => { setStep(s); bodyRef.current?.scrollTo({ top: 0 }) }
   async function save() {
     const r = await f.save()
-    if (!r.ok) { if (r.step) go(r.step); return }
+    if (!r.ok) { if (r.name) go('who'); return }
     onSaved(r.msg)
   }
 
@@ -453,8 +254,3 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
   )
 }
 
-function friendly(err: string): string {
-  if (/row-level security/.test(err)) return 'You don’t have permission for that. Only board, the executive director and the membership committee chair can change contacts.'
-  if (/duplicate key/.test(err)) return 'Someone with that key already exists.'
-  return friendlyError(err)
-}
