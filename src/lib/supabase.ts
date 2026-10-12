@@ -290,6 +290,30 @@ export async function requestPasswordReset(email: string, redirect: string): Pro
   }
 }
 
+/** Redeems a reset token on purpose, after the member presses a button — either
+ *  the token carried in the email's link, or the code printed in the email.
+ *  Email scanners open every link to check it; a link that signed in on arrival
+ *  was used up by the scanner before the member ever clicked. */
+export async function verifyRecovery(
+  proof: { token_hash: string } | { email: string; token: string },
+): Promise<void> {
+  const res = await sbFetch(`${SB_URL}/auth/v1/verify`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'recovery', ...proof }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || !data.access_token) {
+    throw new Error('That link or code has expired or was already used. Request a new one below.')
+  }
+  adopt(data)
+  try {
+    window.sessionStorage.setItem(RECOVERY_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Sets a new password for whoever the current token belongs to — either a
  *  signed-in member changing it, or someone arriving from a recovery link. */
 export async function updatePassword(password: string): Promise<void> {
