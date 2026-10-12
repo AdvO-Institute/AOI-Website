@@ -84,7 +84,7 @@ export function state(p: Member): State {
   return 'inactive'
 }
 /** The tile a person counts under: the deceased sit inside Inactive. */
-export const tabOf = (p: Member) => (state(p) === 'deceased' ? 'inactive' : state(p))
+export const tabOf = (p: Member) => state(p)
 const RANK: Record<string, number> = { student: 1, level_1: 2, level_2: 3 }
 export const advoLevel = (p: Member) => (p.person_certifications ?? []).filter((c) => c.technique === 'Advanced Orthogonal').reduce((b, c) => (RANK[c.level] ?? 0) > (RANK[b] ?? 0) ? c.level : b, '')
 export const otherCerts = (p: Member) => (p.person_certifications ?? []).filter((c) => c.technique !== 'Advanced Orthogonal')
