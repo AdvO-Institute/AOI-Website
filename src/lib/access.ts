@@ -105,6 +105,7 @@ export const ROLE_LABEL: Record<string, string> = {
   committee_cochair: 'Co-Chair',
   committee_member: 'Committee',
   research_director: 'Research Director',
+  treasurer: 'Treasurer',
   instructor: 'Instructor',
   member: 'Member',
 }
