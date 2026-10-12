@@ -46,7 +46,9 @@ export function friendly(err: string): string {
   return friendlyError(err)
 }
 
-export const ROLE_TOGGLES = ['executive_director', 'board_member', 'board_chair', 'vice_chair', 'secretary', 'instructor', 'past_board_member', 'past_executive_director']
+/* Officers in the first column, then board seat, teaching and past service. */
+export const ROLE_TOGGLES = ['executive_director', 'board_chair', 'vice_chair', 'secretary', 'treasurer', 'board_member', 'instructor', 'past_executive_director', 'past_board_member']
+const TOGGLE_LABEL: Record<string, string> = { board_member: 'Board member (Director)', past_board_member: 'Past board member' }
 const SEAT_KEYS = ['committee_chair', 'committee_cochair', 'committee_member', 'research_director']
 type V = Record<string, string>
 
@@ -338,7 +340,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
             <p className="muted" style={{ margin: '6px 0 0' }}>Joining on the website sets these automatically; change them here only for a manual renewal.</p>
             <div className="sec">Roles</div>
             <div className="kv">
-              <Row k="Roles"><div className="cc-wrap">{ROLE_TOGGLES.map((k) => chk(f.hasSeat(k), ROLE_LABEL[k]!, (on) => f.setSeats((x) => (on ? [...x, { role_key: k, committee_id: null }] : x.filter((y) => y.role_key !== k))), !canRoles))}</div></Row>
+              <Row k="Roles"><div className="cc-roles">{ROLE_TOGGLES.map((k) => chk(f.hasSeat(k), TOGGLE_LABEL[k] ?? ROLE_LABEL[k]!, (on) => f.setSeats((x) => (on ? [...x, { role_key: k, committee_id: null }] : x.filter((y) => y.role_key !== k))), !canRoles))}</div></Row>
               <Row k="Committee seats"><div className="evt-rows">{!f.seats.some((x) => SEAT_KEYS.includes(x.role_key)) && <span className="muted">None</span>}{f.seats.map((x, i) => SEAT_KEYS.includes(x.role_key) ? <div key={i} className="rr" style={{ gridTemplateColumns: '1fr 150px auto' }}>
                 <select className="fi" value={x.committee_id ?? ''} disabled={!canRoles} onChange={(e) => f.setSeats((all) => all.map((y, j) => (j === i ? { ...y, committee_id: e.target.value ? Number(e.target.value) : null } : y)))} aria-label="Committee"><option value="">— committee —</option>{comms.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                 <select className="fi" value={x.role_key} disabled={!canRoles} onChange={(e) => f.setSeats((all) => all.map((y, j) => (j === i ? { ...y, role_key: e.target.value } : y)))} aria-label="Seat"><option value="committee_chair">Chair</option><option value="committee_cochair">Co-Chair</option><option value="committee_member">Member</option><option value="research_director">Research Director</option></select>

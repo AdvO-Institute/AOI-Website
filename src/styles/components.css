@@ -2090,6 +2090,7 @@ a.othercard {
 /* Person card, edit mode: city/state/ZIP on one line, checkbox groups that wrap. */
 .cc .cc-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; }
 .cc .cc-wrap { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.cc .cc-roles { display: grid; grid-template-rows: repeat(5, auto); grid-auto-flow: column; justify-content: start; gap: 6px 32px; }
 .cc .ctc-chk.cc-chk { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin-top: 0; }
 .cc .kv .evt-rows { display: grid; gap: 6px; }
 /* Contact card in edit mode: the Add-contact fields, condensed to match the member view. */
