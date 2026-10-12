@@ -20,7 +20,7 @@ import { roleChipClass } from '@/lib/chips'
 type Committee = { id: number; key: string; name: string }
 
 /** Roles that stand alone. */
-const PLAIN_ROLES = ['executive_director', 'board_member', 'instructor'] as const
+const PLAIN_ROLES = ['executive_director', 'board_member', 'board_chair', 'vice_chair', 'secretary', 'instructor'] as const
 /** Roles that need a committee. */
 const COMMITTEE_ROLES = ['committee_chair', 'committee_cochair', 'committee_member'] as const
 

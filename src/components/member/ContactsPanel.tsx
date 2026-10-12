@@ -188,7 +188,7 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
 type Step = 'who' | 'practice' | 'bg' | 'member' | 'notes'
 const STEPS: [Step, string][] = [['who', 'Name & contact'], ['practice', 'Practice & locations'], ['bg', 'Background'], ['member', 'Membership & roles'], ['notes', 'Notes']]
 type V = Record<string, string>
-const ROLE_TOGGLES = ['executive_director', 'board_member', 'instructor', 'past_board_member', 'past_executive_director']
+const ROLE_TOGGLES = ['executive_director', 'board_member', 'board_chair', 'vice_chair', 'secretary', 'instructor', 'past_board_member', 'past_executive_director']
 
 function F({ l, children, full = false, hint }: { l: string; children: React.ReactNode; full?: boolean; hint?: string }) {
   return <div className={full ? 'full' : ''}><label className="flabel">{l}</label>{children}{hint && <div className="evt-hint">{hint}</div>}</div>
