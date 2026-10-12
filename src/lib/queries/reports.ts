@@ -13,9 +13,8 @@ import { cycleForMonth, monthLabel } from './meetings'
 
 export type Who = { name: string; id: string | null }
 export type Committee = { id: number; key: string; name: string }
-/** `net` is a figure worked out from two others (first minus second), shown but never typed.
- *  `rows` lays the numbers out in rows by key ('net' for the worked-out one); `tone` colors a figure. */
-export type Template = { nums?: [string, string][]; net?: [label: string, plus: string, minus: string]; rows?: string[][]; tone?: Record<string, 'in' | 'out'>; lists?: [string, string][]; texts: [string, string][]; docs?: [string, string][] }
+/** `net` is a figure worked out from two others (first minus second), shown as a sum, never typed. */
+export type Template = { nums?: [string, string][]; net?: [label: string, plus: string, minus: string]; lists?: [string, string][]; texts: [string, string][]; docs?: [string, string][] }
 
 /** One template per committee, as CCI OS defined them, plus the Treasurer. `($)` in a label marks a dollar figure. */
 export const TEMPLATES: Record<string, Template> = {
@@ -28,7 +27,7 @@ export const TEMPLATES: Record<string, Template> = {
   research: { nums: [['active_projects', 'Active research projects'], ['funds_raised', 'Funds raised ($)'], ['profit', 'Profit to the Institute ($)'], ['overhead', 'Institutional overhead ($)']], texts: [['active_detail', 'Active projects — detail'], ['completed', 'Completed projects'], ['starting', 'Projects to start'], ['narrative', 'Narrative']] },
   marketing: { nums: [['spend', 'Marketing spend ($)'], ['leads', 'Leads generated'], ['committed', 'Committed from those leads']], texts: [['campaigns', 'Active campaigns'], ['narrative', 'Narrative']] },
   nominations: { nums: [['forms_sent', 'Election forms sent'], ['forms_collected', 'Forms collected'], ['nominated', 'People nominated'], ['accepted', 'Nominations accepted']], texts: [['stage', 'Current stage'], ['results', 'Results (if applicable)'], ['narrative', 'Narrative']] },
-  treasury: { nums: [['revenue', 'Gross income ($)'], ['event_revenue', 'From registrations ($)'], ['expenditures', 'Expenses ($)'], ['cash', 'Balance ($)']], net: ['Net income ($)', 'revenue', 'expenditures'], rows: [['revenue', 'event_revenue'], ['expenditures'], ['net', 'cash']], tone: { revenue: 'in', expenditures: 'out' }, texts: [['notes', 'Notes for the Board']], docs: [['profit_loss', 'Profit & loss statement (QuickBooks PDF)'], ['balance_sheet', 'Balance sheet (QuickBooks PDF)']] },
+  treasury: { nums: [['revenue', 'Gross income ($)'], ['event_revenue', 'From registrations ($)'], ['expenditures', 'Expenses ($)'], ['cash', 'Balance ($)']], net: ['Net income ($)', 'revenue', 'expenditures'], texts: [['notes', 'Notes for the Board']], docs: [['profit_loss', 'Profit & loss statement (QuickBooks PDF)'], ['balance_sheet', 'Balance sheet (QuickBooks PDF)']] },
 }
 export const isMoney = (label: string) => /\(\$\)/.test(label)
 export const AUTO_SOURCE: Record<string, string> = { instructor: 'Instructors', certification: 'Certifications', college_outreach: 'Colleges', research: 'Research', internship: 'Internships', nominations: 'Board', seminar: 'Events', marketing: 'Contacts', treasury: 'Events' }

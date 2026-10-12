@@ -127,9 +127,20 @@ export function ReportBody({ r, t, docs, onDoc }: { r: Report; t: Template; docs
   return <>
     {t.nums && (() => {
       const vals = Object.fromEntries(t.nums.map(([k]) => [k, num(r, k)]))
-      const cell = (k: string) => { if (k === 'net' && t.net) { const n = netOf(vals, t.net); return <div key={k}><b>{n == null ? '—' : money(n)}</b><span>{t.net[0].replace(' ($)', '')}</span></div> } const l = t.nums!.find(([x]) => x === k)?.[1] ?? k; const v = vals[k] ?? null; return <div key={k} className={t.tone?.[k] ? `tone-${t.tone[k]}` : ''}><b>{v == null ? '—' : isMoney(l) ? money(v) : v}</b><span>{l.replace(' ($)', '')}</span></div> }
-      const rows = t.rows ?? [[...t.nums.map(([k]) => k), ...(t.net ? ['net'] : [])]]
-      return rows.map((row, i) => <div key={i} className={`rnum${t.rows ? ' rrow' : ''}`}>{row.map(cell)}</div>)
+      const lab = (k: string) => (t.nums!.find(([x]) => x === k)?.[1] ?? k).replace(' ($)', '')
+      const fig = (k: string) => { const v = vals[k] ?? null; return v == null ? '—' : isMoney(t.nums!.find(([x]) => x === k)?.[1] ?? '') ? money(v) : String(v) }
+      const plain = (keys: string[]) => keys.map((k) => <div key={k}><b>{fig(k)}</b><span>{lab(k)}</span></div>)
+      if (!t.net) return <div className="rnum">{plain(t.nums.map(([k]) => k))}</div>
+      // A worked-out figure reads as a sum: first line, minus the second, a rule, the result.
+      const [label, plus, minus] = t.net; const n = netOf(vals, t.net)
+      return <div className="ledger-wrap">
+        <div className="ledger">
+          <div className="lrow in"><span>{lab(plus)}</span><b>{fig(plus)}</b></div>
+          <div className="lrow out"><span>− {lab(minus)}</span><b>{fig(minus)}</b></div>
+          <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : money(n)}</b></div>
+        </div>
+        <div className="rnum">{plain(t.nums.map(([k]) => k).filter((k) => k !== plus && k !== minus))}</div>
+      </div>
     })()}
     {t.lists?.map(([k, l]) => <div key={k} className="rtx"><label className="flabel">{l}</label>{(r.data?.lists?.[k] ?? []).length ? <ul className="rlist">{r.data!.lists![k]!.map((n, i) => <li key={i}>{n}</li>)}</ul> : <p><i>none</i></p>}</div>)}
     {t.texts.map(([k, l]) => r.data?.texts?.[k] ? <div key={k} className="rtx"><label className="flabel">{l}</label><p>{r.data.texts[k]}</p></div> : null)}
@@ -195,13 +206,20 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
     <div className="mb rform">
       {t.nums && <><div className="fsec">Numbers <span className="r">as of month end{auto && Object.keys(auto.nums).length ? <> · <button type="button" className="link" onClick={() => void fill(true)}>refresh from the tabs</button></> : null}</span></div>
         {(() => {
-          const cell = (k: string) => {
-            if (k === 'net' && t.net) { const n = netOf(v.nums, t.net); return <div key={k}><label className="flabel">{t.net[0]}</label><div className={`fcalc${n == null ? '' : n < 0 ? ' neg' : ''}`}>{n == null ? '—' : money(n)}</div><div className="auto">worked out: {t.nums!.find(([x]) => x === t.net![1])?.[1].replace(' ($)', '').toLowerCase()} minus {t.nums!.find(([x]) => x === t.net![2])?.[1].replace(' ($)', '').toLowerCase()}</div></div> }
-            const l = t.nums!.find(([x]) => x === k)?.[1] ?? k
-            return <div key={k} className={t.tone?.[k] ? `tone-${t.tone[k]}` : ''}><label className="flabel">{l}</label><input className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · the {AUTO_SOURCE[committee.key] ?? 'live'} tab shows {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]} for this month</div>}</div>
-          }
-          const rows = t.rows ?? [[...t.nums!.map(([k]) => k), ...(t.net ? ['net'] : [])]]
-          return rows.map((row, i) => <div key={i} className={`fnum${t.rows ? ' frow' : ''}`}>{row.map(cell)}</div>)
+          const input = (k: string) => { const l = t.nums!.find(([x]) => x === k)?.[1] ?? k; return <><input id={`rn-${k}`} className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · the {AUTO_SOURCE[committee.key] ?? 'live'} tab shows {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]} for this month</div>}</> }
+          const field = (k: string) => <div key={k}><label className="flabel" htmlFor={`rn-${k}`}>{t.nums!.find(([x]) => x === k)?.[1] ?? k}</label>{input(k)}</div>
+          if (!t.net) return <div className="fnum">{t.nums!.map(([k]) => field(k))}</div>
+          // Gross on top, minus expenses under it, a rule, then the worked-out net.
+          const [label, plus, minus] = t.net; const n = netOf(v.nums, t.net)
+          const lab = (k: string) => (t.nums!.find(([x]) => x === k)?.[1] ?? k).replace(' ($)', '')
+          return <div className="fledger-wrap">
+            <div className="fledger">
+              <label className="lrow in" htmlFor={`rn-${plus}`}><span>{lab(plus)}</span><div>{input(plus)}</div></label>
+              <label className="lrow out" htmlFor={`rn-${minus}`}><span>− {lab(minus)}</span><div>{input(minus)}</div></label>
+              <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</b></div>
+            </div>
+            <div className="fnum side">{t.nums!.map(([k]) => k).filter((k) => k !== plus && k !== minus).map(field)}</div>
+          </div>
         })()}</>}
       {t.lists && <><div className="fsec">Names <span className="r">pre-filled from the {AUTO_SOURCE[committee.key] ?? 'live'} tab · one per line</span></div>
         <div className="cert-grid mform evt-grid">{t.lists.map(([k, l]) => <div key={k}><label className="flabel">{l}{auto?.lists[k] ? <span className="ok-txt"> · auto</span> : null}</label><textarea className="fi" value={(v.lists[k] ?? []).join('\n')} disabled={locked} onChange={(e) => setV({ ...v, lists: { ...v.lists, [k]: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) } })} /></div>)}</div></>}
