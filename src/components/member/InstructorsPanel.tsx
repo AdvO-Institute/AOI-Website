@@ -166,7 +166,7 @@ function PersonCard({ p, rows, who, canManage, onClose, onChanged, onEnd, onAdd 
           {canManage && <div className="ctc-noteform"><textarea value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Add a running note…" /><div className="r"><button type="button" className="b p-btn sm" onClick={async () => { const t = txt.trim(); if (!t) return; const w = await addNote(p.id, t, who); if (w.error) return toast(friendly(w.error)); setTxt(''); await reload(); toast('Note added') }}>Add note</button></div></div>}
           {notes.length ? notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? '—'} · {fmtTs(n.created_at)}</small></div>) : <p className="muted" style={{ marginTop: 8 }}>No notes yet.</p>}
         </div>
-        <div className="mf evt-foot"><span><a className="b s-btn on-light sm" href="#leads">Open in Contacts</a></span><span style={{ display: 'flex', gap: 8 }}>{canManage && <button type="button" className="b s-btn on-light sm" onClick={() => onAdd(p)}>{mine.length ? 'Add another technique' : 'Add as instructor'}</button>}<button type="button" className="b s-btn on-light sm" onClick={() => { void onChanged(); onClose() }}>Close</button></span></div>
+        <div className="mf evt-foot"><span><a className="b s-btn on-light sm" href="#directory">Open in Directory</a></span><span style={{ display: 'flex', gap: 8 }}>{canManage && <button type="button" className="b s-btn on-light sm" onClick={() => onAdd(p)}>{mine.length ? 'Add another technique' : 'Add as instructor'}</button>}<button type="button" className="b s-btn on-light sm" onClick={() => { void onChanged(); onClose() }}>Close</button></span></div>
       </div>
     </div>
   )

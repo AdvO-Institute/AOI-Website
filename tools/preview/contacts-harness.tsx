@@ -1,9 +1,9 @@
-/** Design harness for ContactsPanel. Stubs the REST layer with real-shaped rows. Not shipped. */
+/** Design harness for DirectoryPanel (was Contacts). Stubs the REST layer with real-shaped rows. Not shipped. */
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from '@/lib/router'
 import { AccessContext } from '@/lib/queries/AccessProvider'
 import { ToastProvider } from '@/components/ui/Toast'
-import ContactsPanel from '@/components/member/ContactsPanel'
+import DirectoryPanel from '@/components/member/DirectoryPanel'
 import type { Access } from '@/lib/access'
 
 const ACCESS = (window as unknown as { __ACCESS: Access }).__ACCESS
@@ -23,5 +23,5 @@ window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 const state = { access: ACCESS, loading: false, signedIn: true, can: (c: string) => ACCESS.capabilities.includes(c as never), refresh: async () => {} }
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter><ToastProvider><AccessContext.Provider value={state as never}>
-    <main className="ma-main" style={{ maxWidth: 1180, margin: '0 auto' }}><ContactsPanel /></main>
+    <main className="ma-main" style={{ maxWidth: 1180, margin: '0 auto' }}><DirectoryPanel /></main>
   </AccessContext.Provider></ToastProvider></BrowserRouter>)

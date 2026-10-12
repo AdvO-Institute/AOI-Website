@@ -60,12 +60,14 @@ function Shell() {
 
   // The rail uses the hash so a tab can be linked to and the back button works,
   // without adding 20 indexable routes to a page that must stay noindex.
-  const requested = (hash || '#overview').slice(1)
+  // Members and Contacts became one Directory; old #leads links still land there.
+  const alias = (k: string) => (k === 'leads' ? 'directory' : k)
+  const requested = alias((hash || '#overview').slice(1))
   const allowed = groups.some((g) => g.items.some((i) => i.key === requested))
   const [tab, setTab] = useState(allowed ? requested : 'overview')
 
   useEffect(() => {
-    const next = (hash || '#overview').slice(1)
+    const next = alias((hash || '#overview').slice(1))
     const ok = groups.some((g) => g.items.some((i) => i.key === next))
     setTab(ok ? next : 'overview')
   }, [hash, access])

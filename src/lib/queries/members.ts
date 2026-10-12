@@ -70,7 +70,7 @@ export type State = 'current' | 'recent' | 'inactive' | 'deceased'
 const today = () => new Date().toISOString().slice(0, 10)
 export const fullName = (p: Member) => `${p.first_name} ${p.last_name}${p.credentials ? ', ' + p.credentials : ''}`
 export const activeBoard = (p: Member) => (p.board_service ?? []).some((b) => b.status === 'active')
-export const currentInstructor = (p: Member) => (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
+export const currentInstructor = (p: Pick<Member, 'instructor_records'>) => (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
 export function state(p: Member): State {
   if (p.deceased_on) return 'deceased'
   if (activeBoard(p)) return 'current'
@@ -102,13 +102,13 @@ export const addLocation = (personId: string, name: string, address: string, web
   insert('practice_locations', [{ person_id: personId, name, address, website, is_primary: false }])
 
 /** Ends teaching: the record is kept with a reason; the role that grants the tools is removed. */
-export async function endInstructor(p: Member, reason: string) {
+export async function endInstructor(p: Pick<Member, 'id' | 'instructor_records'>, reason: string) {
   const rec = currentInstructor(p)
   if (rec) { const r = await patch('instructor_records', `id=eq.${rec.id}`, { status: 'ended', end_reason: reason, end_date: today() }); if (r.error) return r }
   return remove('person_roles', `person_id=eq.${p.id}&role_key=eq.instructor`)
 }
 /** Ends board service: the term closes today, the seat role becomes past. */
-export async function endBoard(p: Member) {
+export async function endBoard(p: Pick<Member, 'id' | 'board_service' | 'person_roles'>) {
   for (const b of (p.board_service ?? []).filter((x) => x.status === 'active')) {
     const r = await patch('board_service', `id=eq.${b.id}`, { status: 'past', term_end: today() }); if (r.error) return r
   }

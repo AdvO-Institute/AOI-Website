@@ -321,7 +321,7 @@ export function PersonCard({ p, precs, ints, sites, cols, reqs, who, canManage, 
           {canManage && <div className="ctc-noteform"><textarea value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Add a running note…" /><div className="r"><button type="button" className="b p-btn sm" onClick={() => void saveNote()}>Add note</button></div></div>}
           {notes.length ? notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? '—'} · {fmtTs(n.created_at)}</small></div>) : <p className="muted" style={{ marginTop: 8 }}>No notes yet.</p>}
         </div>
-        <div className="mf evt-foot"><span><a className="b s-btn on-light sm" href="#leads">Open in Contacts</a></span><span style={{ display: 'flex', gap: 8 }}>{canManage && !pr && p.contact_type === 'doctor' && !engagements.length && <button type="button" className="b s-btn on-light sm" onClick={() => onMakePreceptor(p)}>Make a preceptor</button>}<button type="button" className="b s-btn on-light sm" onClick={onClose}>Close</button></span></div>
+        <div className="mf evt-foot"><span><a className="b s-btn on-light sm" href="#directory">Open in Directory</a></span><span style={{ display: 'flex', gap: 8 }}>{canManage && !pr && p.contact_type === 'doctor' && !engagements.length && <button type="button" className="b s-btn on-light sm" onClick={() => onMakePreceptor(p)}>Make a preceptor</button>}<button type="button" className="b s-btn on-light sm" onClick={onClose}>Close</button></span></div>
       </div>
     </div>
   )

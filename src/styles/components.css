@@ -2070,6 +2070,7 @@ a.othercard {
 
 /* Members tab */
 .cert-tiles.four { grid-template-columns: repeat(4, 1fr); }
+.cert-tiles.seven { grid-template-columns: repeat(7, 1fr); }
 .cert-tiles.two { grid-template-columns: repeat(2, 1fr); }
 .cert-tiles.two .cert-tile:first-child { grid-column: auto; }
 .mline { margin: 6px 0 8px; font-size: 13.5px; color: var(--color-content-secondary); }
@@ -2083,9 +2084,27 @@ a.othercard {
 .cert-card.dead .cert-nm a { color: var(--color-content-muted); }
 .msec { font-family: var(--font-label); font-weight: 600; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-brand-accent-strong); margin: 26px 0 10px; padding-top: 18px; border-top: 1px solid var(--color-border-subtle); }
 .cc .act { display: flex; justify-content: flex-end; margin-top: 8px; }
+/* Member detail: close, then Edit (or Cancel / Save) stacked at the top right. */
+.cc .cc-ctl { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: 0 0 auto; }
+.cc .cc-btns { display: flex; gap: 6px; }
+.cc .cc-btns .p-btn:hover { transform: none; } /* stays level with Cancel */
+/* Person card, edit mode: city/state/ZIP on one line, checkbox groups that wrap. */
+.cc .cc-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; }
+.cc .cc-wrap { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.cc .cc-roles { display: grid; grid-template-rows: repeat(5, auto); grid-auto-flow: column; justify-content: start; gap: 6px 32px; }
+.cc .ctc-chk.cc-chk { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin-top: 0; }
+.cc .kv .evt-rows { display: grid; gap: 6px; }
+/* Contact card in edit mode: the Add-contact fields, condensed to match the member view. */
+.ctc-card.editing .cert-grid { gap: 0 14px; padding: 6px 0 14px; }
+.ctc-card.editing .flabel { margin: 10px 0 4px; }
+.ctc-card.editing .fi { padding: 7px 10px; font-size: 13.5px; }
+.ctc-card.editing .ctc-chk label { padding: 5px 9px; font-size: 13px; }
+.ctc-card.editing .ctc-locbox { margin-top: 10px; }
+.cc.editing .kv { align-items: center; }
+.cc.editing .kv .fi { padding: 6px 10px; font-size: 13.5px; margin: 0; }
 .mform.cert-grid > div:last-child { grid-column: auto; }
 .mform .full { grid-column: 1 / -1; }
-@media (max-width: 860px) { .cert-tiles.four { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 860px) { .cert-tiles.seven { grid-template-columns: repeat(2, 1fr); } .cert-tiles.four { grid-template-columns: repeat(2, 1fr); } }
 
 /* Events tab */
 .b.dgr { background: transparent; color: var(--color-status-danger); box-shadow: inset 0 0 0 1.5px var(--color-status-danger); }
@@ -2127,6 +2146,35 @@ a.othercard {
 .evt-ic:focus-visible { outline: 2px solid var(--color-brand-accent); outline-offset: 1px; }
 .evt-ic.del { color: var(--color-status-danger); }
 .evt-ic.del:hover { background: var(--color-status-danger-surface); }
+/* Members, compact view: one row per member, plain text, computers only. */
+.mem-table { display: grid; grid-template-columns: minmax(0, 1.2fr) max-content minmax(0, 1.4fr) minmax(0, 2fr) auto; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-surface-base); overflow: hidden; margin-bottom: 10px; }
+.mem-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; column-gap: 16px; align-items: center; min-height: 40px; padding: 2px 10px 2px 14px; border-top: 1px solid var(--color-border-subtle); font-size: 13.5px; cursor: pointer; }
+.mem-row:first-child { border-top: 0; }
+.mem-row:hover { background: var(--color-surface-raised); }
+.mem-row:focus-visible { outline: 2px solid var(--color-brand-accent); outline-offset: -2px; }
+.mem-row.head { cursor: default; min-height: 0; background: var(--color-surface-sunken); padding-top: 8px; padding-bottom: 8px; font-family: var(--font-label); font-weight: 600; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-content-tertiary); }
+.mem-row.dead { opacity: .72; }
+.mem-row .n { font-weight: 600; color: var(--color-brand-primary-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mem-row .w { color: var(--color-content-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mem-row .w a { color: var(--color-brand-primary); text-decoration: none; }
+.mem-row .w a:hover { text-decoration: underline; }
+.mem-row .ph { font-variant-numeric: tabular-nums; }
+.mem-row i { font-style: normal; color: var(--color-content-muted); }
+.mem-row .ac { display: flex; justify-content: flex-end; min-width: 30px; }
+/* Certifications, compact view: same rows, its own columns; a clicked row opens the edit window. */
+.cert-table { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.4fr) max-content max-content minmax(0, 1.6fr) auto; }
+/* Certification card: Edit beside the progress chip, Initiate beneath them, all on the right. */
+.cert-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.cert-ph:has(> .cert-side) { align-items: flex-start; }
+.cert-table > div > .mem-row { border-top: 1px solid var(--color-border-subtle); } /* each row sits in its own wrapper, so :first-child would hide every divider */
+/* Contacts, compact view: status matters here, since leads and members share the list. */
+.dir-table { grid-template-columns: minmax(0, 1.2fr) max-content minmax(0, 1.3fr) max-content max-content minmax(0, 1.6fr) auto; }
+/* Comfortable view: the cards, with less padding than elsewhere. */
+.cert-card.mem-card { padding: 12px 16px; margin-bottom: 8px; }
+.mem-card .mline { margin: 4px 0 6px; }
+/* Member detail: one tab at a time; a steady height so the window doesn't jump between tabs. */
+.cert-modal.cc .cc-body { min-height: 380px; }
+.cert-modal.cc .mb > .sec:first-child { margin-top: 0; }
 .evt .dt { text-align: center; border-right: 1px solid var(--color-border-subtle); padding-right: 14px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
 .evt .dt .mo { font-family: var(--font-label); font-weight: 600; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-brand-accent-strong); }
 .evt .dt .dy { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.05; color: var(--color-content-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -2174,6 +2222,9 @@ a.othercard {
 .evt-tabs button { border: 0; background: transparent; padding: 10px 12px; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--color-content-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
 .evt-tabs button:hover { color: var(--color-content-primary); }
 .evt-tabs button.on { color: var(--color-brand-primary-deep); border-bottom-color: var(--color-brand-accent); }
+/* The person card has up to seven tabs; tighter spacing keeps them on one line. */
+.cc .evt-tabs { gap: 0; padding: 8px 12px 0; }
+.cc .evt-tabs button { padding: 10px 9px; font-size: 11.5px; letter-spacing: .03em; }
 .evt-form .mb { min-height: 380px; }
 .evt-grid.cert-grid { gap: 4px 18px; align-items: start; }
 .evt-grid .flabel { margin-top: 10px; }
@@ -2231,7 +2282,7 @@ a.othercard {
 .ctc-srow { display: grid; grid-template-columns: 1fr 220px; gap: 10px; margin-bottom: 6px; align-items: start; }
 .ctc-srow select.fi { padding: 11px 12px; font-size: 14px; }
 .ctc-cnt { font-family: var(--font-sans); font-weight: 500; font-variant-numeric: tabular-nums; font-size: 11px; color: var(--color-content-muted); margin: 0 0 14px; }
-.ctc { border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-surface-raised); padding: 14px 18px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.ctc { border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-surface-raised); padding: 11px 16px; margin-bottom: 8px; cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; }
 .ctc:hover { border-color: var(--color-brand-accent); transform: translateY(-1px); box-shadow: var(--shadow-hover); }
 .ctc:focus-visible { outline: 2px solid var(--color-brand-accent); outline-offset: 2px; }
 .ctc.dead { opacity: .85; }

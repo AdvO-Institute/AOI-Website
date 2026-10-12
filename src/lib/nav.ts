@@ -100,11 +100,10 @@ export const NAV: NavItem[] = [
   /* --------------------------------------------------------------- people -- */
   {
     key: 'directory',
-    label: 'Members',
+    label: 'Directory',
     group: 'people',
     any: ['board', 'full_admin', 'manage_leads', 'manage_certifications', 'manage_instructors', 'manage_internships'],
   },
-  { key: 'leads', label: 'Contacts', group: 'people', any: ['board', 'full_admin', 'manage_leads'] },
   { key: 'board', label: 'Board', group: 'people', any: ['board', 'manage_board'] },
   { key: 'org', label: 'Org Chart', group: 'people', any: ['board', 'full_admin'] },
 
