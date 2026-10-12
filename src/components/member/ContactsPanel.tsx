@@ -5,9 +5,9 @@
  * -------------------------------------------------------------------------- */
 import { friendlyError } from '@/lib/friendlyError'
 import { webHref } from '@/lib/safeHref'
-import { SafeLink } from './opsUi'
+import { SafeLink, askConfirm } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { inviteMember, type AccessReply } from '@/lib/queries/access'
+import { inviteMember, requestReset, type AccessReply } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useDensity } from '@/lib/density'
 import { uploadPhotoFor } from '@/lib/queries/photo'
@@ -62,6 +62,8 @@ export default function ContactsPanel() {
   const [q, setQ] = useState('')
   const [tech, setTech] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [openEditing, setOpenEditing] = useState(false) // the pencil opens the card already in edit mode
+  const show = (id: string, editing = false) => { setOpenEditing(editing); setOpen(id) }
   const [edit, setEdit] = useState<Contact | 'new' | null>(null)
   /* Compact (one row per contact) or comfortable (cards), remembered on this device; phones always get the cards. */
   const { compact, narrow, setDensity } = useDensity('aoi.contacts.density', canEdit ? 'compact' : 'comfortable')
@@ -95,7 +97,7 @@ export default function ContactsPanel() {
   const row = (p: Contact) => {
     const line = [p.email ? <a key="e" href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()}>{p.email}</a> : null, p.office_phone ?? p.mobile_phone, p.practice_name, [p.practice_city, p.practice_state].filter(Boolean).join(', ')].filter(Boolean)
     return (
-      <article key={p.id} className={`ctc${p.deceased_on ? ' dead' : ''}`} tabIndex={0} role="button" aria-label={`Open ${fullName(p)}`} onClick={() => setOpen(p.id)} onKeyDown={(k) => { if ((k.key === 'Enter' || k.key === ' ') && k.target === k.currentTarget) { k.preventDefault(); setOpen(p.id) } }}>
+      <article key={p.id} className={`ctc${p.deceased_on ? ' dead' : ''}`} tabIndex={0} role="button" aria-label={`Open ${fullName(p)}`} onClick={() => show(p.id)} onKeyDown={(k) => { if ((k.key === 'Enter' || k.key === ' ') && k.target === k.currentTarget) { k.preventDefault(); show(p.id) } }}>
         <div className="nm"><b>{fullName(p)}</b><StatusPill p={p} /></div>
         {line.length > 0 && <div className="ln">{line.map((x, i) => <span key={i}>{x}</span>)}</div>}
         <div className="cert-chips" style={{ marginBottom: 0, marginTop: 8 }}><RoleChips p={p} /></div>
@@ -103,13 +105,13 @@ export default function ContactsPanel() {
     )
   }
   const line = (p: Contact) => (
-    <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} aria-label={`Open ${fullName(p)}`} onClick={() => setOpen(p.id)} onKeyDown={(k) => { if (k.key === 'Enter' && k.target === k.currentTarget) setOpen(p.id) }}>
+    <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} aria-label={`Open ${fullName(p)}`} onClick={() => show(p.id)} onKeyDown={(k) => { if (k.key === 'Enter' && k.target === k.currentTarget) show(p.id) }}>
       <span className="n">{fullName(p)}</span>
       <span className="w">{statusText(p)}</span>
       <span className="w ph">{p.office_phone ?? p.mobile_phone ?? <i>—</i>}</span>
       <span className="w">{p.email ? <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()}>{p.email}</a> : <i>—</i>}</span>
       <span className="w">{chipsFor(p, advoLevel(p), otherCerts(p)).map((x) => x.label).join(' · ') || <i>—</i>}</span>
-      <span className="ac">{canEdit && <button type="button" className="evt-ic" title="Edit contact" aria-label={`Edit ${fullName(p)}`} onClick={(e) => { e.stopPropagation(); setEdit(p) }}>{editIcon}</button>}</span>
+      <span className="ac">{canEdit && <button type="button" className="evt-ic" title="Edit contact" aria-label={`Edit ${fullName(p)}`} onClick={(e) => { e.stopPropagation(); show(p.id, true) }}>{editIcon}</button>}</span>
     </div>
   )
   const table = (items: Contact[]) => <div className="mem-table ctc-table"><div className="mem-row head"><span>Name</span><span>Status</span><span>Phone</span><span>Email</span><span>Certification &amp; roles</span><span /></div>{items.map(line)}</div>
@@ -138,75 +140,13 @@ export default function ContactsPanel() {
       {gone.length > 0 && <div className="msec">Deceased · {gone.length}</div>}
       {gone.length > 0 && (compact ? table(gone) : gone.map(row))}
 
-      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canRoles} onClose={() => setOpen(null)} onEdit={() => { setOpen(null); setEdit(current) }} onChanged={load} />}
+      {current && <ContactCard key={current.id} startEditing={openEditing} p={current} comms={comms} me={me} meId={meId} canEdit={canEdit} canInvite={canRoles} canRoles={canRoles} onClose={() => setOpen(null)} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} comms={comms} canRoles={canRoles} me={me} meId={meId} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
 }
 
 /* ------------------------------------------------------------------ card -- */
-
-function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChanged }: { p: Contact; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
-  const toast = useToast()
-  const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
-  useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
-  const s = state(p)
-  const kv = (k: string, v: React.ReactNode) => (v ? <><span>{k}</span><div>{v}</div></> : null)
-  const Sec = ({ title, items }: { title: string; items: React.ReactNode[] }) => { const has = items.some(Boolean); return has ? <><div className="sec">{title}</div><div className="kv">{items}</div></> : null }
-  // Many imported addresses already end in "City, ST ZIP"; don't repeat it.
-  const tail = [p.practice_city, [p.practice_state, p.practice_zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-  const addr = p.practice_address && p.practice_city && p.practice_address.toLowerCase().includes(p.practice_city.toLowerCase()) ? p.practice_address : [p.practice_address, tail].filter(Boolean).join(', ')
-  const web = (w: string | null) => (w ? <SafeLink href={webHref(w)}>{w}</SafeLink> : null)
-  const offices = p.practice_locations ?? []
-  const notes = [...(p.contact_notes ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
-  async function invite() {
-    setBusy(true)
-    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
-    setBusy(false)
-    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
-    toast(`Setup link emailed to ${r.email ?? p.email}`)
-    await onChanged()
-  }
-  async function save() {
-    if (!note.trim()) return
-    setBusy(true); const r = await addNote(p.id, note.trim(), me, meId); setBusy(false)
-    if (r.error) { toast('The note could not be saved. ' + friendlyError(r.error)); return }
-    setNote(''); await onChanged(); toast('Note added')
-  }
-  return (
-    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cert-modal ctc-card cc" role="dialog" aria-modal="true">
-        <div className="ctc-top"><div className="av">{p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
-          <div style={{ flex: 1, minWidth: 0 }}><h3>{fullName(p)}</h3>{p.title && <div className="ti">{p.title}</div>}<div className="cert-chips" style={{ marginBottom: 0 }}><StatusPill p={p} /><RoleChips p={p} /></div></div>
-          <button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
-        <div className="ctc-body">
-          <Sec title="Contact" items={[kv('Email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null), kv('Mobile', p.mobile_phone), kv('Office', p.office_phone ?? p.practice_phone), kv('Personal', p.personal_phone)]} />
-          <Sec title="Practice" items={[kv('Practice', p.practice_name), kv('Address', addr ? <>{addr}<br /><a href={`https://maps.google.com/?q=${encodeURIComponent([p.practice_name, addr].filter(Boolean).join(', '))}`} target="_blank" rel="noreferrer">Open in maps</a></> : null), kv('Website', web(p.practice_website))]} />
-          {offices.length > 0 && <><div className="sec">Other offices</div>{offices.map((o) => <div key={o.id} className="kv" style={{ marginBottom: 10 }}>{kv(o.name || 'Office', <>{[o.address, [o.city, [o.state, o.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ')}{o.phone ? <><br />{o.phone}</> : null}{o.website ? <><br />{web(o.website)}</> : null}{(o.is_internship_site || o.is_seminar_venue) && <div className="cert-chips" style={{ marginTop: 6, marginBottom: 0 }}>{o.is_internship_site && <Pill>Internship site</Pill>}{o.is_seminar_venue && <Pill>Seminar venue</Pill>}</div>}</>)}</div>)}</>}
-          <Sec title="Classification" items={[kv('Type', p.contact_type === 'doctor' ? 'Doctor' : p.contact_type === 'student' ? 'Student' : p.contact_type === 'staff' ? 'Staff' : p.contact_type), kv('Technique(s)', (p.techniques ?? []).join(', '))]} />
-          <Sec title="Background" items={[kv('Chiropractic college', p.alma_mater), kv('Graduated', p.grad_year), kv('NPI', p.npi)]} />
-          <Sec title="Membership" items={s === 'lead' ? [kv('Status', 'Never a member')] : [kv('Status', s === 'member' ? (duesLapsed(p) ? 'Current — dues lapsed, stays current as a Director' : 'Current member') : s === 'expired' ? 'Expired' : 'Deceased'), kv('Member since', fmtD(p.member_since)), kv(s === 'member' && !duesLapsed(p) ? 'Renews' : 'Dues lapsed on', fmtD(p.membership_expires)), kv('Online account', p.auth_user_id ? 'Yes' : null), kv('Profile', p.profile_completed ? 'Complete' : null)]} />
-          {(p.person_roles ?? []).length > 0 && <><div className="sec">Roles &amp; committees</div>{(p.person_roles ?? []).map((r) => <div key={r.id} className="ctc-note" style={{ padding: '8px 12px' }}>{ROLE_LABEL[r.role_key] ?? r.role_key}{r.committees?.name ? ` · ${r.committees.name}` : ''}{r.instructor_level ? ` · ${INSTRUCTOR_TITLE[r.instructor_level] ?? r.instructor_level}` : ''}</div>)}</>}
-          <Sec title="Board service" items={(p.board_service ?? []).map((b) => kv(`Term ${b.term_label ?? ''}`, `${b.status ?? ''}${b.term_start ? ` · ${fmtD(b.term_start)} – ${b.term_end ? fmtD(b.term_end) : 'present'}` : ''}`))} />
-          <Sec title="Instructor" items={(p.instructor_records ?? []).map((i) => kv(i.level === 'senior_instructor' ? 'Senior instructor' : 'Instructor', `${i.status ?? ''}${i.technique ? ` · ${i.technique}` : ''}${i.instructor_date ? ` · since ${fmtD(i.instructor_date)}` : ''}`))} />
-          <Sec title="Certifications" items={(p.person_certifications ?? []).map((c) => kv(c.technique, `${LEVEL_LABEL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered' : ''}${c.cert_date ? ` on ${fmtD(c.cert_date)}` : ''}${c.certificate_number ? ` · Certificate #${c.certificate_number}` : ''}${c.certified_by ? ` · ${c.certified_by}` : ''}`))} />
-          <ResearchSection personId={p.id} />
-          {p.bio && <><div className="sec">Bio</div><p style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{p.bio}</p></>}
-          <div className="sec">Notes (running log)</div>
-          {notes.length === 0 && !p.notes && <p className="muted">No notes yet.</p>}
-          {notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Institute'} · {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small></div>)}
-          {p.notes && <div className="ctc-note">{p.notes}<small>Imported note</small></div>}
-          {canEdit && <div className="ctc-noteform"><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note — how we met, what they're interested in, a call…" /><div className="r"><button type="button" className="b s-btn on-light sm" disabled={busy || !note.trim()} onClick={() => void save()}>Add note</button></div></div>}
-        </div>
-        <div className="mf evt-foot">
-          <div className="r">{canEdit && s === 'lead' && <span className="evt-hint" style={{ alignSelf: 'center' }}>Becomes a member automatically when they join on the website.</span>}</div>
-          <div className="r">{canInvite && p.email && <button type="button" className="b s-btn on-light sm" disabled={busy} onClick={() => void invite()}>{p.auth_user_id ? 'Resend account link' : 'Invite to members area'}</button>}{canEdit && <button type="button" className="b s-btn on-light sm" onClick={onEdit}>Edit</button>}<button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 /* ------------------------------------------------------------------ form -- */
 
@@ -215,6 +155,127 @@ const STEPS: [Step, string][] = [['who', 'Name & contact'], ['practice', 'Practi
 type V = Record<string, string>
 const ROLE_TOGGLES = ['executive_director', 'board_member', 'board_chair', 'vice_chair', 'secretary', 'instructor', 'past_board_member', 'past_executive_director']
 
+
+type CardTab = 'profile' | 'business' | 'membership' | 'certification' | 'notes'
+const CARD_TABS: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', 'Notes']]
+const STEP_TAB: Record<Step, CardTab> = { who: 'profile', bg: 'profile', practice: 'business', member: 'membership', notes: 'notes' }
+
+function ContactCard({ p, comms, me, meId, canEdit, canInvite, canRoles, startEditing = false, onClose, onChanged }: { p: Contact; comms: Committee[]; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; canRoles: boolean; startEditing?: boolean; onClose: () => void; onChanged: () => Promise<void> }) {
+  const toast = useToast()
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState<CardTab>('profile')
+  /* Edit turns the fields of every tab into inputs in place; Save writes them all at once. */
+  const f = useContactForm(p, canRoles, me, meId)
+  const [editing, setEditing] = useState(startEditing && canEdit)
+  const startEdit = () => { f.reset(); setEditing(true) }
+  const cancel = () => { f.reset(); setEditing(false) }
+  async function saveAll() {
+    const r = await f.save()
+    if (!r.ok) { if (r.step) setTab(STEP_TAB[r.step]); return }
+    setEditing(false); await onChanged(); toast(r.msg)
+  }
+  // Escape leaves edit mode first, and only closes the card when nothing is being edited.
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; if (editing) cancel(); else onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) })
+  const s = state(p)
+  const kv = (k: string, v: React.ReactNode) => (v ? <><span>{k}</span><div>{v}</div></> : null)
+  // Many imported addresses already end in "City, ST ZIP"; don't repeat it.
+  const tail = [p.practice_city, [p.practice_state, p.practice_zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const addr = p.practice_address && p.practice_city && p.practice_address.toLowerCase().includes(p.practice_city.toLowerCase()) ? p.practice_address : [p.practice_address, tail].filter(Boolean).join(', ')
+  const web = (w: string | null) => (w ? <SafeLink href={webHref(w)}>{w}</SafeLink> : null)
+  const offices = p.practice_locations ?? []
+  const notes = [...(p.contact_notes ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  async function welcome() {
+    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
+    setBusy(true)
+    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
+    setBusy(false)
+    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
+    toast(`Welcome letter emailed to ${r.email ?? p.email}`)
+    await onChanged()
+  }
+  async function reset() {
+    if (!p.email) return
+    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} a password reset?`, { body: `An email with a link to choose a new password goes to ${p.email}. Their current password keeps working until they change it.`, ok: 'Send reset' }))) return
+    setBusy(true)
+    const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
+    setBusy(false)
+    toast(r?.ok ? `Password reset link emailed to ${p.email}` : 'Could not send it. Please try again in a moment.')
+  }
+  async function addTheNote() {
+    if (!note.trim()) return
+    setBusy(true); const r = await addNote(p.id, note.trim(), me, meId); setBusy(false)
+    if (r.error) { toast('The note could not be saved. ' + friendlyError(r.error)); return }
+    setNote(''); await onChanged(); toast('Note added')
+  }
+  const tabs = CARD_TABS.map(([k, l]): [CardTab, string] => [k, k === 'notes' && notes.length + (p.notes ? 1 : 0) ? `${l} (${notes.length + (p.notes ? 1 : 0)})` : l])
+  return (
+    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && !editing && onClose()}>
+      <div className={`cert-modal ctc-card cc${editing ? ' editing' : ''}`} role="dialog" aria-modal="true">
+        <div className="ctc-top"><div className="av">{p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><h3>{fullName(p)}</h3>{p.title && <div className="ti">{p.title}</div>}<div className="cert-chips" style={{ marginBottom: 0 }}><StatusPill p={p} /><RoleChips p={p} /></div></div>
+          <div className="cc-ctl"><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button>
+            {canEdit && (editing
+              ? <div className="cc-btns"><button type="button" className="b s-btn on-dark xs" onClick={cancel}>Cancel</button><button type="button" className="b p-btn xs" disabled={f.saving} onClick={() => void saveAll()}>{f.saving ? 'Saving…' : 'Save'}</button></div>
+              : <button type="button" className="b s-btn on-dark xs" onClick={startEdit}>✎ Edit</button>)}
+          </div></div>
+        <div className="evt-tabs" role="tablist">{tabs.map(([k, l]) => <button type="button" role="tab" aria-selected={tab === k} key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
+        <div className="ctc-body cc-body">
+          {editing && f.err && <div className="cert-err" role="alert" style={{ marginTop: 14 }}>{f.err}</div>}
+          {tab === 'profile' && (editing
+            ? <div className="cert-grid mform evt-grid"><WhoFields f={f} /><BgFields f={f} /></div>
+            : <>
+              <Sec title="Contact" items={[kv('Email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null), kv('Mobile', p.mobile_phone), kv('Personal', p.personal_phone)]} />
+              <Sec title="Classification" items={[kv('Type', p.contact_type === 'doctor' ? 'Doctor' : p.contact_type === 'student' ? 'Student' : p.contact_type === 'staff' ? 'Staff' : p.contact_type), kv('Technique(s)', (p.techniques ?? []).join(', '))]} />
+              <Sec title="Background" items={[kv('Chiropractic college', p.alma_mater), kv('Graduated', p.grad_year), kv('NPI', p.npi)]} />
+              {p.bio && <><div className="sec">Bio</div><p style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{p.bio}</p></>}
+              <ResearchSection personId={p.id} />
+              {canInvite && !p.deceased_on && <>
+                <div className="sec">Members area</div>
+                <div className="kv"><span>Login</span><div>{!p.email ? 'No email on file' : p.auth_user_id ? 'Set up' : 'Not set up yet'}</div></div>
+                {p.email && <div className="act" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  {p.auth_user_id && <button type="button" className="b s-btn on-light xs" disabled={busy} onClick={() => void reset()}>Send password reset</button>}
+                  <button type="button" className="b s-btn on-light xs" disabled={busy} onClick={() => void welcome()}>Send welcome letter</button>
+                </div>}
+              </>}
+            </>)}
+          {tab === 'business' && (editing
+            ? <div className="cert-grid mform evt-grid"><PracticeFields f={f} /></div>
+            : <>
+              <Sec title="Practice" items={[kv('Practice', p.practice_name), kv('Office phone', p.office_phone ?? p.practice_phone), kv('Address', addr ? <>{addr}<br /><a href={`https://maps.google.com/?q=${encodeURIComponent([p.practice_name, addr].filter(Boolean).join(', '))}`} target="_blank" rel="noreferrer">Open in maps</a></> : null), kv('Website', web(p.practice_website))]} />
+              {offices.length > 0 && <><div className="sec">Other offices</div>{offices.map((o) => <div key={o.id} className="kv" style={{ marginBottom: 10 }}>{kv(o.name || 'Office', <>{[o.address, [o.city, [o.state, o.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ')}{o.phone ? <><br />{o.phone}</> : null}{o.website ? <><br />{web(o.website)}</> : null}{(o.is_internship_site || o.is_seminar_venue) && <div className="cert-chips" style={{ marginTop: 6, marginBottom: 0 }}>{o.is_internship_site && <Pill>Internship site</Pill>}{o.is_seminar_venue && <Pill>Seminar venue</Pill>}</div>}</>)}</div>)}</>}
+              {!p.practice_name && !addr && !p.practice_website && offices.length === 0 && <p className="muted" style={{ marginTop: 14 }}>No practice on file.</p>}
+            </>)}
+          {tab === 'membership' && (editing
+            ? <div className="cert-grid mform evt-grid"><MemberFields f={f} comms={comms} /></div>
+            : <>
+              <Sec title="Membership" items={s === 'lead' ? [kv('Status', 'Never a member')] : [kv('Status', s === 'member' ? (duesLapsed(p) ? 'Current — dues lapsed, stays current as a Director' : 'Current member') : s === 'expired' ? 'Expired' : 'Deceased'), kv('Member since', fmtD(p.member_since)), kv(s === 'member' && !duesLapsed(p) ? 'Renews' : 'Dues lapsed on', fmtD(p.membership_expires)), kv('Profile', p.profile_completed ? 'Complete' : null)]} />
+              {canEdit && s === 'lead' && <p className="muted" style={{ marginTop: 8 }}>Becomes a member automatically when they join on the website.</p>}
+              {(p.person_roles ?? []).length > 0 && <><div className="sec">Roles &amp; committees</div>{(p.person_roles ?? []).map((r) => <div key={r.id} className="ctc-note" style={{ padding: '8px 12px' }}>{ROLE_LABEL[r.role_key] ?? r.role_key}{r.committees?.name ? ` · ${r.committees.name}` : ''}{r.instructor_level ? ` · ${INSTRUCTOR_TITLE[r.instructor_level] ?? r.instructor_level}` : ''}</div>)}</>}
+              <Sec title="Board service" items={(p.board_service ?? []).map((b) => kv(`Term ${b.term_label ?? ''}`, `${b.status ?? ''}${b.term_start ? ` · ${fmtD(b.term_start)} – ${b.term_end ? fmtD(b.term_end) : 'present'}` : ''}`))} />
+              <Sec title="Instructor" items={(p.instructor_records ?? []).map((i) => kv(i.level === 'senior_instructor' ? 'Senior instructor' : 'Instructor', `${i.status ?? ''}${i.technique ? ` · ${i.technique}` : ''}${i.instructor_date ? ` · since ${fmtD(i.instructor_date)}` : ''}`))} />
+            </>)}
+          {tab === 'certification' && <>
+            <Sec title="Certifications" items={(p.person_certifications ?? []).map((c) => kv(c.technique, `${LEVEL_LABEL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered' : ''}${c.cert_date ? ` on ${fmtD(c.cert_date)}` : ''}${c.certificate_number ? ` · Certificate #${c.certificate_number}` : ''}${c.certified_by ? ` · ${c.certified_by}` : ''}`))} />
+            {(p.person_certifications ?? []).length === 0 && <p className="muted" style={{ marginTop: 14 }}>No certification on file.</p>}
+            <p className="muted" style={{ marginTop: 10 }}>Certifications are changed by the Executive Director and the Certification Committee chair or co-chair, on the Members or Certifications page.</p>
+          </>}
+          {tab === 'notes' && <>
+            <div className="sec">Notes (running log)</div>
+            {notes.length === 0 && !p.notes && <p className="muted">No notes yet.</p>}
+            {notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Institute'} · {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small></div>)}
+            {p.notes && <div className="ctc-note">{p.notes}<small>Imported note</small></div>}
+            {canEdit && <div className="ctc-noteform"><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note — how we met, what they're interested in, a call…" /><div className="r"><button type="button" className="b s-btn on-light sm" disabled={busy || !note.trim()} onClick={() => void addTheNote()}>Add note</button></div></div>}
+          </>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* A section heading and its label/value rows; hidden when every row is empty. Module-level so it keeps its children mounted. */
+function Sec({ title, items }: { title: string; items: React.ReactNode[] }) { const has = items.some(Boolean); return has ? <><div className="sec">{title}</div><div className="kv">{items}</div></> : null }
+
 function F({ l, children, full = false, hint }: { l: string; children: React.ReactNode; full?: boolean; hint?: string }) {
   return <div className={full ? 'full' : ''}><label className="flabel">{l}</label>{children}{hint && <div className="evt-hint">{hint}</div>}</div>
 }
@@ -222,23 +283,25 @@ function Tog({ on, onChange, l, sub }: { on: boolean; onChange: (ev: React.Chang
   return <label className={`evt-tog${on ? ' on' : ''}`}><input type="checkbox" checked={on} onChange={onChange} /><span><b>{l}</b>{sub && <small>{sub}</small>}</span></label>
 }
 
-function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Contact | null; comms: Committee[]; canRoles: boolean; me: string; meId: string | null; onClose: () => void; onSaved: (m: string) => void }) {
-  const [v, setV] = useState<V>(() => ({
+/** The contact form: its fields' state and the save. Shared by the card's in-place editor and the Add contact window. */
+function useContactForm(p: Contact | null, canRoles: boolean, me: string, meId: string | null) {
+  const init = (): V => ({
     first_name: p?.first_name ?? '', last_name: p?.last_name ?? '', credentials: p?.credentials ?? 'DC', title: p?.title ?? '', contact_type: p?.contact_type ?? 'doctor',
     email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: p?.office_phone ?? '', personal_phone: p?.personal_phone ?? '',
     practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', practice_city: p?.practice_city ?? '', practice_state: p?.practice_state ?? '', practice_zip: p?.practice_zip ?? '', practice_phone: p?.practice_phone ?? '', practice_website: p?.practice_website ?? '',
     alma_mater: p?.alma_mater ?? '', grad_year: p?.grad_year ? String(p.grad_year) : '', npi: p?.npi ?? '', photo_url: p?.photo_url ?? '', bio: p?.bio ?? '',
     membership_status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? 'never'), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '', newNote: '',
-  }))
+  })
+  const initSeats = (): Seat[] => (p?.person_roles ?? []).map((r) => ({ role_key: r.role_key, committee_id: r.committee_id }))
+  const [v, setV] = useState<V>(init)
   const [tq, setTq] = useState<string[]>(p?.techniques ?? [])
   const [offices, setOffices] = useState<Office[]>(p?.practice_locations ?? [])
-  const [seats, setSeats] = useState<Seat[]>((p?.person_roles ?? []).map((r) => ({ role_key: r.role_key, committee_id: r.committee_id })))
+  const [seats, setSeats] = useState<Seat[]>(initSeats)
   const instrLevel = (p?.person_roles ?? []).find((r) => r.role_key === 'instructor')?.instructor_level ?? null
-  const [step, setStep] = useState<Step>('who')
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const bodyRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
+  /** Back to what the record says now — before each edit, and on Cancel. */
+  const reset = () => { setV(init()); setTq(p?.techniques ?? []); setOffices(p?.practice_locations ?? []); setSeats(initSeats()); setErr(null) }
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }))
   /* A manager's upload lands in the headshot bucket; the address is saved with the rest of the form. */
   const photoRef = useRef<HTMLInputElement>(null)
@@ -256,13 +319,10 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
   const I = (k: string, type = 'text', ph = '') => <input className="fi" type={type} value={v[k] ?? ''} onChange={set(k)} placeholder={ph} />
   const setOffice = (i: number, patch: Partial<Office>) => setOffices((o) => o.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   const hasSeat = (k: string) => seats.some((s) => s.role_key === k)
-  const committeeSeats = seats.filter((s) => ['committee_chair', 'committee_cochair', 'committee_member', 'research_director'].includes(s.role_key))
-  const idx = STEPS.findIndex((s) => s[0] === step)
-  const go = (s: Step) => { setStep(s); bodyRef.current?.scrollTo({ top: 0 }) }
 
-  async function save() {
+  async function save(): Promise<{ ok: true; msg: string } | { ok: false; step?: Step }> {
     setErr(null)
-    if (!v.first_name!.trim() || !v.last_name!.trim()) { go('who'); setErr('First and last name are required.'); return }
+    if (!v.first_name!.trim() || !v.last_name!.trim()) { setErr('First and last name are required.'); return { ok: false, step: 'who' } }
     const dead = v.membership_status === 'deceased'
     const prof: Profile = {
       first_name: v.first_name!.trim(), last_name: v.last_name!.trim(), credentials: v.credentials || null, title: v.title || null, contact_type: v.contact_type || 'doctor',
@@ -275,13 +335,95 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
     if (!dead) prof.membership_status = v.membership_status
     setSaving(true)
     let id = p?.id ?? null
-    if (id) { const r = await saveProfile(id, prof); if (r.error) { setSaving(false); setErr(friendly(r.error)); return } }
-    else { const r = await createContact(prof); if (r.error || !r.id) { setSaving(false); setErr(friendly(r.error ?? 'no id returned')); return }; id = r.id }
-    const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were not. ' + friendlyError(o.error)); return }
-    if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were not. ' + friendlyError(r.error)); return } }
-    if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was not. ' + friendlyError(n.error)); return } }
+    if (id) { const r = await saveProfile(id, prof); if (r.error) { setSaving(false); setErr(friendly(r.error)); return { ok: false } } }
+    else { const r = await createContact(prof); if (r.error || !r.id) { setSaving(false); setErr(friendly(r.error ?? 'no id returned')); return { ok: false } }; id = r.id }
+    const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were not. ' + friendlyError(o.error)); return { ok: false } }
+    if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were not. ' + friendlyError(r.error)); return { ok: false } } }
+    if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was not. ' + friendlyError(n.error)); return { ok: false } } }
     setSaving(false)
-    onSaved(p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.`)
+    return { ok: true, msg: p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.` }
+  }
+  return { p, canRoles, v, set, I, tq, setTq, offices, setOffices, setOffice, seats, setSeats, hasSeat, err, saving, save, reset, photoRef, photoBusy, pickPhoto }
+}
+type ContactForm = ReturnType<typeof useContactForm>
+
+/* The form's sections. Each renders into a .cert-grid form grid, in the card's tabs and in the Add contact window. */
+function WhoFields({ f }: { f: ContactForm }) {
+  const { v, set, I, tq, setTq } = f
+  return <>
+    <div className="full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px', gap: '4px 18px' }}><F l="FIRST NAME *">{I('first_name')}</F><F l="LAST NAME *">{I('last_name')}</F><F l="CREDENTIALS">{I('credentials', 'text', 'DC, BCAO')}</F></div>
+    <F l="TITLE">{I('title', 'text', 'e.g. Clinic Director')}</F>
+    <F l="CONTACT TYPE"><select className="fi" value={v.contact_type} onChange={set('contact_type')}><option value="doctor">Doctor</option><option value="student">Student</option><option value="staff">Staff / other</option></select></F>
+    <F l="EMAIL">{I('email', 'email')}</F><F l="MOBILE">{I('mobile_phone', 'tel')}</F><F l="OFFICE PHONE">{I('office_phone', 'tel')}</F><F l="PERSONAL PHONE">{I('personal_phone', 'tel')}</F>
+    <div className="cert-fh full">Technique(s) practiced <span className="evt-hint" style={{ display: 'inline', textTransform: 'none', letterSpacing: 0 }}>— what they practice, not a certification</span></div>
+    <div className="full ctc-chk">{TECHNIQUES.map((t) => <label key={t} className={tq.includes(t) ? 'on' : ''}><input type="checkbox" checked={tq.includes(t)} onChange={(e) => setTq((s) => (e.target.checked ? [...new Set([...s, t])] : s.filter((x) => x !== t)))} /> {t}</label>)}</div>
+  </>
+}
+function PracticeFields({ f }: { f: ContactForm }) {
+  const { I, offices, setOffices, setOffice } = f
+  return <>
+    <div className="ctc-locbox full"><div className="hd"><span>Primary office</span></div>
+      <F l="PRACTICE NAME" full>{I('practice_name')}</F><F l="STREET ADDRESS" full>{I('practice_address')}</F>
+      <div className="full" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '4px 10px' }}><F l="CITY">{I('practice_city')}</F><F l="STATE">{I('practice_state')}</F><F l="ZIP">{I('practice_zip')}</F></div>
+      <F l="PRACTICE PHONE">{I('practice_phone', 'tel')}</F><F l="WEBSITE">{I('practice_website', 'text', 'https://…')}</F>
+    </div>
+    {offices.map((o, i) => <div key={i} className="ctc-locbox full"><div className="hd"><span>Office {i + 2}</span><button type="button" aria-label="Remove office" onClick={() => setOffices((s) => s.filter((_, j) => j !== i))}>×</button></div>
+      <F l="PRACTICE NAME" full><input className="fi" value={o.name ?? ''} onChange={(e) => setOffice(i, { name: e.target.value })} /></F>
+      <F l="STREET ADDRESS" full><input className="fi" value={o.address ?? ''} onChange={(e) => setOffice(i, { address: e.target.value })} /></F>
+      <div className="full" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '4px 10px' }}><F l="CITY"><input className="fi" value={o.city ?? ''} onChange={(e) => setOffice(i, { city: e.target.value })} /></F><F l="STATE"><input className="fi" value={o.state ?? ''} onChange={(e) => setOffice(i, { state: e.target.value })} /></F><F l="ZIP"><input className="fi" value={o.zip ?? ''} onChange={(e) => setOffice(i, { zip: e.target.value })} /></F></div>
+      <F l="OFFICE PHONE"><input className="fi" value={o.phone ?? ''} onChange={(e) => setOffice(i, { phone: e.target.value })} /></F><F l="WEBSITE"><input className="fi" value={o.website ?? ''} onChange={(e) => setOffice(i, { website: e.target.value })} /></F>
+      <div className="full evt-togrow"><Tog on={!!o.is_internship_site} onChange={(e) => setOffice(i, { is_internship_site: e.target.checked })} l="Internship site" sub="Appears under Internships" /><Tog on={!!o.is_seminar_venue} onChange={(e) => setOffice(i, { is_seminar_venue: e.target.checked })} l="Seminar venue" sub="Available in the Events venue list" /></div>
+    </div>)}
+    <div className="full"><button type="button" className="b s-btn on-light xs" onClick={() => setOffices((s) => [...s, { name: '', address: '', city: '', state: '', zip: '', phone: '', website: '', is_primary: false, is_internship_site: false, is_seminar_venue: false }])}>+ Add another office</button></div>
+  </>
+}
+function BgFields({ f }: { f: ContactForm }) {
+  const { p, v, set, I, photoRef, photoBusy, pickPhoto } = f
+  return <>
+    <F l="CHIROPRACTIC COLLEGE">{I('alma_mater', 'text', 'e.g. Life University')}</F><F l="GRADUATION YEAR">{I('grad_year', 'number', '2012')}</F>
+    <F l="NPI NUMBER">{I('npi', 'text', '10 digits')}</F>
+    <F l="HEADSHOT" full hint={p ? 'Members can add their own under My Account. Upload one here, or paste a link.' : 'Save the contact first, then upload a photo.'}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {v.photo_url && <span className="ctc-top" style={{ display: 'contents' }}><span className="av" style={{ width: 40, height: 40, fontSize: 13 }}><img src={v.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /></span></span>}
+        {I('photo_url', 'url', 'https://…')}
+        {p && <><input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Upload'}</button></>}
+      </div>
+    </F>
+    <F l="BIO" full><textarea className="fi" rows={4} value={v.bio} onChange={set('bio')} placeholder="Shown on the public directory once they are a member." /></F>
+  </>
+}
+function MemberFields({ f, comms }: { f: ContactForm; comms: Committee[] }) {
+  const { p, canRoles, v, set, I, seats, setSeats, hasSeat } = f
+  const committeeSeats = seats.filter((s) => ['committee_chair', 'committee_cochair', 'committee_member', 'research_director'].includes(s.role_key))
+  return <>
+    <F l="MEMBERSHIP STATUS" hint="Joining on the website sets this automatically; change it here only for a manual renewal."><select className="fi" value={v.membership_status} onChange={set('membership_status')}><option value="never">Never a member</option><option value="active">Current member</option><option value="expired">Expired</option><option value="deceased">Deceased</option></select></F>
+    {v.membership_status === 'deceased' ? <F l="DATE OF DEATH">{I('deceased_on', 'date')}</F> : <F l="MEMBER SINCE">{I('member_since', 'date')}</F>}
+    <F l="MEMBERSHIP EXPIRES (RENEWAL)">{I('membership_expires', 'date')}</F>
+    <F l="ADVO CERTIFICATION" hint="Set on the Certifications tab, not here."><input className="fi" value={LEVEL_LABEL[advoLevel(p ?? ({ person_certifications: [], cert_level: null } as unknown as Contact))] || 'Not certified'} disabled /></F>
+    <div className="cert-fh full">Roles {!canRoles && <span className="evt-hint" style={{ display: 'inline', textTransform: 'none', letterSpacing: 0 }}>— board and the executive director assign roles</span>}</div>
+    <div className="full evt-togrow">{ROLE_TOGGLES.map((k) => <Tog key={k} on={hasSeat(k)} onChange={(e) => canRoles && setSeats((s) => (e.target.checked ? [...s, { role_key: k, committee_id: null }] : s.filter((x) => x.role_key !== k)))} l={ROLE_LABEL[k]!} />)}</div>
+    <div className="cert-fh full">Committee seats</div>
+    <div className="full evt-rows">{committeeSeats.length === 0 && <p className="muted">No committee seats.</p>}{seats.map((s, i) => ['committee_chair', 'committee_cochair', 'committee_member', 'research_director'].includes(s.role_key) ? <div key={i} className="rr" style={{ gridTemplateColumns: '1fr 180px auto' }}>
+      <select className="fi" value={s.committee_id ?? ''} disabled={!canRoles} onChange={(e) => setSeats((all) => all.map((x, j) => (j === i ? { ...x, committee_id: e.target.value ? Number(e.target.value) : null } : x)))}><option value="">— committee —</option>{comms.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      <select className="fi" value={s.role_key} disabled={!canRoles} onChange={(e) => setSeats((all) => all.map((x, j) => (j === i ? { ...x, role_key: e.target.value } : x)))}><option value="committee_chair">Chair</option><option value="committee_cochair">Co-Chair</option><option value="committee_member">Member</option><option value="research_director">Research Director</option></select>
+      <button type="button" className="del" aria-label="Remove seat" disabled={!canRoles} onClick={() => setSeats((all) => all.filter((_, j) => j !== i))}>×</button></div> : null)}</div>
+    {canRoles && <div className="full"><button type="button" className="b s-btn on-light xs" onClick={() => setSeats((s) => [...s, { role_key: 'committee_member', committee_id: null }])}>+ Add committee seat</button></div>}
+  </>
+}
+
+/** Add a contact: the same fields, stepped, in a window of its own (there is no card to edit yet). */
+function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Contact | null; comms: Committee[]; canRoles: boolean; me: string; meId: string | null; onClose: () => void; onSaved: (m: string) => void }) {
+  const f = useContactForm(p, canRoles, me, meId)
+  const { v, set } = f
+  const [step, setStep] = useState<Step>('who')
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
+  const idx = STEPS.findIndex((s) => s[0] === step)
+  const go = (s: Step) => { setStep(s); bodyRef.current?.scrollTo({ top: 0 }) }
+  async function save() {
+    const r = await f.save()
+    if (!r.ok) { if (r.step) go(r.step); return }
+    onSaved(r.msg)
   }
 
   return (
@@ -290,57 +432,12 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
         <div className="mh"><div><span className="evt-kick">{p ? 'Edit contact' : 'Add a contact'}</span><h3>{`${v.first_name} ${v.last_name}`.trim() || 'New contact'}</h3>{!p && <p>Only a name is required — a lead takes thirty seconds. Fill more as you learn it.</p>}</div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
         <div className="evt-tabs">{STEPS.map(([k, l]) => <button type="button" key={k} className={step === k ? 'on' : ''} onClick={() => go(k)}>{l}</button>)}</div>
         <div className="mb" ref={bodyRef}>
-          {err && <div className="cert-err">{err}</div>}
+          {f.err && <div className="cert-err">{f.err}</div>}
           <div className="cert-grid mform evt-grid">
-            {step === 'who' && <>
-              <div className="full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px', gap: '4px 18px' }}><F l="FIRST NAME *">{I('first_name')}</F><F l="LAST NAME *">{I('last_name')}</F><F l="CREDENTIALS">{I('credentials', 'text', 'DC, BCAO')}</F></div>
-              <F l="TITLE">{I('title', 'text', 'e.g. Clinic Director')}</F>
-              <F l="CONTACT TYPE"><select className="fi" value={v.contact_type} onChange={set('contact_type')}><option value="doctor">Doctor</option><option value="student">Student</option><option value="staff">Staff / other</option></select></F>
-              <F l="EMAIL">{I('email', 'email')}</F><F l="MOBILE">{I('mobile_phone', 'tel')}</F><F l="OFFICE PHONE">{I('office_phone', 'tel')}</F><F l="PERSONAL PHONE">{I('personal_phone', 'tel')}</F>
-              <div className="cert-fh full">Technique(s) practiced <span className="evt-hint" style={{ display: 'inline', textTransform: 'none', letterSpacing: 0 }}>— what they practice, not a certification</span></div>
-              <div className="full ctc-chk">{TECHNIQUES.map((t) => <label key={t} className={tq.includes(t) ? 'on' : ''}><input type="checkbox" checked={tq.includes(t)} onChange={(e) => setTq((s) => (e.target.checked ? [...new Set([...s, t])] : s.filter((x) => x !== t)))} /> {t}</label>)}</div>
-            </>}
-            {step === 'practice' && <>
-              <div className="ctc-locbox full"><div className="hd"><span>Primary office</span></div>
-                <F l="PRACTICE NAME" full>{I('practice_name')}</F><F l="STREET ADDRESS" full>{I('practice_address')}</F>
-                <div className="full" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '4px 10px' }}><F l="CITY">{I('practice_city')}</F><F l="STATE">{I('practice_state')}</F><F l="ZIP">{I('practice_zip')}</F></div>
-                <F l="PRACTICE PHONE">{I('practice_phone', 'tel')}</F><F l="WEBSITE">{I('practice_website', 'text', 'https://…')}</F>
-              </div>
-              {offices.map((o, i) => <div key={i} className="ctc-locbox full"><div className="hd"><span>Office {i + 2}</span><button type="button" aria-label="Remove office" onClick={() => setOffices((s) => s.filter((_, j) => j !== i))}>×</button></div>
-                <F l="PRACTICE NAME" full><input className="fi" value={o.name ?? ''} onChange={(e) => setOffice(i, { name: e.target.value })} /></F>
-                <F l="STREET ADDRESS" full><input className="fi" value={o.address ?? ''} onChange={(e) => setOffice(i, { address: e.target.value })} /></F>
-                <div className="full" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '4px 10px' }}><F l="CITY"><input className="fi" value={o.city ?? ''} onChange={(e) => setOffice(i, { city: e.target.value })} /></F><F l="STATE"><input className="fi" value={o.state ?? ''} onChange={(e) => setOffice(i, { state: e.target.value })} /></F><F l="ZIP"><input className="fi" value={o.zip ?? ''} onChange={(e) => setOffice(i, { zip: e.target.value })} /></F></div>
-                <F l="OFFICE PHONE"><input className="fi" value={o.phone ?? ''} onChange={(e) => setOffice(i, { phone: e.target.value })} /></F><F l="WEBSITE"><input className="fi" value={o.website ?? ''} onChange={(e) => setOffice(i, { website: e.target.value })} /></F>
-                <div className="full evt-togrow"><Tog on={!!o.is_internship_site} onChange={(e) => setOffice(i, { is_internship_site: e.target.checked })} l="Internship site" sub="Appears under Internships" /><Tog on={!!o.is_seminar_venue} onChange={(e) => setOffice(i, { is_seminar_venue: e.target.checked })} l="Seminar venue" sub="Available in the Events venue list" /></div>
-              </div>)}
-              <div className="full"><button type="button" className="b s-btn on-light xs" onClick={() => setOffices((s) => [...s, { name: '', address: '', city: '', state: '', zip: '', phone: '', website: '', is_primary: false, is_internship_site: false, is_seminar_venue: false }])}>+ Add another office</button></div>
-            </>}
-            {step === 'bg' && <>
-              <F l="CHIROPRACTIC COLLEGE">{I('alma_mater', 'text', 'e.g. Life University')}</F><F l="GRADUATION YEAR">{I('grad_year', 'number', '2012')}</F>
-              <F l="NPI NUMBER">{I('npi', 'text', '10 digits')}</F>
-              <F l="HEADSHOT" full hint={p ? 'Members can add their own under My Account. Upload one here, or paste a link.' : 'Save the contact first, then upload a photo.'}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {v.photo_url && <span className="ctc-top" style={{ display: 'contents' }}><span className="av" style={{ width: 40, height: 40, fontSize: 13 }}><img src={v.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /></span></span>}
-                  {I('photo_url', 'url', 'https://…')}
-                  {p && <><input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Upload'}</button></>}
-                </div>
-              </F>
-              <F l="BIO" full><textarea className="fi" rows={4} value={v.bio} onChange={set('bio')} placeholder="Shown on the public directory once they are a member." /></F>
-            </>}
-            {step === 'member' && <>
-              <F l="MEMBERSHIP STATUS" hint="Joining on the website sets this automatically; change it here only for a manual renewal."><select className="fi" value={v.membership_status} onChange={set('membership_status')}><option value="never">Never a member</option><option value="active">Current member</option><option value="expired">Expired</option><option value="deceased">Deceased</option></select></F>
-              {v.membership_status === 'deceased' ? <F l="DATE OF DEATH">{I('deceased_on', 'date')}</F> : <F l="MEMBER SINCE">{I('member_since', 'date')}</F>}
-              <F l="MEMBERSHIP EXPIRES (RENEWAL)">{I('membership_expires', 'date')}</F>
-              <F l="ADVO CERTIFICATION" hint="Set on the Certifications tab, not here."><input className="fi" value={LEVEL_LABEL[advoLevel(p ?? ({ person_certifications: [], cert_level: null } as unknown as Contact))] || 'Not certified'} disabled /></F>
-              <div className="cert-fh full">Roles {!canRoles && <span className="evt-hint" style={{ display: 'inline', textTransform: 'none', letterSpacing: 0 }}>— board and the executive director assign roles</span>}</div>
-              <div className="full evt-togrow">{ROLE_TOGGLES.map((k) => <Tog key={k} on={hasSeat(k)} onChange={(e) => canRoles && setSeats((s) => (e.target.checked ? [...s, { role_key: k, committee_id: null }] : s.filter((x) => x.role_key !== k)))} l={ROLE_LABEL[k]!} />)}</div>
-              <div className="cert-fh full">Committee seats</div>
-              <div className="full evt-rows">{committeeSeats.length === 0 && <p className="muted">No committee seats.</p>}{seats.map((s, i) => ['committee_chair', 'committee_cochair', 'committee_member', 'research_director'].includes(s.role_key) ? <div key={i} className="rr" style={{ gridTemplateColumns: '1fr 180px auto' }}>
-                <select className="fi" value={s.committee_id ?? ''} disabled={!canRoles} onChange={(e) => setSeats((all) => all.map((x, j) => (j === i ? { ...x, committee_id: e.target.value ? Number(e.target.value) : null } : x)))}><option value="">— committee —</option>{comms.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                <select className="fi" value={s.role_key} disabled={!canRoles} onChange={(e) => setSeats((all) => all.map((x, j) => (j === i ? { ...x, role_key: e.target.value } : x)))}><option value="committee_chair">Chair</option><option value="committee_cochair">Co-Chair</option><option value="committee_member">Member</option><option value="research_director">Research Director</option></select>
-                <button type="button" className="del" aria-label="Remove seat" disabled={!canRoles} onClick={() => setSeats((all) => all.filter((_, j) => j !== i))}>×</button></div> : null)}</div>
-              {canRoles && <div className="full"><button type="button" className="b s-btn on-light xs" onClick={() => setSeats((s) => [...s, { role_key: 'committee_member', committee_id: null }])}>+ Add committee seat</button></div>}
-            </>}
+            {step === 'who' && <WhoFields f={f} />}
+            {step === 'practice' && <PracticeFields f={f} />}
+            {step === 'bg' && <BgFields f={f} />}
+            {step === 'member' && <MemberFields f={f} comms={comms} />}
             {step === 'notes' && <>
               <F l="NEW NOTE" full hint="Saved to the running log with your name and today's date. Earlier notes stay untouched."><textarea className="fi" rows={6} value={v.newNote} onChange={set('newNote')} placeholder="How we met, what they're interested in, follow-ups…" /></F>
               {(p?.contact_notes ?? []).length > 0 && <div className="full">{[...p!.contact_notes].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Institute'} · {fmtD(n.created_at.slice(0, 10))}</small></div>)}</div>}
@@ -349,7 +446,7 @@ function EditDialog({ p, comms, canRoles, me, meId, onClose, onSaved }: { p: Con
         </div>
         <div className="mf evt-foot">
           <div className="r">{idx > 0 && <button type="button" className="b s-btn on-light sm" onClick={() => go(STEPS[idx - 1]![0])}>‹ {STEPS[idx - 1]![1]}</button>}{idx < STEPS.length - 1 && <button type="button" className="b s-btn on-light sm" onClick={() => go(STEPS[idx + 1]![0])}>{STEPS[idx + 1]![1]} ›</button>}</div>
-          <div className="r"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : p ? 'Save changes' : 'Save contact'}</button></div>
+          <div className="r"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={f.saving} onClick={() => void save()}>{f.saving ? 'Saving…' : p ? 'Save changes' : 'Save contact'}</button></div>
         </div>
       </div>
     </div>
