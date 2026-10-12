@@ -2148,18 +2148,18 @@ a.othercard {
 .mem-row .ph { font-variant-numeric: tabular-nums; }
 .mem-row i { font-style: normal; color: var(--color-content-muted); }
 .mem-row .ac { display: flex; justify-content: flex-end; min-width: 30px; }
-/* Certifications, compact view: same rows, its own columns; a clicked row opens the person's card beneath it. */
-.cert-table { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.4fr) max-content max-content minmax(0, 1.6fr); }
+/* Certifications, compact view: same rows, its own columns; a clicked row opens the edit window. */
+.cert-table { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.4fr) max-content max-content minmax(0, 1.6fr) auto; }
+/* Certification card: Edit beside the progress chip, Initiate beneath them, all on the right. */
+.cert-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.cert-ph:has(> .cert-side) { align-items: flex-start; }
 .cert-table > div > .mem-row { border-top: 1px solid var(--color-border-subtle); } /* each row sits in its own wrapper, so :first-child would hide every divider */
-.mem-row.open { background: var(--color-surface-raised); }
-.mem-x { grid-column: 1 / -1; padding: 10px 12px 2px; border-top: 1px solid var(--color-border-subtle); background: var(--color-surface-sunken); }
-.mem-x .cert-card { margin-bottom: 8px; }
 /* Comfortable view: the cards, with less padding than elsewhere. */
 .cert-card.mem-card { padding: 12px 16px; margin-bottom: 8px; }
 .mem-card .mline { margin: 4px 0 6px; }
 /* Member detail: one tab at a time; a steady height so the window doesn't jump between tabs. */
 .cert-modal.cc .cc-body { min-height: 380px; }
-.cert-modal.cc .cc-body > .sec:first-child { margin-top: 0; }
+.cert-modal.cc .mb > .sec:first-child { margin-top: 0; }
 .evt .dt { text-align: center; border-right: 1px solid var(--color-border-subtle); padding-right: 14px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
 .evt .dt .mo { font-family: var(--font-label); font-weight: 600; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-brand-accent-strong); }
 .evt .dt .dy { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.05; color: var(--color-content-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
