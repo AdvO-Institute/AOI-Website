@@ -22,8 +22,9 @@ import { Chips as PersonChips, chipsFor } from './PersonChips'
 import { CERT_LABEL } from '@/lib/chips'
 import { askConfirm, askForm, askText } from './opsUi'
 
-type Tab = 'all' | 'current' | 'recent' | 'inactive'
-const TABS: [Tab, string][] = [['all', 'All members'], ['current', 'Current'], ['recent', 'Recently expired'], ['inactive', 'Inactive']]
+type Tab = 'all' | 'current' | 'recent' | 'inactive' | 'deceased'
+// Deceased members keep their record but sit in their own tab, last, and out of All members.
+const TABS: [Tab, string][] = [['all', 'All members'], ['current', 'Current'], ['recent', 'Recently expired'], ['inactive', 'Inactive'], ['deceased', 'Deceased']]
 const LVL = CERT_LABEL
 const fmt = (d?: string | null) => (d ? new Date(d.slice(0, 10) + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 const byFirst = (a: Member, b: Member) => a.first_name.localeCompare(b.first_name, undefined, { sensitivity: 'base' }) || a.last_name.localeCompare(b.last_name, undefined, { sensitivity: 'base' })
@@ -84,10 +85,10 @@ export default function MembersPanel() {
     toast(r?.ok ? `Password reset link emailed to ${p.email}` : 'Could not send it. Please try again in a moment.')
   }
 
-  const counts = useMemo(() => { const c: Record<Tab, number> = { all: 0, current: 0, recent: 0, inactive: 0 }; for (const p of rows) { c.all++; c[tabOf(p) as Tab]++ } return c }, [rows])
+  const counts = useMemo(() => { const c: Record<Tab, number> = { all: 0, current: 0, recent: 0, inactive: 0, deceased: 0 }; for (const p of rows) { const t = tabOf(p) as Tab; if (t !== 'deceased') c.all++; c[t]++ } return c }, [rows])
   const list = useMemo(() => {
     const t = q.trim().toLowerCase()
-    return rows.filter((p) => (tab === 'all' || tabOf(p) === tab) && (!t || [fullName(p), `${p.first_name} ${p.last_name}`, p.practice_name, p.email, p.practice_address, p.practice_city].filter(Boolean).some((v) => String(v).toLowerCase().includes(t)))).sort(byFirst)
+    return rows.filter((p) => (tab === 'all' ? tabOf(p) !== 'deceased' : tabOf(p) === tab) && (!t || [fullName(p), `${p.first_name} ${p.last_name}`, p.practice_name, p.email, p.practice_address, p.practice_city].filter(Boolean).some((v) => String(v).toLowerCase().includes(t)))).sort(byFirst)
   }, [rows, tab, q])
 
   function exportCsv() {
@@ -98,7 +99,6 @@ export default function MembersPanel() {
 
   if (loading) return <><h1>Members</h1><div className="ma-sub">Reading the roster…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
   const tabLabel = TABS.find(([k]) => k === tab)![1]
-  const living = list.filter((p) => !p.deceased_on), gone = list.filter((p) => p.deceased_on)
   const loginCell = (p: Member) => {
     const seen = logins?.[p.id]
     const status = !p.auth_user_id ? 'No login yet'
@@ -128,11 +128,11 @@ export default function MembersPanel() {
   return (
     <>
       <div className="cert-head">
-        <div><h1>Members</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>Paid members and current or former board members — {rows.length} total. The full prospect list is under Leads. Recently expired = lapsed within six months and reactivatable; Inactive = longer than that.</div></div>
+        <div><h1>Members</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>Paid members and current or former board members — {counts.all} total. The full prospect list is under Leads. Recently expired = lapsed within six months and reactivatable; Inactive = longer than that.</div></div>
         <div className="cert-actions">{canInvite && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
       </div>
       {error && <div className="cert-err" role="alert">{error}</div>}
-      <div className="cert-tiles four">{TABS.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>
+      <div className="cert-tiles">{TABS.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>
       <div className="cert-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input type="text" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQ('')} autoComplete="off" placeholder={`Search ${tab === 'all' ? 'members' : tabLabel.toLowerCase()} by name, practice or email…`} aria-label="Search this list" />
@@ -140,7 +140,7 @@ export default function MembersPanel() {
         {q && <div className="cnt">{list.length} of {counts[tab]} match “{q}”</div>}
       </div>
       {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `No one in ${tabLabel} matches “${q}”.` : 'No one in this list.'}</div>}
-      {tab === 'inactive' ? <>{living.map(card)}{gone.length > 0 && <div className="msec">Deceased · {gone.length}</div>}{gone.map(card)}</> : list.map(card)}
+      {list.map(card)}
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
       {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}

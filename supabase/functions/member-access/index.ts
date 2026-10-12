@@ -250,7 +250,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const q = await sb(`/rest/v1/people?select=id,first_name,last_name,credentials,email,auth_user_id,membership_status,membership_expires&or=(membership_expires.gte.${today},membership_status.eq.active)&auth_user_id=is.null&order=last_name&limit=60`);
+    const q = await sb(`/rest/v1/people?select=id,first_name,last_name,credentials,email,auth_user_id,membership_status,membership_expires&or=(membership_expires.gte.${today},membership_status.eq.active)&auth_user_id=is.null&deceased_on=is.null&order=last_name&limit=60`);
     // Only the people ticked in the list, when the list was trimmed.
     const pick: string[] | null = Array.isArray(body?.person_ids) ? body.person_ids.map(String) : null;
     const people: Person[] = (q.ok ? await q.json() as Person[] : []).filter((p) => !pick || pick.includes(p.id));
