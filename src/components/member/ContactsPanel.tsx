@@ -7,6 +7,7 @@ import { friendlyError } from '@/lib/friendlyError'
 import { webHref } from '@/lib/safeHref'
 import { SafeLink } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { inviteMember, type AccessReply } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useToast } from '@/components/ui/Toast'
@@ -112,7 +113,7 @@ export default function ContactsPanel() {
       {gone.length > 0 && <div className="msec">Deceased · {gone.length}</div>}
       {gone.map(row)}
 
-      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} onClose={() => setOpen(null)} onEdit={() => { setOpen(null); setEdit(current) }} onChanged={load} />}
+      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canRoles} onClose={() => setOpen(null)} onEdit={() => { setOpen(null); setEdit(current) }} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} comms={comms} canRoles={canRoles} me={me} meId={meId} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
@@ -120,7 +121,7 @@ export default function ContactsPanel() {
 
 /* ------------------------------------------------------------------ card -- */
 
-function ContactCard({ p, me, meId, canEdit, onClose, onEdit, onChanged }: { p: Contact; me: string; meId: string | null; canEdit: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
+function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChanged }: { p: Contact; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -134,6 +135,14 @@ function ContactCard({ p, me, meId, canEdit, onClose, onEdit, onChanged }: { p: 
   const web = (w: string | null) => (w ? <SafeLink href={webHref(w)}>{w}</SafeLink> : null)
   const offices = p.practice_locations ?? []
   const notes = [...(p.contact_notes ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  async function invite() {
+    setBusy(true)
+    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
+    setBusy(false)
+    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
+    toast(`Setup link emailed to ${r.email ?? p.email}`)
+    await onChanged()
+  }
   async function save() {
     if (!note.trim()) return
     setBusy(true); const r = await addNote(p.id, note.trim(), me, meId); setBusy(false)
@@ -167,7 +176,7 @@ function ContactCard({ p, me, meId, canEdit, onClose, onEdit, onChanged }: { p: 
         </div>
         <div className="mf evt-foot">
           <div className="r">{canEdit && s === 'lead' && <span className="evt-hint" style={{ alignSelf: 'center' }}>Becomes a member automatically when they join on the website.</span>}</div>
-          <div className="r">{canEdit && <button type="button" className="b s-btn on-light sm" onClick={onEdit}>Edit</button>}<button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div>
+          <div className="r">{canInvite && p.email && <button type="button" className="b s-btn on-light sm" disabled={busy} onClick={() => void invite()}>{p.auth_user_id ? 'Resend account link' : 'Invite to members area'}</button>}{canEdit && <button type="button" className="b s-btn on-light sm" onClick={onEdit}>Edit</button>}<button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div>
         </div>
       </div>
     </div>

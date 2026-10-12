@@ -8,6 +8,7 @@
  * -------------------------------------------------------------------------- */
 import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { inviteAllMembers, inviteMember, loginStatus, requestReset, type AccessReply, type InviteRow } from '@/lib/queries/access'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -44,6 +45,8 @@ export default function MembersPanel() {
   const { access, can } = useAccess()
   const me = displayName(access), meId = access.person?.id ?? null
   const canEdit = can('full_admin') || can('manage_leads') || can('board')
+  const canInvite = can('full_admin') || can('board')
+  const [invites, setInvites] = useState(false)
   const [rows, setRows] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +61,28 @@ export default function MembersPanel() {
     setRows(r.rows); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
+  // Last sign-in comes from the logins themselves, which only the access
+  // function can read. Until it answers, a row just says whether a login exists.
+  const [logins, setLogins] = useState<Record<string, { last_sign_in_at: string | null }> | null>(null)
+  useEffect(() => { if (canInvite) void loginStatus().then((r) => setLogins(r?.logins ?? null)).catch(() => {}) }, [canInvite])
+  const [sending, setSending] = useState<string | null>(null)
+  async function rowInvite(p: Member) {
+    if (!(await askConfirm(`Invite ${p.first_name} ${p.last_name}?`, { body: `An email with a link to set up their members-area login goes to ${p.email}.`, ok: 'Send invite' }))) return
+    setSending(p.id)
+    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
+    setSending(null)
+    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
+    toast(`Invitation emailed to ${r.email ?? p.email}`)
+    await load()
+  }
+  async function rowReset(p: Member) {
+    if (!p.email) return
+    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} a password reset?`, { body: `An email with a link to choose a new password goes to ${p.email}. Their current password keeps working until they change it.`, ok: 'Send reset' }))) return
+    setSending(p.id)
+    const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
+    setSending(null)
+    toast(r?.ok ? `Password reset link emailed to ${p.email}` : 'Could not send it. Please try again in a moment.')
+  }
 
   const counts = useMemo(() => { const c: Record<Tab, number> = { all: 0, current: 0, recent: 0, inactive: 0 }; for (const p of rows) { c.all++; c[tabOf(p) as Tab]++ } return c }, [rows])
   const list = useMemo(() => {
@@ -74,11 +99,28 @@ export default function MembersPanel() {
   if (loading) return <><h1>Members</h1><div className="ma-sub">Reading the roster…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
   const tabLabel = TABS.find(([k]) => k === tab)![1]
   const living = list.filter((p) => !p.deceased_on), gone = list.filter((p) => p.deceased_on)
+  const loginCell = (p: Member) => {
+    const seen = logins?.[p.id]
+    const status = !p.auth_user_id ? 'No login yet'
+      : !seen ? 'Login set up'
+      : seen.last_sign_in_at ? `Last signed in ${fmt(seen.last_sign_in_at)}` : 'Login set up · never signed in'
+    return (
+      <div className="macc">
+        <span className={`macc-st${p.auth_user_id ? '' : ' none'}`}>{status}</span>
+        {!p.email ? <span className="macc-st none">No email on file</span>
+          : p.auth_user_id ? <button type="button" className="b s-btn on-light xs" disabled={sending === p.id} onClick={() => void rowReset(p)}>Send password reset</button>
+          : <button type="button" className="b s-btn on-light xs" disabled={sending === p.id} onClick={() => void rowInvite(p)}>Send invite</button>}
+      </div>
+    )
+  }
   const card = (p: Member) => (
-    <div className={`cert-card${p.deceased_on ? ' dead' : ''}`} key={p.id}>
+    <div className={`cert-card${p.deceased_on ? ' dead' : ''}${canInvite && !p.deceased_on ? ' has-acc' : ''}`} key={p.id}>
+      <div>
       <div className="cert-nm"><a href="#" onClick={(e) => { e.preventDefault(); setOpen(p.id) }}>{fullName(p)}</a><StatusPill p={p} /></div>
       <div className="mline">{[p.email ? <a key="e" href={`mailto:${p.email}`}>{p.email}</a> : null, p.mobile_phone, p.office_phone ?? p.practice_phone, p.practice_name].filter(Boolean).map((x, i, arr) => <span key={i}>{x}{i < arr.length - 1 ? ' · ' : ''}</span>)}</div>
       <Chips p={p} />
+      </div>
+      {canInvite && !p.deceased_on && loginCell(p)}
     </div>
   )
   const current = open ? rows.find((x) => x.id === open) ?? null : null
@@ -87,7 +129,7 @@ export default function MembersPanel() {
     <>
       <div className="cert-head">
         <div><h1>Members</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>Paid members and current or former board members — {rows.length} total. The full prospect list is under Leads. Recently expired = lapsed within six months and reactivatable; Inactive = longer than that.</div></div>
-        <div className="cert-actions">{canEdit && <button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
+        <div className="cert-actions">{canInvite && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
       </div>
       {error && <div className="cert-err" role="alert">{error}</div>}
       <div className="cert-tiles four">{TABS.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>
@@ -100,14 +142,24 @@ export default function MembersPanel() {
       {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `No one in ${tabLabel} matches “${q}”.` : 'No one in this list.'}</div>}
       {tab === 'inactive' ? <>{living.map(card)}{gone.length > 0 && <div className="msec">Deceased · {gone.length}</div>}{gone.map(card)}</> : list.map(card)}
 
-      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}
+      {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
+      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
 }
 
-function ContactCard({ p, me, meId, canEdit, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
+function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast()
+  const [inviting, setInviting] = useState(false)
+  async function invite() {
+    setInviting(true)
+    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
+    setInviting(false)
+    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
+    toast(`Setup link emailed to ${r.email ?? p.email}`)
+    await onChanged()
+  }
   const [note, setNote] = useState('')
   const s = state(p), instr = currentInstructor(p), boards = p.board_service ?? [], active = boards.find((b) => b.status === 'active')
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
@@ -120,7 +172,7 @@ function ContactCard({ p, me, meId, canEdit, onClose, onEdit, onChanged }: { p: 
         <div className="mh"><div><h3>{fullName(p)}</h3></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
         <div className="mb">
           <div className="cert-chips"><StatusPill p={p} /></div><Chips p={p} />
-          {canEdit && <div style={{ margin: '12px 0 0' }}><button type="button" className="b s-btn on-light xs" onClick={onEdit}>✎ Edit profile</button></div>}
+          {(canEdit || canInvite) && <div style={{ margin: '12px 0 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>{canEdit && <button type="button" className="b s-btn on-light xs" onClick={onEdit}>✎ Edit profile</button>}{canInvite && p.email && <button type="button" className="b s-btn on-light xs" disabled={inviting} onClick={() => void invite()}>Invite to members area</button>}</div>}
           <div className="sec">Contact</div><div className="kv"><KV k="Email" v={p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null} /><KV k="Mobile" v={p.mobile_phone} /><KV k="Office" v={p.office_phone ?? p.practice_phone} /></div>
           <div className="sec">Office location</div>
           <div className="loc"><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && <Pill kind="info">Primary</Pill>}<div className="kv" style={{ marginTop: 8 }}><KV k="Address" v={p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null)} /><KV k="Website" v={p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
@@ -205,4 +257,74 @@ function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => 
 /** Module-level so React keeps the input mounted (and focused) between keystrokes. */
 function MF({ k, l, type, full, v, set }: { k: string; l: string; type: string; full: boolean; v: Record<string, string>; set: (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void }) {
   return <div className={full ? 'full' : ''}><label className="flabel" htmlFor={`m_${k}`}>{l}</label><input className="fi" id={`m_${k}`} type={type} value={v[k] ?? ''} onChange={set(k)} /></div>
+}
+
+/* ------------------------------------------------------- members area access
+ * Every current member who has no login yet, and one button to email them all
+ * a set-your-password link. Lists them first: a name with no email address
+ * cannot be invited, and that is worth seeing before anything is sent. */
+function InviteAllDialog({ onClose }: { onClose: () => void }) {
+  const toast = useToast()
+  const [rows, setRows] = useState<InviteRow[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState<InviteRow[] | null>(null)
+  const [skip, setSkip] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    void (async () => {
+      const r = await inviteAllMembers(true).catch(() => null)
+      if (!r || r.error) { setErr('Could not read the list — this is for Directors and the Executive Director.'); return }
+      setRows(r.results)
+    })()
+  }, [])
+  const listed = (rows ?? []).filter((r) => r.would_invite)
+  const sendable = listed.filter((r) => !r.id || !skip.has(r.id))
+  const toggle = (id?: string) => id && setSkip((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const missing = (rows ?? []).filter((r) => !r.would_invite)
+  async function send() {
+    if (!(await askConfirm(`Send ${sendable.length} invitation${sendable.length === 1 ? '' : 's'}?`, { body: `Each person ticked gets one email with a link to set up their members-area login.`, ok: 'Send' }))) return
+    setBusy(true)
+    const ids = sendable.map((x) => x.id).filter((x): x is string => !!x)
+    const r = await inviteAllMembers(false, ids.length === sendable.length ? ids : undefined).catch(() => null)
+    setBusy(false)
+    if (!r || r.error) { setErr('The invitations did not go out. Nothing was sent.'); return }
+    setDone(r.results)
+    toast(`${r.results.filter((x) => x.ok).length} of ${r.results.length} invitations sent`)
+  }
+  return (
+    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cert-modal" role="dialog" aria-modal="true">
+        <div className="mh"><div><h3>Invite to the members area</h3><p>Current members who have no login yet. Untick anyone you don't want to email.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+        <div className="mb">
+          {err && <div className="cert-err">{err}</div>}
+          {!rows && !err && <p className="ma-empty">Reading the roster…</p>}
+          {done ? (
+            <>
+              <p style={{ marginTop: 0 }}>Invitations sent. Each person gets one email with a link to choose their own password.</p>
+              <div className="evt-tbl"><table><tbody>
+                {done.map((r, i) => <tr key={i}><td>{r.name}</td><td>{r.email ?? '—'}</td><td>{r.ok ? <Pill kind="ok">sent</Pill> : <Pill kind="bad">{r.detail ?? 'not sent'}</Pill>}</td></tr>)}
+              </tbody></table></div>
+            </>
+          ) : rows ? (
+            rows.length === 0 ? <p className="ma-empty">Every current member already has a login.</p> : (
+              <>
+                <p style={{ marginTop: 0 }}>{listed.length} member{listed.length === 1 ? '' : 's'} can be invited now. Each gets one email with a link to choose their own password — no password is ever sent or set by us.</p>
+                <div className="evt-tbl"><table><tbody>
+                  {listed.map((r, i) => <tr key={r.id ?? i}><td><label className="inv-pick"><input type="checkbox" checked={!r.id || !skip.has(r.id)} disabled={!r.id} onChange={() => toggle(r.id)} /> {r.name}</label></td><td>{r.email}</td></tr>)}
+                </tbody></table></div>
+                {missing.length > 0 && <>
+                  <p style={{ marginTop: 16 }}><b>No email address on file</b> — these {missing.length} cannot be invited until a contact card has an address:</p>
+                  <p className="muted" style={{ fontSize: 13 }}>{missing.map((r) => r.name).join(' · ')}</p>
+                </>}
+              </>
+            )
+          ) : null}
+        </div>
+        <div className="mf">
+          {!done && rows && sendable.length > 0 && <button type="button" className="b p-btn sm" disabled={busy} onClick={() => void send()}>{busy ? 'Sending…' : `Send ${sendable.length} invitation${sendable.length === 1 ? '' : 's'}`}</button>}
+          <button type="button" className="b s-btn on-light sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
 }

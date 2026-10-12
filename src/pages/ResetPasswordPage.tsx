@@ -13,6 +13,7 @@ import { Link, useNavigate } from '@/lib/router'
 import {
   requestPasswordReset, updatePassword, isRecovery, signOut, linkError, clearLinkError,
 } from '@/lib/supabase'
+import { requestReset } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
 
@@ -64,7 +65,10 @@ export default function ResetPasswordPage() {
     }
     setBusy(true)
     try {
-      await requestPasswordReset(email.trim(), `${window.location.origin}/reset-password`)
+      // The Institute's own sender, in the Obsidian design; Supabase's shared
+      // mailer is the fallback if that ever fails.
+      const r = await requestReset(email.trim()).catch(() => null)
+      if (!r || r.error) await requestPasswordReset(email.trim(), `${window.location.origin}/reset-password`)
       setSent(true)
     } catch (err) {
       setError((err as Error).message || 'Could not start the reset.')
