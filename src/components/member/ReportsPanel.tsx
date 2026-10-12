@@ -131,14 +131,13 @@ export function ReportBody({ r, t, docs, onDoc }: { r: Report; t: Template; docs
       const fig = (k: string) => { const v = vals[k] ?? null; return v == null ? '—' : isMoney(t.nums!.find(([x]) => x === k)?.[1] ?? '') ? money(v) : String(v) }
       const plain = (keys: string[]) => keys.map((k) => <div key={k}><b>{fig(k)}</b><span>{lab(k)}</span></div>)
       if (!t.net) return <div className="rnum">{plain(t.nums.map(([k]) => k))}</div>
-      // A worked-out figure reads as a sum: first line, minus the second, a rule, the result.
-      const [label, plus, minus] = t.net; const n = netOf(vals, t.net)
+      // A worked-out figure reads as a sum: each line added or taken away, a rule, the result. Optional lines left blank are not shown.
+      const [label, terms] = t.net; const n = netOf(vals, t.net)
       return <div className="ledger-wrap">
         <div className="ledger">
-          <div className="lrow in"><span>{lab(plus)}</span><b>{fig(plus)}</b></div>
-          <div className="lrow out"><span>− {lab(minus)}</span><b>{fig(minus)}</b></div>
+          {terms.filter(([k], i) => i < 2 || vals[k] != null).map(([k, sign], i) => <div key={k} className={`lrow ${sign > 0 ? 'in' : 'out'}`}><span>{sign < 0 ? '− ' : i > 0 ? '+ ' : ''}{lab(k)}</span><b>{fig(k)}</b></div>)}
           <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : money(n)}</b></div>
-          {t.nums.map(([k]) => k).filter((k) => k !== plus && k !== minus).map((k) => <div key={k} className="lrow extra"><span>{lab(k)}</span><b>{fig(k)}</b></div>)}
+          {t.nums.map(([k]) => k).filter((k) => !terms.some(([x]) => x === k)).map((k) => <div key={k} className="lrow extra"><span>{lab(k)}</span><b>{fig(k)}</b></div>)}
         </div>
       </div>
     })()}
@@ -209,15 +208,14 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
           const input = (k: string) => { const l = t.nums!.find(([x]) => x === k)?.[1] ?? k; return <><input id={`rn-${k}`} className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · the {AUTO_SOURCE[committee.key] ?? 'live'} tab shows {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]} for this month</div>}</> }
           const field = (k: string) => <div key={k}><label className="flabel" htmlFor={`rn-${k}`}>{t.nums!.find(([x]) => x === k)?.[1] ?? k}</label>{input(k)}</div>
           if (!t.net) return <div className="fnum">{t.nums!.map(([k]) => field(k))}</div>
-          // Gross on top, minus expenses under it, a rule, then the worked-out net.
-          const [label, plus, minus] = t.net; const n = netOf(v.nums, t.net)
+          // Gross on top, then each line added or taken away, a rule, then the worked-out net.
+          const [label, terms] = t.net; const n = netOf(v.nums, t.net)
           const lab = (k: string) => (t.nums!.find(([x]) => x === k)?.[1] ?? k).replace(' ($)', '')
           return <div className="fledger-wrap">
             <div className="fledger">
-              <label className="lrow in" htmlFor={`rn-${plus}`}><span>{lab(plus)}</span><div>{input(plus)}</div></label>
-              <label className="lrow out" htmlFor={`rn-${minus}`}><span>− {lab(minus)}</span><div>{input(minus)}</div></label>
+              {terms.map(([k, sign], i) => <label key={k} className={`lrow ${sign > 0 ? 'in' : 'out'}`} htmlFor={`rn-${k}`}><span>{sign < 0 ? '− ' : i > 0 ? '+ ' : ''}{lab(k)}</span><div>{input(k)}</div></label>)}
               <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</b></div>
-              {t.nums!.map(([k]) => k).filter((k) => k !== plus && k !== minus).map((k) => <label key={k} className="lrow extra" htmlFor={`rn-${k}`}><span>{lab(k)}</span><div>{input(k)}</div></label>)}
+              {t.nums!.map(([k]) => k).filter((k) => !terms.some(([x]) => x === k)).map((k) => <label key={k} className="lrow extra" htmlFor={`rn-${k}`}><span>{lab(k)}</span><div>{input(k)}</div></label>)}
             </div>
           </div>
         })()}</>}
