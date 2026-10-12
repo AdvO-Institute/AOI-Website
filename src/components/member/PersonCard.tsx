@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/Toast'
 import { inviteMember, requestReset, type AccessReply } from '@/lib/queries/access'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import {
-  saveProfile, createContact, addNote, saveOffices, saveRoles,
+  saveProfile, createContact, addNote, saveOffices, saveRoles, saveVendor,
   TECHNIQUES, ROLE_LABEL, LEVEL_LABEL, fullName, state, duesLapsed, advoLevel, otherCerts, initials,
 } from '@/lib/queries/contacts'
 import type { Contact, Committee, Office, Profile, Seat } from '@/lib/queries/contacts'
@@ -51,6 +51,7 @@ export const ROLE_TOGGLES = ['executive_director', 'board_chair', 'vice_chair', 
 const TOGGLE_LABEL: Record<string, string> = { board_member: 'Board member (Director)', past_board_member: 'Past board member' }
 const SEAT_KEYS = ['committee_chair', 'committee_cochair', 'committee_member', 'research_director']
 type V = Record<string, string>
+const VENDOR_KEYS = ['is_vendor', 'vendor_company', 'vendor_services', 'vendor_website', 'vendor_notes']
 
 /** The contact form: its fields' state and the save. Shared by the card's in-place editor and the Add contact window. */
 export function useContactForm(p: Contact | null, canRoles: boolean, me: string, meId: string | null, newStatus = 'never') {
@@ -62,6 +63,7 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
     practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', practice_city: p?.practice_city ?? '', practice_state: p?.practice_state ?? '', practice_zip: p?.practice_zip ?? '', practice_website: p?.practice_website ?? '',
     alma_mater: p?.alma_mater ?? '', grad_year: p?.grad_year ? String(p.grad_year) : '', npi: p?.npi ?? '', photo_url: p?.photo_url ?? '', bio: p?.bio ?? '',
     membership_status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? newStatus), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '', newNote: '',
+    is_vendor: p?.is_vendor ? '1' : '', vendor_company: p?.vendor_company ?? '', vendor_services: p?.vendor_services ?? '', vendor_website: p?.vendor_website ?? '', vendor_notes: p?.vendor_notes ?? '',
   })
   const initSeats = (): Seat[] => (p?.person_roles ?? []).map((r) => ({ role_key: r.role_key, committee_id: r.committee_id }))
   const [v, setV] = useState<V>(init)
@@ -73,6 +75,7 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
   const [saving, setSaving] = useState(false)
   /** Back to what the record says now — before each edit, and on Cancel. */
   const reset = () => { setV(init()); setTq(p?.techniques ?? []); setOffices(p?.practice_locations ?? []); setSeats(initSeats()); setErr(null) }
+  const setVal = (k: string, val: string) => setV((s) => ({ ...s, [k]: val }))
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }))
   /* A manager's upload lands in the headshot bucket; the address is saved with the rest of the form. */
   const photoRef = useRef<HTMLInputElement>(null)
@@ -113,6 +116,17 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
     else { const r = await createContact(prof); if (r.error || !r.id) { setSaving(false); setErr(friendly(r.error ?? 'no id returned')); return { ok: false } }; id = r.id }
     const o = await saveOffices(id, offices); if (o.error) { setSaving(false); setErr('Saved, but the extra offices were not. ' + friendlyError(o.error)); return { ok: false } }
     if (canRoles) { const r = await saveRoles(id, seats, instrLevel); if (r.error) { setSaving(false); setErr('Saved, but the roles were not. ' + friendlyError(r.error)); return { ok: false } } }
+    // Vendor details are their own write: the database gets these fields separately (Chris), and the rest must save regardless.
+    let vendorNote = ''
+    const v0 = init()
+    if (VENDOR_KEYS.some((k) => (v[k] ?? '') !== (v0[k] ?? ''))) {
+      const w = await saveVendor(id, { is_vendor: v.is_vendor === '1', vendor_company: v.vendor_company || null, vendor_services: v.vendor_services || null, vendor_website: v.vendor_website || null, vendor_notes: v.vendor_notes || null })
+      if (w.error) {
+        const why = /vendor|PGRST204|column/i.test(w.error) ? 'the database does not have the vendor fields yet.' : friendlyError(w.error)
+        if (p) { setSaving(false); setErr('Saved, but not the vendor details: ' + why); return { ok: false } }
+        vendorNote = ' The vendor details were not saved: ' + why
+      }
+    }
     if (v.newNote && v.newNote.trim()) { const n = await addNote(id, v.newNote.trim(), me, meId); if (n.error) { setSaving(false); setErr('Saved, but the note was not. ' + friendlyError(n.error)); return { ok: false } } }
     let photoNote = ''
     if (!p && pendingPhoto) {
@@ -121,9 +135,9 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
       if (!up.url || w?.error) photoNote = ' The photo could not be uploaded; add it from their card.'
     }
     setSaving(false)
-    return { ok: true, id, msg: (p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.`) + photoNote }
+    return { ok: true, id, msg: (p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added${prof.membership_status === 'never' || !prof.membership_status ? ' as a lead' : ''}.`) + photoNote + vendorNote }
   }
-  return { p, canRoles, v, set, I, tq, setTq, offices, setOffices, setOffice, seats, setSeats, hasSeat, err, saving, save, reset, photoRef, photoBusy, pickPhoto, pendingPhoto, preview }
+  return { p, canRoles, v, set, setVal, I, tq, setTq, offices, setOffices, setOffice, seats, setSeats, hasSeat, err, saving, save, reset, photoRef, photoBusy, pickPhoto, pendingPhoto, preview }
 }
 export type ContactForm = ReturnType<typeof useContactForm>
 
@@ -136,12 +150,15 @@ const TYPE_LABEL: Record<string, string> = { doctor: 'Doctor', student: 'Student
 const chk = (on: boolean, label: string, onChange: (on: boolean) => void, disabled = false) =>
   <label key={label} className="cert-tog" style={{ margin: 0 }}><input type="checkbox" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /> {label}</label>
 
-type CardTab = 'profile' | 'business' | 'background' | 'membership' | 'certification' | 'notes'
+type CardTab = 'profile' | 'business' | 'background' | 'vendor' | 'membership' | 'certification' | 'notes'
 type CertForm = { level: Level; date: string; num: string; target: Level | ''; interest: boolean }
 
-export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, canEdit, canRoles, canInvite, canCert, lastIn, startEditing = false, onClose, onChanged }: {
+export function PersonCard({ p: given, newStatus = 'never', vendorReady = false, comms, me, meId, canEdit, canRoles, canInvite, canCert, lastIn, startEditing = false, onClose, onChanged }: {
   /** null adds someone new: the card opens in edit mode and Save creates the record. */
-  p: Contact | null; newStatus?: string; comms: Committee[]; me: string; meId: string | null
+  p: Contact | null; newStatus?: string
+  /** False until the database has the vendor fields; the Vendor tab says so. */
+  vendorReady?: boolean
+  comms: Committee[]; me: string; meId: string | null
   canEdit: boolean; canRoles: boolean; canInvite: boolean; canCert: boolean
   /** When they last signed in, if the page knows. */
   lastIn?: string
@@ -212,7 +229,10 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
   const instr = (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
   const activeBoard = (p.board_service ?? []).some((b) => b.status === 'active')
   const fail = (r: { error?: string }) => { if (r.error) { toast(friendlyError(r.error)); return true } return false }
-  const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
+  const showVendor = editP ? f.v.is_vendor === '1' : !!p.is_vendor
+  const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ...(showVendor ? [['vendor', 'Vendor'] as [CardTab, string]] : []), ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
+
+  useEffect(() => { if (tab === 'vendor' && !showVendor) setTab('profile') }, [tab, showVendor])
 
   async function welcome() {
     if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
@@ -269,6 +289,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
               <Row k="First name">{I('first_name')}</Row><Row k="Last name">{I('last_name')}</Row>
               <Row k="Credentials">{I('credentials', 'text', 'DC, BCAO')}</Row><Row k="Title">{I('title', 'text', 'e.g. Clinic Director')}</Row>
               <Row k="Type"><select className="fi" value={v.contact_type} onChange={set('contact_type')} aria-label="Type"><option value="doctor">Doctor</option><option value="student">Student</option><option value="staff">Staff / other</option></select></Row>
+              <Row k="Vendor">{chk(v.is_vendor === '1', 'Also a vendor — adds a Vendor tab', (on) => f.setVal('is_vendor', on ? '1' : ''))}</Row>
             </div>
             <div className="sec">Contact</div>
             <div className="kv"><Row k="Email">{I('email', 'email')}</Row><Row k="Mobile">{I('mobile_phone', 'tel')}</Row><Row k="Personal phone">{I('personal_phone', 'tel')}</Row></div>
@@ -279,7 +300,7 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
             </div>
           </> : <>
             <Sec title="Contact" items={[kv('Email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null), kv('Mobile', p.mobile_phone), kv('Personal phone', p.personal_phone)]} />
-            <Sec title="Profile" items={[kv('Type', TYPE_LABEL[p.contact_type ?? ''] ?? p.contact_type), kv('Title', p.title), kv('Bio', p.bio)]} />
+            <Sec title="Profile" items={[kv('Type', TYPE_LABEL[p.contact_type ?? ''] ?? p.contact_type), kv('Vendor', p.is_vendor ? (p.vendor_company || 'Yes') : null), kv('Title', p.title), kv('Bio', p.bio)]} />
             {canInvite && !p.deceased_on && <>
               <div className="sec">Members area</div>
               <div className="kv"><Row k="Login">{!p.email ? 'No email on file' : p.auth_user_id ? 'Set up' : 'Not set up yet'}</Row>{lastIn !== undefined && p.auth_user_id && <Row k="Last signed in">{lastIn}</Row>}</div>
@@ -329,6 +350,22 @@ export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, can
             {!(p.techniques ?? []).length && !p.alma_mater && !p.grad_year && !p.npi && <p className="muted" style={{ marginTop: 14 }}>No background on file.</p>}
             <ResearchSection personId={p.id} />
           </>)}
+
+          {tab === 'vendor' && showVendor && <>
+            {editP ? <>
+              <div className="sec">Vendor</div>
+              <div className="kv">
+                <Row k="Company">{I('vendor_company')}</Row>
+                <Row k="What they provide">{I('vendor_services', 'text', 'e.g. Printing, X-ray equipment, venue')}</Row>
+                <Row k="Website">{I('vendor_website', 'text', 'https://…')}</Row>
+                <Row k="Notes"><textarea className="fi" rows={3} value={v.vendor_notes} onChange={set('vendor_notes')} placeholder="Terms, who to call, what we have bought" aria-label="Vendor notes" /></Row>
+              </div>
+            </> : <>
+              <Sec title="Vendor" items={[kv('Company', p.vendor_company), kv('What they provide', p.vendor_services), kv('Website', web(p.vendor_website ?? null)), kv('Notes', p.vendor_notes)]} />
+              {!p.vendor_company && !p.vendor_services && !p.vendor_website && !p.vendor_notes && <p className="muted" style={{ marginTop: 14 }}>No vendor details yet.</p>}
+            </>}
+            {!vendorReady && <p className="muted" style={{ marginTop: 10 }}>Vendor details save once Chris adds the vendor fields to the database.</p>}
+          </>}
 
           {tab === 'membership' && (editP ? <>
             <div className="sec">Membership</div>

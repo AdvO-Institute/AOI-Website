@@ -40,6 +40,8 @@ export type Contact = {
   notes: string | null; deceased_on: string | null; profile_completed: boolean | null; auth_user_id: string | null
   person_certifications: Cert[]; instructor_records: Instr[]; board_service: Board[]
   person_roles: Role[]; contact_notes: Note[]; practice_locations: Office[]
+  /** Read separately (vendorDetails) and merged in, so the list still loads before the database has these fields. */
+  is_vendor?: boolean | null; vendor_company?: string | null; vendor_services?: string | null; vendor_website?: string | null; vendor_notes?: string | null
 }
 
 const SELECT =
@@ -69,7 +71,33 @@ export async function everyone(): Promise<{ rows: Contact[]; error?: string }> {
   return { rows: out }
 }
 
-/** One person with everything attached — the card opened from the Members page. */
+const PAID_STATUSES = 'active,current,member,good,good_standing,expired'
+const BOARD_ROLES = 'board_member,past_board_member,executive_director,past_executive_director'
+
+/** Members only — paid (now or before) or on the board, now or before. For the
+ *  committee chairs who use the Directory but do not see leads. Two reads,
+ *  merged: PostgREST cannot express that OR across an embedded table. */
+export async function membersOnly(): Promise<{ rows: Contact[]; error?: string }> {
+  const [a, b] = await Promise.all([
+    select<Contact>('people', `select=${SELECT}&membership_status=in.(${PAID_STATUSES})&limit=2000`),
+    select<{ id: string }>('people', `select=id,person_roles!inner(role_key)&person_roles.role_key=in.(${BOARD_ROLES})&limit=2000`),
+  ])
+  if (!a.data) return { rows: [], error: a.error ?? 'unknown' }
+  const seen = new Map(a.data.map((p) => [p.id, p]))
+  const missing = (b.data ?? []).map((x) => x.id).filter((id) => !seen.has(id))
+  if (missing.length) { const c = await select<Contact>('people', `select=${SELECT}&id=in.(${missing.join(',')})&limit=2000`); for (const p of c.data ?? []) seen.set(p.id, p) }
+  return { rows: [...seen.values()] }
+}
+
+export type Vendor = Required<Pick<Contact, 'is_vendor' | 'vendor_company' | 'vendor_services' | 'vendor_website' | 'vendor_notes'>> & { id: string }
+/** Everyone marked as a vendor. `ready` is false until the database has the vendor fields. */
+export async function vendorDetails(): Promise<{ rows: Vendor[]; ready: boolean }> {
+  const r = await select<Vendor>('people', 'select=id,is_vendor,vendor_company,vendor_services,vendor_website,vendor_notes&is_vendor=is.true&limit=2000')
+  return { rows: r.data ?? [], ready: !!r.data }
+}
+export const saveVendor = (id: string, v: Omit<Vendor, 'id'>) => patch('people', `id=eq.${id}`, v)
+
+/** One person with everything attached. */
 export async function contactById(id: string): Promise<{ row: Contact | null; error?: string }> {
   const r = await select<Contact>('people', `select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`)
   return r.data ? { row: r.data[0] ?? null } : { row: null, error: r.error ?? 'unknown' }

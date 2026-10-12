@@ -140,7 +140,7 @@ function PersonCard({ p, who, canNote, onClose }: { p: PersonLite; who: Who; can
       {canNote && <div className="ctc-noteform"><textarea value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Add a running note…" /><div className="r"><button type="button" className="b p-btn sm" onClick={async () => { const t = txt.trim(); if (!t) return; const r = await addNote(p.id, t, who); if (r.error) return toast(friendly(r.error)); setTxt(''); setNotes(await notesFor(p.id)); toast('Note added') }}>Add note</button></div></div>}
       {notes.length ? notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? '—'} · {fmtTs(n.created_at)}</small></div>) : <p className="muted" style={{ marginTop: 8 }}>No notes yet.</p>}
     </div>
-    <div className="mf evt-foot"><span><a className="b s-btn on-light sm" href="#leads">Open in Contacts</a></span><button type="button" className="b s-btn on-light sm" onClick={onClose}>Close</button></div>
+    <div className="mf evt-foot"><span><a className="b s-btn on-light sm" href="#directory">Open in Directory</a></span><button type="button" className="b s-btn on-light sm" onClick={onClose}>Close</button></div>
   </div></div>
 }
 

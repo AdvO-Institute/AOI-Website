@@ -245,7 +245,7 @@ function DirectorCard({ t, all, who, canManage, onClose, onChanged }: { t: Term;
           {notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Board'} · {fmtD(n.created_at)}</small></div>)}
           {canManage && pid && <div className="ctc-noteform"><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a board note…" /><div className="r"><button type="button" className="b s-btn on-light sm" disabled={busy || !note.trim()} onClick={async () => { if (await act(addBoardNote(pid, note.trim(), who), 'Note added')) setNote('') }}>Add note</button></div></div>}
         </div>
-        <div className="mf evt-foot"><div className="r"><a className="flink" href="#contacts" onClick={(e) => { e.preventDefault(); window.location.hash = 'leads'; onClose() }}>Open full contact record →</a></div><div className="r"><button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div></div>
+        <div className="mf evt-foot"><div className="r"><a className="flink" href="#directory" onClick={(e) => { e.preventDefault(); window.location.hash = 'directory'; onClose() }}>Open full contact record →</a></div><div className="r"><button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div></div>
         {ending && (
           <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && setEnding(null)}>
             <div className="cert-modal" role="dialog" aria-modal="true">

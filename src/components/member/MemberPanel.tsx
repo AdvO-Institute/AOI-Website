@@ -18,9 +18,8 @@ import { TIER_LABEL } from '@/lib/access'
 import RolesPanel from './RolesPanel'
 import OperatingSystem from './OperatingSystem'
 import CertificationPanel from './CertificationPanel'
-import MembersPanel from './MembersPanel'
+import DirectoryPanel from './DirectoryPanel'
 import EventsPanel from './EventsPanel'
-import ContactsPanel from './ContactsPanel'
 import BoardPanel from './BoardPanel'
 import InternshipsPanel from './InternshipsPanel'
 import CollegesPanel from './CollegesPanel'
@@ -103,9 +102,8 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'roles') return <RolesPanel />
   if (tab === 'oversight') return <OperatingSystem />
   if (tab === 'certification') return <CertificationPanel />
-  if (tab === 'directory') return <MembersPanel />
+  if (tab === 'directory') return <DirectoryPanel />
   if (tab === 'events') return <EventsPanel />
-  if (tab === 'leads') return <ContactsPanel />
   if (tab === 'board') return <BoardPanel />
   if (tab === 'internships') return <InternshipsPanel />
   if (tab === 'colleges') return <CollegesPanel />

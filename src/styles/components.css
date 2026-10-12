@@ -2070,6 +2070,7 @@ a.othercard {
 
 /* Members tab */
 .cert-tiles.four { grid-template-columns: repeat(4, 1fr); }
+.cert-tiles.seven { grid-template-columns: repeat(7, 1fr); }
 .cert-tiles.two { grid-template-columns: repeat(2, 1fr); }
 .cert-tiles.two .cert-tile:first-child { grid-column: auto; }
 .mline { margin: 6px 0 8px; font-size: 13.5px; color: var(--color-content-secondary); }
@@ -2103,7 +2104,7 @@ a.othercard {
 .cc.editing .kv .fi { padding: 6px 10px; font-size: 13.5px; margin: 0; }
 .mform.cert-grid > div:last-child { grid-column: auto; }
 .mform .full { grid-column: 1 / -1; }
-@media (max-width: 860px) { .cert-tiles.four { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 860px) { .cert-tiles.seven { grid-template-columns: repeat(2, 1fr); } .cert-tiles.four { grid-template-columns: repeat(2, 1fr); } }
 
 /* Events tab */
 .b.dgr { background: transparent; color: var(--color-status-danger); box-shadow: inset 0 0 0 1.5px var(--color-status-danger); }
@@ -2167,7 +2168,7 @@ a.othercard {
 .cert-ph:has(> .cert-side) { align-items: flex-start; }
 .cert-table > div > .mem-row { border-top: 1px solid var(--color-border-subtle); } /* each row sits in its own wrapper, so :first-child would hide every divider */
 /* Contacts, compact view: status matters here, since leads and members share the list. */
-.ctc-table { grid-template-columns: minmax(0, 1.2fr) max-content max-content minmax(0, 1.3fr) minmax(0, 1.8fr) auto; }
+.dir-table { grid-template-columns: minmax(0, 1.2fr) max-content minmax(0, 1.3fr) max-content max-content minmax(0, 1.6fr) auto; }
 /* Comfortable view: the cards, with less padding than elsewhere. */
 .cert-card.mem-card { padding: 12px 16px; margin-bottom: 8px; }
 .mem-card .mline { margin: 4px 0 6px; }
@@ -2221,6 +2222,9 @@ a.othercard {
 .evt-tabs button { border: 0; background: transparent; padding: 10px 12px; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--color-content-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
 .evt-tabs button:hover { color: var(--color-content-primary); }
 .evt-tabs button.on { color: var(--color-brand-primary-deep); border-bottom-color: var(--color-brand-accent); }
+/* The person card has up to seven tabs; tighter spacing keeps them on one line. */
+.cc .evt-tabs { gap: 0; padding: 8px 12px 0; }
+.cc .evt-tabs button { padding: 10px 9px; font-size: 11.5px; letter-spacing: .03em; }
 .evt-form .mb { min-height: 380px; }
 .evt-grid.cert-grid { gap: 4px 18px; align-items: start; }
 .evt-grid .flabel { margin-top: 10px; }

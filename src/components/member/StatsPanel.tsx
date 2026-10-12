@@ -235,7 +235,7 @@ function StatList({ title, kind, onClose }: { title: string; kind: string; onClo
   useEffect(() => { void loadList(kind).then(setRows) }, [kind])
   return <Modal onClose={onClose}>
     <div className="mh"><div><h3>{title}</h3><p>{rows ? `${rows.length} ${rows.length === 1 ? 'entry' : 'entries'} today` : 'Reading…'} · names open in Contacts</p></div><button type="button" className="x" onClick={onClose} aria-label="Close">×</button></div>
-    <div className="mb slist">{rows === null ? <p className="muted">One moment.</p> : rows.length === 0 ? <p className="muted">Nothing to list.</p> : rows.map((r, i) => <div key={i} className="il"><span>{r.id ? <a className="plink" href={`#leads`}>{r.name}</a> : r.name}</span><small>{r.note}</small></div>)}</div>
+    <div className="mb slist">{rows === null ? <p className="muted">One moment.</p> : rows.length === 0 ? <p className="muted">Nothing to list.</p> : rows.map((r, i) => <div key={i} className="il"><span>{r.id ? <a className="plink" href={`#directory`}>{r.name}</a> : r.name}</span><small>{r.note}</small></div>)}</div>
     <div className="mf"><button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div>
   </Modal>
 }
