@@ -2128,7 +2128,7 @@ a.othercard {
 .evt-ic.del { color: var(--color-status-danger); }
 .evt-ic.del:hover { background: var(--color-status-danger-surface); }
 /* Members, compact view: one row per member, plain text, computers only. */
-.mem-table { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) max-content minmax(0, 1.3fr) auto; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-surface-base); overflow: hidden; margin-bottom: 10px; }
+.mem-table { display: grid; grid-template-columns: minmax(0, 1.2fr) max-content minmax(0, 1.4fr) minmax(0, 2fr) auto; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-surface-base); overflow: hidden; margin-bottom: 10px; }
 .mem-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; column-gap: 16px; align-items: center; min-height: 40px; padding: 2px 10px 2px 14px; border-top: 1px solid var(--color-border-subtle); font-size: 13.5px; cursor: pointer; }
 .mem-row:first-child { border-top: 0; }
 .mem-row:hover { background: var(--color-surface-raised); }

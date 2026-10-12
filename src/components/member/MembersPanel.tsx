@@ -132,9 +132,9 @@ export default function MembersPanel() {
   const row = (p: Member) => (
     <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} onClick={() => setOpen(p.id)} onKeyDown={(e) => e.key === 'Enter' && setOpen(p.id)}>
       <span className="n">{fullName(p)}</span>
-      <span className="w">{certText(p) || <i>—</i>}</span>
       <span className="w ph">{phone(p) ?? <i>—</i>}</span>
       <span className="w">{p.email ? <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()}>{p.email}</a> : <i>—</i>}</span>
+      <span className="w">{certText(p) || <i>—</i>}</span>
       <span className="ac">{editBtn(p)}</span>
     </div>
   )
@@ -168,7 +168,7 @@ export default function MembersPanel() {
       {list.length > 0 && <div className="evt-bar"><span className="cnt">{list.length} {list.length === 1 ? 'member' : 'members'}{q ? ` matching “${q}”` : ''} · alphabetical by first name</span>
         {!narrow && <div className="evt-segs"><div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div></div>}</div>}
       {list.length > 0 && (compact
-        ? <div className="mem-table"><div className="mem-row head"><span>Name</span><span>Certification &amp; roles</span><span>Phone</span><span>Email</span><span /></div>{list.map(row)}</div>
+        ? <div className="mem-table"><div className="mem-row head"><span>Name</span><span>Phone</span><span>Email</span><span>Certification &amp; roles</span><span /></div>{list.map(row)}</div>
         : list.map(card))}
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
