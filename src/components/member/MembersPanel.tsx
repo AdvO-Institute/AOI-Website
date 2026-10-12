@@ -30,6 +30,18 @@ const TABS: [Tab, string][] = [['all', 'All members'], ['current', 'Current'], [
 const LVL = CERT_LABEL
 const fmt = (d?: string | null) => (d ? new Date(d.slice(0, 10) + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 const byFirst = (a: Member, b: Member) => a.first_name.localeCompare(b.first_name, undefined, { sensitivity: 'base' }) || a.last_name.localeCompare(b.last_name, undefined, { sensitivity: 'base' })
+type Density = 'compact' | 'comfortable'
+const DENSITY_KEY = 'aoi.members.density'
+const stored = <T extends string>(key: string, ok: readonly T[], fallback: T): T => { try { const v = localStorage.getItem(key); if (v && (ok as readonly string[]).includes(v)) return v as T } catch { /* no storage */ } return fallback }
+const store = (key: string, v: string) => { try { localStorage.setItem(key, v) } catch { /* no storage */ } }
+const editIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+/** True on phone-width screens; follows the window as it is resized. */
+function useNarrow(): boolean {
+  const q = '(max-width: 860px)'
+  const [n, setN] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
+  useEffect(() => { const m = window.matchMedia(q); const f = () => setN(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f) }, [])
+  return n
+}
 const Pill = ({ children, kind = '' }: { children: React.ReactNode; kind?: string }) => <span className={`cpill ${kind}`}>{children}</span>
 
 function StatusPill({ p }: { p: Member }) {
@@ -57,6 +69,12 @@ export default function MembersPanel() {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [edit, setEdit] = useState<Member | 'new' | null>(null)
+  /* Compact (one row per member) or comfortable (cards), remembered on this
+   * device. Phones always get the cards. */
+  const narrow = useNarrow()
+  const [density, setDensityState] = useState<Density>(() => stored(DENSITY_KEY, ['compact', 'comfortable'] as const, canEdit ? 'compact' : 'comfortable'))
+  const setDensity = (v: Density) => { setDensityState(v); store(DENSITY_KEY, v) }
+  const compact = density === 'compact' && !narrow
 
   const load = useCallback(async () => {
     const r = await roster()
@@ -70,12 +88,12 @@ export default function MembersPanel() {
   useEffect(() => { if (canInvite) void loginStatus().then((r) => setLogins(r?.logins ?? null)).catch(() => {}) }, [canInvite])
   const [sending, setSending] = useState<string | null>(null)
   async function rowInvite(p: Member) {
-    if (!(await askConfirm(`Invite ${p.first_name} ${p.last_name}?`, { body: `An email with a link to set up their members-area login goes to ${p.email}.`, ok: 'Send invite' }))) return
+    if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
     setSending(p.id)
     const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
     setSending(null)
     if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
-    toast(`Invitation emailed to ${r.email ?? p.email}`)
+    toast(`Welcome letter emailed to ${r.email ?? p.email}`)
     await load()
   }
   async function rowReset(p: Member) {
@@ -101,28 +119,33 @@ export default function MembersPanel() {
 
   if (loading) return <><h1>Members</h1><div className="ma-sub">Reading the roster…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
   const tabLabel = TABS.find(([k]) => k === tab)![1]
-  const loginCell = (p: Member) => {
+  /* When they last signed in: a date, 'never', or unknown until the access function answers. */
+  const lastIn = (p: Member) => {
+    if (!p.auth_user_id) return 'No login yet'
     const seen = logins?.[p.id]
-    const status = !p.auth_user_id ? 'No login yet'
-      : !seen ? 'Login set up'
-      : seen.last_sign_in_at ? `Last signed in ${fmt(seen.last_sign_in_at)}` : 'Login set up · never signed in'
-    return (
-      <div className="macc">
-        <span className={`macc-st${p.auth_user_id ? '' : ' none'}`}>{status}</span>
-        {!p.email ? <span className="macc-st none">No email on file</span>
-          : p.auth_user_id ? <button type="button" className="b s-btn on-light xs" disabled={sending === p.id} onClick={() => void rowReset(p)}>Send password reset</button>
-          : <button type="button" className="b s-btn on-light xs" disabled={sending === p.id} onClick={() => void rowInvite(p)}>Send invite</button>}
-      </div>
-    )
+    return !seen ? '—' : seen.last_sign_in_at ? fmt(seen.last_sign_in_at) : 'Never'
   }
+
+  const phone = (p: Member) => p.mobile_phone ?? p.office_phone ?? p.practice_phone
+  const certText = (p: Member) => chipsFor(p, advoLevel(p), otherCerts(p)).map((c) => c.label).join(' · ')
+  const editBtn = (p: Member) => canEdit && <button type="button" className="evt-ic" title="Edit profile" aria-label={`Edit ${fullName(p)}`} onClick={(e) => { e.stopPropagation(); setEdit(p) }}>{editIcon}</button>
+  const row = (p: Member) => (
+    <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} onClick={() => setOpen(p.id)} onKeyDown={(e) => e.key === 'Enter' && setOpen(p.id)}>
+      <span className="n">{fullName(p)}</span>
+      <span className="w">{certText(p) || <i>—</i>}</span>
+      <span className="w ph">{phone(p) ?? <i>—</i>}</span>
+      <span className="w">{p.email ? <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()}>{p.email}</a> : <i>—</i>}</span>
+      <span className="ac">{editBtn(p)}</span>
+    </div>
+  )
   const card = (p: Member) => (
-    <div className={`cert-card${p.deceased_on ? ' dead' : ''}${canInvite && !p.deceased_on ? ' has-acc' : ''}`} key={p.id}>
+    <div className={`cert-card mem-card${p.deceased_on ? ' dead' : ''}${canEdit ? ' has-acc' : ''}`} key={p.id}>
       <div>
       <div className="cert-nm"><a href="#" onClick={(e) => { e.preventDefault(); setOpen(p.id) }}>{fullName(p)}</a><StatusPill p={p} /></div>
       <div className="mline">{[p.email ? <a key="e" href={`mailto:${p.email}`}>{p.email}</a> : null, p.mobile_phone, p.office_phone ?? p.practice_phone, p.practice_name].filter(Boolean).map((x, i, arr) => <span key={i}>{x}{i < arr.length - 1 ? ' · ' : ''}</span>)}</div>
       <Chips p={p} />
       </div>
-      {canInvite && !p.deceased_on && loginCell(p)}
+      {canEdit && <div><button type="button" className="b s-btn on-light xs" onClick={() => setEdit(p)}>✎ Edit</button></div>}
     </div>
   )
   const current = open ? rows.find((x) => x.id === open) ?? null : null
@@ -142,27 +165,27 @@ export default function MembersPanel() {
         {q && <div className="cnt">{list.length} of {counts[tab]} match “{q}”</div>}
       </div>
       {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `No one in ${tabLabel} matches “${q}”.` : 'No one in this list.'}</div>}
-      {list.map(card)}
+      {list.length > 0 && <div className="evt-bar"><span className="cnt">{list.length} {list.length === 1 ? 'member' : 'members'}{q ? ` matching “${q}”` : ''} · alphabetical by first name</span>
+        {!narrow && <div className="evt-segs"><div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div></div>}</div>}
+      {list.length > 0 && (compact
+        ? <div className="mem-table"><div className="mem-row head"><span>Name</span><span>Certification &amp; roles</span><span>Phone</span><span>Email</span><span /></div>{list.map(row)}</div>
+        : list.map(card))}
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
-      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}
+      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} lastIn={lastIn(current)} sending={sending === current.id} onInvite={() => void rowInvite(current)} onReset={() => void rowReset(current)} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} me={me} onChanged={load} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
 }
 
-function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
+function ContactCard({ p, me, meId, canEdit, canInvite, lastIn, sending, onInvite, onReset, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; lastIn: string; sending: boolean; onInvite: () => void; onReset: () => void; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast()
-  const [inviting, setInviting] = useState(false)
-  async function invite() {
-    setInviting(true)
-    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
-    setInviting(false)
-    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
-    toast(`Setup link emailed to ${r.email ?? p.email}`)
-    await onChanged()
-  }
   const [note, setNote] = useState('')
+  const noteCount = (p.contact_notes ?? []).length + (p.notes ? 1 : 0)
+  type CardTab = 'profile' | 'business' | 'membership' | 'certification' | 'notes'
+  const [tab, setTab] = useState<CardTab>('profile')
+  const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['membership', 'Membership & service'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
+  const editBtn = canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={onEdit}>✎ Edit</button></div>
   const s = state(p), instr = currentInstructor(p), boards = p.board_service ?? [], active = boards.find((b) => b.status === 'active')
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
   const KV = ({ k, v }: { k: string; v: React.ReactNode }) => <><span>{k}</span><div>{v ?? '—'}</div></>
@@ -171,26 +194,46 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
   return (
     <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cert-modal wide cc" role="dialog" aria-modal="true">
-        <div className="mh"><div><h3>{fullName(p)}</h3></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
-        <div className="mb">
-          <div className="cert-chips"><StatusPill p={p} /></div><Chips p={p} />
-          {(canEdit || canInvite) && <div style={{ margin: '12px 0 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>{canEdit && <button type="button" className="b s-btn on-light xs" onClick={onEdit}>✎ Edit profile</button>}{canInvite && p.email && <button type="button" className="b s-btn on-light xs" disabled={inviting} onClick={() => void invite()}>Invite to members area</button>}</div>}
-          <div className="sec">Contact</div><div className="kv"><KV k="Email" v={p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null} /><KV k="Mobile" v={p.mobile_phone} /><KV k="Office" v={p.office_phone ?? p.practice_phone} /></div>
-          <div className="sec">Office location</div>
-          <div className="loc"><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && <Pill kind="info">Primary</Pill>}<div className="kv" style={{ marginTop: 8 }}><KV k="Address" v={p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null)} /><KV k="Website" v={p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
-          {locs.map((l) => <div className="loc" key={l.id}><b>{l.name}</b><div className="kv" style={{ marginTop: 8 }}><KV k="Address" v={l.address} /><KV k="Website" v={l.website} /></div></div>)}
-          {canEdit && <button type="button" className="t-link" onClick={async () => { const v = await askForm('Add a second location', [{ key: 'n', label: 'Location name', required: true }, { key: 'a', label: 'Address' }, { key: 'w', label: 'Website', placeholder: 'https://' }], { ok: 'Add location' }); if (!v) return; if (!fail(await addLocation(p.id, v.n ?? '', v.a ?? '', v.w ?? ''))) await onChanged() }}>+ Add second location</button>}
+        <div className="mh"><div><h3>{fullName(p)}</h3>
+          <div className="cert-chips" style={{ margin: '8px 0 0' }}><StatusPill p={p} /><Chips p={p} /></div>
+        </div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+        <div className="evt-tabs" role="tablist">{tabs.map(([k, l]) => <button type="button" role="tab" aria-selected={tab === k} key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
+        <div className="mb cc-body">
+          {tab === 'profile' && <>
+          <div className="sec">Contact</div><div className="kv"><KV k="Email" v={p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null} /><KV k="Mobile" v={p.mobile_phone} /></div>
           <div className="sec">Classification</div><div className="kv"><KV k="Type" v={p.contact_type === 'student' ? 'Student' : 'Doctor'} /><KV k="Technique(s)" v={(p.techniques ?? []).join(', ') || null} />{instr && <KV k="Instructor track" v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} />}</div>
+          {editBtn}
+          {canInvite && !p.deceased_on && <>
+            <div className="sec">Members area</div>
+            <div className="kv"><KV k="Login" v={!p.email ? 'No email on file' : p.auth_user_id ? 'Set up' : 'Not set up yet'} /><KV k="Last signed in" v={lastIn} /></div>
+            {p.email && <div className="act" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              {p.auth_user_id && <button type="button" className="b s-btn on-light xs" disabled={sending} onClick={onReset}>Send password reset</button>}
+              <button type="button" className="b s-btn on-light xs" disabled={sending} onClick={onInvite}>Send welcome letter</button>
+            </div>}
+          </>}
+          </>}
+          {tab === 'business' && <>
+          <div className="sec">Office location</div>
+          <div className="loc"><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && <Pill kind="info">Primary</Pill>}<div className="kv" style={{ marginTop: 8 }}><KV k="Office phone" v={p.office_phone ?? p.practice_phone} /><KV k="Address" v={p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null)} /><KV k="Website" v={p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
+          {locs.map((l) => <div className="loc" key={l.id}><b>{l.name}</b><div className="kv" style={{ marginTop: 8 }}><KV k="Office phone" v={l.phone} /><KV k="Address" v={l.address} /><KV k="Website" v={l.website} /></div></div>)}
+          {canEdit && <button type="button" className="t-link" onClick={async () => { const v = await askForm('Add a second location', [{ key: 'n', label: 'Location name', required: true }, { key: 'a', label: 'Address' }, { key: 'w', label: 'Website', placeholder: 'https://' }], { ok: 'Add location' }); if (!v) return; if (!fail(await addLocation(p.id, v.n ?? '', v.a ?? '', v.w ?? ''))) await onChanged() }}>+ Add second location</button>}
+          {editBtn}
+          </>}
+          {tab === 'membership' && <>
           <div className="sec">Membership</div><div className="kv"><KV k="Status" v={s === 'deceased' ? `Deceased${p.deceased_on ? ' · ' + fmt(p.deceased_on) : ''}` : s === 'current' ? <>Active member {activeBoard(p) && <Pill kind="ok">Director — complimentary</Pill>}</> : s === 'recent' ? 'Recently expired — reactivatable' : 'Inactive'} /><KV k="Member since" v={p.member_since} /><KV k="Expires" v={p.membership_expires} /></div>
+          {boards.length > 0 && <><div className="sec">Board service</div><div className="kv">{boards.map((b) => <KV key={b.id} k={b.term_label ?? `${b.term_start ?? ''}–${b.term_end ?? ''}`} v={b.status === 'active' ? 'Active board member' : b.status === 'nominee' ? 'Nominee' : 'Past board member'} />)}</div>{active && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return; if (!fail(await endBoard(p))) { toast('Board service ended.'); await onChanged() } }}>End board service</button></div>}</>}
+          </>}
+          {tab === 'certification' && <>
           <div className="sec">Certifications</div><div className="kv">{(p.person_certifications ?? []).length === 0 && <KV k="—" v="None on file" />}{(p.person_certifications ?? []).map((c) => <KV key={c.id} k={c.technique} v={`${LVL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}</div>
           <div className="act"><CertEdit p={p} me={me} onChanged={onChanged} /></div>
           {instr && <><div className="sec">Instructor</div><div className="kv"><KV k={instr.technique ?? 'Advanced Orthogonal'} v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} /></div>{canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { const why = await askText('End instructor service', { label: 'Reason (optional)', placeholder: 'e.g. Retired from teaching' }, { ok: 'End service', danger: true }); if (why === null) return; if (!fail(await endInstructor(p, why))) { toast('Instructor service ended.'); await onChanged() } }}>End instructor service</button></div>}</>}
-          {boards.length > 0 && <><div className="sec">Board service</div><div className="kv">{boards.map((b) => <KV key={b.id} k={b.term_label ?? `${b.term_start ?? ''}–${b.term_end ?? ''}`} v={b.status === 'active' ? 'Active board member' : b.status === 'nominee' ? 'Nominee' : 'Past board member'} />)}</div>{active && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return; if (!fail(await endBoard(p))) { toast('Board service ended.'); await onChanged() } }}>End board service</button></div>}</>}
-          <div className="sec">Notes (running log)</div>
+          </>}
+          {tab === 'notes' && <>
           {p.notes && <div className="ma-row"><div><b style={{ fontWeight: 500 }}>{p.notes}</b><span>From the original record</span></div></div>}
           {(p.contact_notes ?? []).length === 0 && !p.notes && <p className="muted">No notes yet.</p>}
           {(p.contact_notes ?? []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at)).map((n) => <div className="ma-row" key={n.id}><div><b style={{ fontWeight: 500 }}>{n.text}</b><span>{n.by_name ?? '—'} · {fmt(n.created_at)}</span></div></div>)}
           {canEdit && <><textarea className="fi" value={note} placeholder="Add a note…" onChange={(e) => setNote(e.target.value)} style={{ marginTop: 8, minHeight: 70 }} /><div className="act"><button type="button" className="b s-btn on-light sm" disabled={!note.trim()} onClick={async () => { if (!fail(await addNote(p.id, note.trim(), me, meId))) { setNote(''); await onChanged() } }}>Add note</button></div></>}
+          </>}
         </div>
       </div>
     </div>
