@@ -68,6 +68,8 @@ export default function MembersPanel() {
   const [tab, setTab] = useState<Tab>('all')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [openEditing, setOpenEditing] = useState(false) // the pencil opens the card already in edit mode
+  const show = (id: string, editing = false) => { setOpenEditing(editing); setOpen(id) }
   const [edit, setEdit] = useState<Member | 'new' | null>(null)
   /* Compact (one row per member) or comfortable (cards), remembered on this
    * device. Phones always get the cards. */
@@ -128,9 +130,9 @@ export default function MembersPanel() {
 
   const phone = (p: Member) => p.mobile_phone ?? p.office_phone ?? p.practice_phone
   const certText = (p: Member) => chipsFor(p, advoLevel(p), otherCerts(p)).map((c) => c.label).join(' · ')
-  const editBtn = (p: Member) => canEdit && <button type="button" className="evt-ic" title="Edit profile" aria-label={`Edit ${fullName(p)}`} onClick={(e) => { e.stopPropagation(); setEdit(p) }}>{editIcon}</button>
+  const editBtn = (p: Member) => canEdit && <button type="button" className="evt-ic" title="Edit profile" aria-label={`Edit ${fullName(p)}`} onClick={(e) => { e.stopPropagation(); show(p.id, true) }}>{editIcon}</button>
   const row = (p: Member) => (
-    <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} onClick={() => setOpen(p.id)} onKeyDown={(e) => e.key === 'Enter' && setOpen(p.id)}>
+    <div className={`mem-row${p.deceased_on ? ' dead' : ''}`} key={p.id} role="button" tabIndex={0} onClick={() => show(p.id)} onKeyDown={(e) => e.key === 'Enter' && show(p.id)}>
       <span className="n">{fullName(p)}</span>
       <span className="w ph">{phone(p) ?? <i>—</i>}</span>
       <span className="w">{p.email ? <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()}>{p.email}</a> : <i>—</i>}</span>
@@ -141,11 +143,11 @@ export default function MembersPanel() {
   const card = (p: Member) => (
     <div className={`cert-card mem-card${p.deceased_on ? ' dead' : ''}${canEdit ? ' has-acc' : ''}`} key={p.id}>
       <div>
-      <div className="cert-nm"><a href="#" onClick={(e) => { e.preventDefault(); setOpen(p.id) }}>{fullName(p)}</a><StatusPill p={p} /></div>
+      <div className="cert-nm"><a href="#" onClick={(e) => { e.preventDefault(); show(p.id) }}>{fullName(p)}</a><StatusPill p={p} /></div>
       <div className="mline">{[p.email ? <a key="e" href={`mailto:${p.email}`}>{p.email}</a> : null, p.mobile_phone, p.office_phone ?? p.practice_phone, p.practice_name].filter(Boolean).map((x, i, arr) => <span key={i}>{x}{i < arr.length - 1 ? ' · ' : ''}</span>)}</div>
       <Chips p={p} />
       </div>
-      {canEdit && <div><button type="button" className="b s-btn on-light xs" onClick={() => setEdit(p)}>✎ Edit</button></div>}
+      {canEdit && <div><button type="button" className="b s-btn on-light xs" onClick={() => show(p.id, true)}>✎ Edit</button></div>}
     </div>
   )
   const current = open ? rows.find((x) => x.id === open) ?? null : null
@@ -172,37 +174,82 @@ export default function MembersPanel() {
         : list.map(card))}
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
-      {current && <ContactCard p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} lastIn={lastIn(current)} sending={sending === current.id} onInvite={() => void rowInvite(current)} onReset={() => void rowReset(current)} onClose={() => setOpen(null)} onEdit={() => setEdit(current)} onChanged={load} />}
+      {current && <ContactCard key={current.id} startEditing={openEditing} p={current} me={me} meId={meId} canEdit={canEdit} canInvite={canInvite} lastIn={lastIn(current)} sending={sending === current.id} onInvite={() => void rowInvite(current)} onReset={() => void rowReset(current)} onClose={() => setOpen(null)} onChanged={load} />}
       {edit && <EditDialog p={edit === 'new' ? null : edit} me={me} onChanged={load} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
     </>
   )
 }
 
-function ContactCard({ p, me, meId, canEdit, canInvite, lastIn, sending, onInvite, onReset, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; lastIn: string; sending: boolean; onInvite: () => void; onReset: () => void; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
+/* A label and its value. Lives outside the card so an input inside it keeps focus while typing. */
+function KV({ k, v }: { k: string; v: React.ReactNode }) { return <><span>{k}</span><div>{v ?? '—'}</div></> }
+const fromMember = (p: Member): Record<string, string> => ({
+  first_name: p.first_name ?? '', last_name: p.last_name ?? '', credentials: p.credentials ?? '', contact_type: p.contact_type ?? 'doctor',
+  email: p.email ?? '', mobile_phone: p.mobile_phone ?? '', office_phone: p.office_phone ?? '', practice_website: p.practice_website ?? '',
+  practice_name: p.practice_name ?? '', practice_address: p.practice_address ?? '', techniques: (p.techniques ?? []).join(', '),
+  status: p.deceased_on ? 'deceased' : (p.membership_status ?? 'active'), deceased_on: p.deceased_on ?? '', member_since: p.member_since ?? '', membership_expires: p.membership_expires ?? '',
+  photo_url: p.photo_url ?? '',
+})
+
+function ContactCard({ startEditing = false, p, me, meId, canEdit, canInvite, lastIn, sending, onInvite, onReset, onClose, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; lastIn: string; sending: boolean; onInvite: () => void; onReset: () => void; onClose: () => void; onChanged: () => Promise<void>; startEditing?: boolean }) {
   const toast = useToast()
   const [note, setNote] = useState('')
   const noteCount = (p.contact_notes ?? []).length + (p.notes ? 1 : 0)
   type CardTab = 'profile' | 'business' | 'membership' | 'certification' | 'notes'
   const [tab, setTab] = useState<CardTab>('profile')
   const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['membership', 'Membership & service'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
-  const editBtn = canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={onEdit}>✎ Edit</button></div>
+  /* Edit turns the fields of every tab into inputs in place; Save writes them all at once. */
+  const [editing, setEditing] = useState(startEditing && canEdit)
+  const [v, setV] = useState<Record<string, string>>(() => fromMember(p))
+  const [err, setErr] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const startEdit = () => { setV(fromMember(p)); setErr(null); setEditing(true) }
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV((x) => ({ ...x, [k]: e.target.value }))
+  const inp = (k: string, type = 'text', placeholder?: string) => <input className="fi" type={type} value={v[k] ?? ''} placeholder={placeholder} onChange={set(k)} aria-label={k.replace(/_/g, ' ')} />
+  const ed = (k: string, view: React.ReactNode, type = 'text') => editing ? inp(k, type) : view
+  const photoRef = useRef<HTMLInputElement>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return
+    setPhotoBusy(true)
+    const r = await uploadPhotoFor(p.id, file)
+    setPhotoBusy(false)
+    if (photoRef.current) photoRef.current.value = ''
+    if (r.missing) return setErr('Photo uploads are being switched on — paste a link for now.')
+    if (r.error) return setErr('The photo could not be uploaded. Try a JPG or PNG under 10 MB.')
+    setV((x) => ({ ...x, photo_url: r.url ?? '' }))
+  }
+  async function save() {
+    setErr(null)
+    if (!v.first_name?.trim() || !v.last_name?.trim()) { setErr('First and last name are required.'); setTab('profile'); return }
+    const dead = v.status === 'deceased'
+    const prof: Profile = { photo_url: v.photo_url || null, first_name: v.first_name.trim(), last_name: v.last_name.trim(), credentials: v.credentials || null, contact_type: v.contact_type ?? 'doctor', email: v.email || null, mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, practice_website: v.practice_website || null, practice_name: v.practice_name || null, practice_address: v.practice_address || null, techniques: (v.techniques ?? '').split(',').map((x) => x.trim()).filter(Boolean), member_since: v.member_since || null, membership_expires: v.membership_expires || null, deceased_on: dead ? (v.deceased_on || new Date().toISOString().slice(0, 10)) : null }
+    if (!dead) prof.membership_status = v.status
+    setSaving(true); const r = await saveProfile(p.id, prof); setSaving(false)
+    if (r.error) { setErr(friendlyError(r.error)); return }
+    setEditing(false); await onChanged(); toast('Saved.')
+  }
   const s = state(p), instr = currentInstructor(p), boards = p.board_service ?? [], active = boards.find((b) => b.status === 'active')
-  useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
-  const KV = ({ k, v }: { k: string; v: React.ReactNode }) => <><span>{k}</span><div>{v ?? '—'}</div></>
+  // Escape leaves edit mode first, and only closes the card when nothing is being edited.
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; if (editing) setEditing(false); else onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose, editing])
   const fail = (r: { error?: string }) => { if (r.error) { toast(friendlyError(r.error)); return true } return false }
   const locs = (p.practice_locations ?? []).slice().sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
   return (
-    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cert-modal wide cc" role="dialog" aria-modal="true">
+    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && !editing && onClose()}>
+      <div className={`cert-modal wide cc${editing ? ' editing' : ''}`} role="dialog" aria-modal="true">
         <div className="mh"><div><h3>{fullName(p)}</h3>
           <div className="cert-chips" style={{ margin: '8px 0 0' }}><StatusPill p={p} /><Chips p={p} /></div>
-        </div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+        </div><div className="cc-ctl"><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button>
+          {canEdit && (editing
+            ? <div className="cc-btns"><button type="button" className="b s-btn on-light xs" onClick={() => { setEditing(false); setErr(null) }}>Cancel</button><button type="button" className="b p-btn xs" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button></div>
+            : <button type="button" className="b s-btn on-light xs" onClick={startEdit}>✎ Edit</button>)}
+        </div></div>
         <div className="evt-tabs" role="tablist">{tabs.map(([k, l]) => <button type="button" role="tab" aria-selected={tab === k} key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
         <div className="mb cc-body">
+          {err && <div className="cert-err" role="alert">{err}</div>}
           {tab === 'profile' && <>
-          <div className="sec">Contact</div><div className="kv"><KV k="Email" v={p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null} /><KV k="Mobile" v={p.mobile_phone} /></div>
-          <div className="sec">Classification</div><div className="kv"><KV k="Type" v={p.contact_type === 'student' ? 'Student' : 'Doctor'} /><KV k="Technique(s)" v={(p.techniques ?? []).join(', ') || null} />{instr && <KV k="Instructor track" v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} />}</div>
-          {editBtn}
+          <div className="sec">Contact</div><div className="kv">{editing && <><KV k="First name" v={inp('first_name')} /><KV k="Last name" v={inp('last_name')} /><KV k="Credentials" v={inp('credentials', 'text', 'DC')} /></>}<KV k="Email" v={ed('email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null, 'email')} /><KV k="Mobile" v={ed('mobile_phone', p.mobile_phone)} />
+            {editing && <KV k="Headshot" v={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{inp('photo_url', 'url', 'https://…')}<input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Upload'}</button></div>} />}</div>
+          <div className="sec">Classification</div><div className="kv"><KV k="Type" v={editing ? <select className="fi" value={v.contact_type} onChange={set('contact_type')} aria-label="Type"><option value="doctor">Doctor</option><option value="student">Student</option></select> : p.contact_type === 'student' ? 'Student' : 'Doctor'} /><KV k="Technique(s)" v={editing ? inp('techniques', 'text', 'Comma separated') : (p.techniques ?? []).join(', ') || null} />{instr && <KV k="Instructor track" v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} />}</div>
           {canInvite && !p.deceased_on && <>
             <div className="sec">Members area</div>
             <div className="kv"><KV k="Login" v={!p.email ? 'No email on file' : p.auth_user_id ? 'Set up' : 'Not set up yet'} /><KV k="Last signed in" v={lastIn} /></div>
@@ -214,13 +261,12 @@ function ContactCard({ p, me, meId, canEdit, canInvite, lastIn, sending, onInvit
           </>}
           {tab === 'business' && <>
           <div className="sec">Office location</div>
-          <div className="loc"><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && <Pill kind="info">Primary</Pill>}<div className="kv" style={{ marginTop: 8 }}><KV k="Office phone" v={p.office_phone ?? p.practice_phone} /><KV k="Address" v={p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null)} /><KV k="Website" v={p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
+          <div className="loc">{!editing && <><b>{p.practice_name ?? 'No practice on file'}</b>{p.practice_name && <Pill kind="info">Primary</Pill>}</>}<div className="kv" style={{ marginTop: editing ? 0 : 8 }}>{editing && <KV k="Practice name" v={inp('practice_name')} />}<KV k="Office phone" v={ed('office_phone', p.office_phone ?? p.practice_phone)} /><KV k="Address" v={ed('practice_address', p.practice_address ?? ([p.practice_city, p.practice_state].filter(Boolean).join(', ') || null))} /><KV k="Website" v={editing ? inp('practice_website') : p.practice_website ? <a href={/^https?:/.test(p.practice_website) ? p.practice_website : `https://${p.practice_website}`} target="_blank" rel="noopener">{p.practice_website}</a> : null} /></div></div>
           {locs.map((l) => <div className="loc" key={l.id}><b>{l.name}</b><div className="kv" style={{ marginTop: 8 }}><KV k="Office phone" v={l.phone} /><KV k="Address" v={l.address} /><KV k="Website" v={l.website} /></div></div>)}
           {canEdit && <button type="button" className="t-link" onClick={async () => { const v = await askForm('Add a second location', [{ key: 'n', label: 'Location name', required: true }, { key: 'a', label: 'Address' }, { key: 'w', label: 'Website', placeholder: 'https://' }], { ok: 'Add location' }); if (!v) return; if (!fail(await addLocation(p.id, v.n ?? '', v.a ?? '', v.w ?? ''))) await onChanged() }}>+ Add second location</button>}
-          {editBtn}
           </>}
           {tab === 'membership' && <>
-          <div className="sec">Membership</div><div className="kv"><KV k="Status" v={s === 'deceased' ? `Deceased${p.deceased_on ? ' · ' + fmt(p.deceased_on) : ''}` : s === 'current' ? <>Active member {activeBoard(p) && <Pill kind="ok">Director — complimentary</Pill>}</> : s === 'recent' ? 'Recently expired — reactivatable' : 'Inactive'} /><KV k="Member since" v={p.member_since} /><KV k="Expires" v={p.membership_expires} /></div>
+          <div className="sec">Membership</div><div className="kv"><KV k="Status" v={editing ? <select className="fi" value={v.status} onChange={set('status')} aria-label="Status"><option value="active">Active</option><option value="expired">Expired</option><option value="never">Never a member</option><option value="deceased">Deceased</option></select> : s === 'deceased' ? `Deceased${p.deceased_on ? ' · ' + fmt(p.deceased_on) : ''}` : s === 'current' ? <>Active member {activeBoard(p) && <Pill kind="ok">Director — complimentary</Pill>}</> : s === 'recent' ? 'Recently expired — reactivatable' : 'Inactive'} />{editing && v.status === 'deceased' && <KV k="Date of passing" v={inp('deceased_on', 'date')} />}<KV k="Member since" v={ed('member_since', p.member_since, 'date')} /><KV k="Expires" v={ed('membership_expires', p.membership_expires, 'date')} /></div>
           {boards.length > 0 && <><div className="sec">Board service</div><div className="kv">{boards.map((b) => <KV key={b.id} k={b.term_label ?? `${b.term_start ?? ''}–${b.term_end ?? ''}`} v={b.status === 'active' ? 'Active board member' : b.status === 'nominee' ? 'Nominee' : 'Past board member'} />)}</div>{active && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return; if (!fail(await endBoard(p))) { toast('Board service ended.'); await onChanged() } }}>End board service</button></div>}</>}
           </>}
           {tab === 'certification' && <>
