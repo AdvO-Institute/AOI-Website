@@ -12,6 +12,10 @@
 //                        a member.
 //   reset       (public) forgot password, sent through Resend in the Institute's
 //                        own design rather than Supabase's shared mailer.
+//   signin      (public) "email me a sign-in link", the same way: our design,
+//                        our address, and only to someone who already has a login.
+//   status      (staff)  who has a login and when they last signed in, for the
+//                        Members list.
 //
 // The link itself comes from Supabase (admin generate_link), so no password is
 // ever created, seen, or sent by this function.
@@ -68,6 +72,33 @@ async function linkFor(email: string, createIfMissing = false): Promise<{ link: 
   const userId = g.body?.user?.id ?? g.body?.id;
   if (!link || !userId) return { error: "no link returned" };
   return { link, userId };
+}
+
+/** A one-click sign-in link, only for an address that already has a login.
+ *  The login is looked up first because Supabase would otherwise create one. */
+async function signInLinkFor(email: string): Promise<{ link: string; userId: string } | null> {
+  const pr = await sb(`/rest/v1/profiles?email=ilike.${encodeURIComponent(likeEscape(email))}&select=id&limit=1`);
+  const rows = pr.ok ? await pr.json() : [];
+  if (!Array.isArray(rows) || !rows[0]?.id) return null;
+  const r = await sb(`/auth/v1/admin/generate_link`, { method: "POST", body: JSON.stringify({ type: "magiclink", email, options: { redirect_to: `${SITE_ORIGIN}/account` } }) });
+  const b: any = await r.json().catch(() => ({}));
+  const link = b?.action_link ?? b?.properties?.action_link;
+  const userId = b?.user?.id ?? b?.id;
+  return r.ok && link && userId === rows[0].id ? { link, userId } : null;
+}
+
+/** Last sign-in for every login, keyed by login id. */
+async function lastSignIns(): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  for (let page = 1; page <= 20; page++) {
+    const r = await sb(`/auth/v1/admin/users?page=${page}&per_page=500`);
+    if (!r.ok) break;
+    const b: any = await r.json().catch(() => ({}));
+    const users: any[] = Array.isArray(b?.users) ? b.users : [];
+    for (const u of users) out.set(u.id, u.last_sign_in_at ?? null);
+    if (users.length < 500) break;
+  }
+  return out;
 }
 
 /** Whose contact record does this login already belong to? */
@@ -129,6 +160,19 @@ function inviteEmail(p: Person, link: string, email: string): { subject: string;
     }),
   };
 }
+function signInEmail(name: string, link: string): { subject: string; html: string } {
+  return {
+    subject: "Your sign-in link for the Advanced Orthogonal Institute",
+    html: renderEmail({
+      origin: SITE_ORIGIN, logoSrc: "cid:aoilogo",
+      preheader: "One click and you are in the members area.",
+      eyebrow: "Members area", title: "Your sign-in", titleAccent: "link.",
+      paragraphs: [`Hi ${name}, here is your link to sign in to the members area. No password needed.`, "If you did not ask for this, you can ignore this email — nobody can sign in without the link."],
+      cta: { label: "Sign in", href: link },
+      note: "This link works once and expires within the hour.",
+    }),
+  };
+}
 function resetEmail(name: string, link: string): { subject: string; html: string } {
   return {
     subject: "Reset your Advanced Orthogonal Institute password",
@@ -185,6 +229,16 @@ Deno.serve(async (req: Request) => {
   let body: any; try { body = await req.json(); } catch { return json(400, { error: "invalid_json" }); }
   const action = String(body?.action ?? "");
 
+  if (action === "status") {
+    if (!(await staffOk(req))) return json(403, { error: "not_allowed" });
+    const q = await sb(`/rest/v1/people?select=id,auth_user_id&auth_user_id=not.is.null&limit=5000`);
+    const people: { id: string; auth_user_id: string }[] = q.ok ? await q.json() : [];
+    const seen = await lastSignIns();
+    const logins: Record<string, { last_sign_in_at: string | null }> = {};
+    for (const p of people) if (seen.has(p.auth_user_id)) logins[p.id] = { last_sign_in_at: seen.get(p.auth_user_id) ?? null };
+    return json(200, { ok: true, logins });
+  }
+
   if (action === "invite" || action === "invite_all") {
     if (!(await staffOk(req))) return json(403, { error: "not_allowed" });
 
@@ -197,7 +251,9 @@ Deno.serve(async (req: Request) => {
 
     const today = new Date().toISOString().slice(0, 10);
     const q = await sb(`/rest/v1/people?select=id,first_name,last_name,credentials,email,auth_user_id,membership_status,membership_expires&or=(membership_expires.gte.${today},membership_status.eq.active)&auth_user_id=is.null&order=last_name&limit=60`);
-    const people: Person[] = q.ok ? await q.json() : [];
+    // Only the people ticked in the list, when the list was trimmed.
+    const pick: string[] | null = Array.isArray(body?.person_ids) ? body.person_ids.map(String) : null;
+    const people: Person[] = (q.ok ? await q.json() as Person[] : []).filter((p) => !pick || pick.includes(p.id));
     const results: unknown[] = [];
     // Two contact records sharing one address cannot both have a login, so the
     // second one is listed and skipped rather than quietly taking the first
@@ -209,7 +265,7 @@ Deno.serve(async (req: Request) => {
       const shared = usable && seen.has(addr);
       if (usable) seen.add(addr);
       if (body?.dry_run) {
-        results.push({ name: `${p.first_name} ${p.last_name}`, email: p.email, would_invite: usable && !shared, ...(shared ? { detail: "another member on this list uses the same address" } : {}) });
+        results.push({ id: p.id, name: `${p.first_name} ${p.last_name}`, email: p.email, would_invite: usable && !shared, ...(shared ? { detail: "another member on this list uses the same address" } : {}) });
         continue;
       }
       if (shared) { results.push({ name: `${p.first_name} ${p.last_name}`, ok: false, email: p.email, detail: "another member on this list uses the same address" }); continue; }
@@ -246,6 +302,17 @@ Deno.serve(async (req: Request) => {
       await send(email, m.subject, m.html);
     }
     return json(200, { ok: true, message: "If that address has an account, a reset link is on its way." });
+  }
+
+  if (action === "signin") {
+    if (!EMAIL_RE.test(email)) return json(400, { error: "invalid_email" });
+    const l = await signInLinkFor(email); // never creates an account
+    if (l) {
+      const p = await personBy(`auth_user_id=eq.${l.userId}`);
+      const m = signInEmail(p ? greeting(p) : "there", l.link);
+      await send(email, m.subject, m.html);
+    }
+    return json(200, { ok: true, message: "If that address has an account, a sign-in link is on its way." });
   }
 
   return json(400, { error: "unknown_action" });

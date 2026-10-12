@@ -8,7 +8,7 @@
  * -------------------------------------------------------------------------- */
 import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { inviteAllMembers, inviteMember, type AccessReply, type InviteRow } from '@/lib/queries/access'
+import { inviteAllMembers, inviteMember, loginStatus, requestReset, type AccessReply, type InviteRow } from '@/lib/queries/access'
 import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -61,6 +61,26 @@ export default function MembersPanel() {
     setRows(r.rows); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
+  // Last sign-in comes from the logins themselves, which only the access
+  // function can read. Until it answers, a row just says whether a login exists.
+  const [logins, setLogins] = useState<Record<string, { last_sign_in_at: string | null }> | null>(null)
+  useEffect(() => { if (canInvite) void loginStatus().then((r) => setLogins(r?.logins ?? null)).catch(() => {}) }, [canInvite])
+  const [sending, setSending] = useState<string | null>(null)
+  async function rowInvite(p: Member) {
+    setSending(p.id)
+    const r = await inviteMember(p.id).catch((): AccessReply => ({ error: 'network' }))
+    setSending(null)
+    if (!r || r.error || r.ok === false) { toast('Could not send it: ' + String(r?.detail ?? r?.error ?? 'unknown').slice(0, 140)); return }
+    toast(`Invitation emailed to ${r.email ?? p.email}`)
+    await load()
+  }
+  async function rowReset(p: Member) {
+    if (!p.email) return
+    setSending(p.id)
+    const r = await requestReset(p.email).catch((): AccessReply => ({ error: 'network' }))
+    setSending(null)
+    toast(r?.ok ? `Password reset link emailed to ${p.email}` : 'Could not send it. Please try again in a moment.')
+  }
 
   const counts = useMemo(() => { const c: Record<Tab, number> = { all: 0, current: 0, recent: 0, inactive: 0 }; for (const p of rows) { c.all++; c[tabOf(p) as Tab]++ } return c }, [rows])
   const list = useMemo(() => {
@@ -77,11 +97,28 @@ export default function MembersPanel() {
   if (loading) return <><h1>Members</h1><div className="ma-sub">Reading the roster…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
   const tabLabel = TABS.find(([k]) => k === tab)![1]
   const living = list.filter((p) => !p.deceased_on), gone = list.filter((p) => p.deceased_on)
+  const loginCell = (p: Member) => {
+    const seen = logins?.[p.id]
+    const status = !p.auth_user_id ? 'No login yet'
+      : !seen ? 'Login set up'
+      : seen.last_sign_in_at ? `Last signed in ${fmt(seen.last_sign_in_at)}` : 'Login set up · never signed in'
+    return (
+      <div className="macc">
+        <span className={`macc-st${p.auth_user_id ? '' : ' none'}`}>{status}</span>
+        {!p.email ? <span className="macc-st none">No email on file</span>
+          : p.auth_user_id ? <button type="button" className="b s-btn on-light xs" disabled={sending === p.id} onClick={() => void rowReset(p)}>Send password reset</button>
+          : <button type="button" className="b s-btn on-light xs" disabled={sending === p.id} onClick={() => void rowInvite(p)}>Send invite</button>}
+      </div>
+    )
+  }
   const card = (p: Member) => (
-    <div className={`cert-card${p.deceased_on ? ' dead' : ''}`} key={p.id}>
+    <div className={`cert-card${p.deceased_on ? ' dead' : ''}${canInvite && !p.deceased_on ? ' has-acc' : ''}`} key={p.id}>
+      <div>
       <div className="cert-nm"><a href="#" onClick={(e) => { e.preventDefault(); setOpen(p.id) }}>{fullName(p)}</a><StatusPill p={p} /></div>
       <div className="mline">{[p.email ? <a key="e" href={`mailto:${p.email}`}>{p.email}</a> : null, p.mobile_phone, p.office_phone ?? p.practice_phone, p.practice_name].filter(Boolean).map((x, i, arr) => <span key={i}>{x}{i < arr.length - 1 ? ' · ' : ''}</span>)}</div>
       <Chips p={p} />
+      </div>
+      {canInvite && !p.deceased_on && loginCell(p)}
     </div>
   )
   const current = open ? rows.find((x) => x.id === open) ?? null : null
@@ -90,7 +127,7 @@ export default function MembersPanel() {
     <>
       <div className="cert-head">
         <div><h1>Members</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>Paid members and current or former board members — {rows.length} total. The full prospect list is under Leads. Recently expired = lapsed within six months and reactivatable; Inactive = longer than that.</div></div>
-        <div className="cert-actions">{canInvite && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Members area access</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
+        <div className="cert-actions">{canInvite && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
       </div>
       {error && <div className="cert-err" role="alert">{error}</div>}
       <div className="cert-tiles four">{TABS.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>
@@ -230,6 +267,7 @@ function InviteAllDialog({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<InviteRow[] | null>(null)
+  const [skip, setSkip] = useState<Set<string>>(new Set())
   useEffect(() => {
     void (async () => {
       const r = await inviteAllMembers(true).catch(() => null)
@@ -237,12 +275,15 @@ function InviteAllDialog({ onClose }: { onClose: () => void }) {
       setRows(r.results)
     })()
   }, [])
-  const sendable = (rows ?? []).filter((r) => r.would_invite)
+  const listed = (rows ?? []).filter((r) => r.would_invite)
+  const sendable = listed.filter((r) => !r.id || !skip.has(r.id))
+  const toggle = (id?: string) => id && setSkip((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const missing = (rows ?? []).filter((r) => !r.would_invite)
   async function send() {
     if (!confirm(`Email a set-your-password link to ${sendable.length} member${sendable.length === 1 ? '' : 's'} now?`)) return
     setBusy(true)
-    const r = await inviteAllMembers(false).catch(() => null)
+    const ids = sendable.map((x) => x.id).filter((x): x is string => !!x)
+    const r = await inviteAllMembers(false, ids.length === sendable.length ? ids : undefined).catch(() => null)
     setBusy(false)
     if (!r || r.error) { setErr('The invitations did not go out. Nothing was sent.'); return }
     setDone(r.results)
@@ -251,7 +292,7 @@ function InviteAllDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="cert-modal" role="dialog" aria-modal="true">
-        <div className="mh"><div><h3>Members area access</h3><p>Current members who have no login yet.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+        <div className="mh"><div><h3>Invite to the members area</h3><p>Current members who have no login yet. Untick anyone you don't want to email.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
         <div className="mb">
           {err && <div className="cert-err">{err}</div>}
           {!rows && !err && <p className="ma-empty">Reading the roster…</p>}
@@ -265,9 +306,9 @@ function InviteAllDialog({ onClose }: { onClose: () => void }) {
           ) : rows ? (
             rows.length === 0 ? <p className="ma-empty">Every current member already has a login.</p> : (
               <>
-                <p style={{ marginTop: 0 }}>{sendable.length} member{sendable.length === 1 ? '' : 's'} can be invited now. They will each get one email with a link to choose their own password — no password is ever sent or set by us.</p>
+                <p style={{ marginTop: 0 }}>{listed.length} member{listed.length === 1 ? '' : 's'} can be invited now. Each gets one email with a link to choose their own password — no password is ever sent or set by us.</p>
                 <div className="evt-tbl"><table><tbody>
-                  {sendable.map((r, i) => <tr key={i}><td>{r.name}</td><td>{r.email}</td></tr>)}
+                  {listed.map((r, i) => <tr key={r.id ?? i}><td><label className="inv-pick"><input type="checkbox" checked={!r.id || !skip.has(r.id)} disabled={!r.id} onChange={() => toggle(r.id)} /> {r.name}</label></td><td>{r.email}</td></tr>)}
                 </tbody></table></div>
                 {missing.length > 0 && <>
                   <p style={{ marginTop: 16 }}><b>No email address on file</b> — these {missing.length} cannot be invited until a contact card has an address:</p>

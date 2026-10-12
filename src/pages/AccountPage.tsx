@@ -15,7 +15,7 @@
 import { Suspense, lazy, useState } from 'react'
 import { Link } from '@/lib/router'
 import { signIn, sendMagicLink, linkError, clearLinkError } from '@/lib/supabase'
-import { activateAccount } from '@/lib/queries/access'
+import { activateAccount, requestSignInLink, type AccessReply } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
 
@@ -78,7 +78,10 @@ export default function AccountPage() {
     }
     setBusy(true)
     try {
-      await sendMagicLink(email.trim(), `${window.location.origin}/account`)
+      // The Institute's own email first; Supabase's plain one only if the
+      // function has not been updated to send it yet.
+      const r = await requestSignInLink(email.trim()).catch((): AccessReply => ({ error: 'network' }))
+      if (!r.ok) await sendMagicLink(email.trim(), `${window.location.origin}/account`)
       toast('Check your email — a sign-in link is on its way.')
     } catch (err) {
       setError((err as Error).message || 'Could not send the link.')

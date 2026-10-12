@@ -3060,3 +3060,14 @@ section.ov-sec { margin-top: 28px; padding: 0; }
   .ov-glance td { padding: 0 0 12px; }
   .ov-go { margin-left: 10px; }
 }
+
+/* Members list: each row's login status and the one button that fits it. */
+.cert-card.has-acc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+.macc { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; text-align: right; min-width: 180px; }
+.macc-st { font-size: 13px; color: var(--color-content-secondary); }
+.macc-st.none { color: var(--color-content-muted); }
+.inv-pick { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+@media (max-width: 640px) {
+  .cert-card.has-acc { grid-template-columns: 1fr; gap: 10px; }
+  .macc { align-items: flex-start; text-align: left; min-width: 0; }
+}
