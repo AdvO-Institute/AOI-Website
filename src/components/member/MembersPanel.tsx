@@ -21,6 +21,8 @@ import type { Member, Profile } from '@/lib/queries/members'
 import { Chips as PersonChips, chipsFor } from './PersonChips'
 import { CERT_LABEL } from '@/lib/chips'
 import { askConfirm, askForm, askText } from './opsUi'
+import { ManageDialog } from './CertificationPanel'
+import { personById, type Person } from '@/lib/queries/certifications'
 
 type Tab = 'all' | 'current' | 'recent' | 'inactive' | 'deceased'
 // Deceased members keep their record but sit in their own tab, last, and out of All members.
@@ -151,6 +153,14 @@ export default function MembersPanel() {
 
 function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChanged }: { p: Member; me: string; meId: string | null; canEdit: boolean; canInvite: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast()
+  const { can } = useAccess()
+  const canCert = can('manage_certifications')
+  const [certFor, setCertFor] = useState<Person | null>(null)
+  async function editCert() {
+    const r = await personById(p.id)
+    if (!r.row) { toast(r.error ? friendlyError(r.error) : 'Could not read their certification record.'); return }
+    setCertFor(r.row)
+  }
   const [inviting, setInviting] = useState(false)
   async function invite() {
     setInviting(true)
@@ -181,6 +191,7 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
           <div className="sec">Classification</div><div className="kv"><KV k="Type" v={p.contact_type === 'student' ? 'Student' : 'Doctor'} /><KV k="Technique(s)" v={(p.techniques ?? []).join(', ') || null} />{instr && <KV k="Instructor track" v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} />}</div>
           <div className="sec">Membership</div><div className="kv"><KV k="Status" v={s === 'deceased' ? `Deceased${p.deceased_on ? ' · ' + fmt(p.deceased_on) : ''}` : s === 'current' ? <>Active member {activeBoard(p) && <Pill kind="ok">Director — complimentary</Pill>}</> : s === 'recent' ? 'Recently expired — reactivatable' : 'Inactive'} /><KV k="Member since" v={p.member_since} /><KV k="Expires" v={p.membership_expires} /></div>
           <div className="sec">Certifications</div><div className="kv">{(p.person_certifications ?? []).length === 0 && <KV k="—" v="None on file" />}{(p.person_certifications ?? []).map((c) => <KV key={c.id} k={c.technique} v={`${LVL[c.level] ?? c.level}${c.grandfathered ? ' · Grandfathered on ' + fmt(c.cert_date) : c.cert_date ? ' · ' + fmt(c.cert_date) : ''}${c.certificate_number ? ' · Certificate #' + c.certificate_number : ''}${c.certified_by && !c.grandfathered ? ' · ' + c.certified_by : ''}`} />)}</div>
+          {canCert && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => void editCert()}>✎ Edit certification</button></div>}
           {instr && <><div className="sec">Instructor</div><div className="kv"><KV k={instr.technique ?? 'Advanced Orthogonal'} v={instr.level === 'senior_instructor' ? 'Senior Instructor' : 'Instructor'} /></div>{canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { const why = await askText('End instructor service', { label: 'Reason (optional)', placeholder: 'e.g. Retired from teaching' }, { ok: 'End service', danger: true }); if (why === null) return; if (!fail(await endInstructor(p, why))) { toast('Instructor service ended.'); await onChanged() } }}>End instructor service</button></div>}</>}
           {boards.length > 0 && <><div className="sec">Board service</div><div className="kv">{boards.map((b) => <KV key={b.id} k={b.term_label ?? `${b.term_start ?? ''}–${b.term_end ?? ''}`} v={b.status === 'active' ? 'Active board member' : b.status === 'nominee' ? 'Nominee' : 'Past board member'} />)}</div>{active && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={async () => { if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return; if (!fail(await endBoard(p))) { toast('Board service ended.'); await onChanged() } }}>End board service</button></div>}</>}
           <div className="sec">Notes (running log)</div>
@@ -190,6 +201,7 @@ function ContactCard({ p, me, meId, canEdit, canInvite, onClose, onEdit, onChang
           {canEdit && <><textarea className="fi" value={note} placeholder="Add a note…" onChange={(e) => setNote(e.target.value)} style={{ marginTop: 8, minHeight: 70 }} /><div className="act"><button type="button" className="b s-btn on-light sm" disabled={!note.trim()} onClick={async () => { if (!fail(await addNote(p.id, note.trim(), me, meId))) { setNote(''); await onChanged() } }}>Add note</button></div></>}
         </div>
       </div>
+      {certFor && <ManageDialog person={certFor} me={me} onClose={() => setCertFor(null)} onSaved={async (m) => { setCertFor(null); await onChanged(); toast(m) }} />}
     </div>
   )
 }

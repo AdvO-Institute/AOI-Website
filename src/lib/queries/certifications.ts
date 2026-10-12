@@ -85,6 +85,12 @@ export async function searchPeople(term: string): Promise<Person[]> {
   return q.data ?? []
 }
 
+/** One person's certification record, for the Override popup opened from the Members card. */
+export async function personById(id: string): Promise<{ row: Person | null; error?: string }> {
+  const q = await select<Person>('people', `select=${PERSON_SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`)
+  return q.data ? { row: q.data[0] ?? null } : { row: null, error: q.error ?? 'unknown' }
+}
+
 /* ------------------------------------------------------------------ derive */
 
 export const advo = (p: Person) => (p.person_certifications ?? []).filter((c) => c.technique === 'Advanced Orthogonal')

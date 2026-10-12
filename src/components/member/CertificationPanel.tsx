@@ -201,7 +201,7 @@ export default function CertificationPanel() {
 }
 
 /* ------------------------------------------------------------ Add / Override */
-function ManageDialog({ person, me, onClose, onSaved }: { person: Person | null; me: string; onClose: () => void; onSaved: (msg: string) => void }) {
+export function ManageDialog({ person, me, onClose, onSaved }: { person: Person | null; me: string; onClose: () => void; onSaved: (msg: string) => void }) {
   const [chosen, setChosen] = useState<Person | null>(person)
   const [term, setTerm] = useState(person ? fullName(person) : '')
   const [hits, setHits] = useState<Person[]>([])
