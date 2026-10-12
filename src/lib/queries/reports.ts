@@ -70,7 +70,7 @@ export const netOf = (vals: Record<string, number | null | undefined>, net: NonN
   return terms.reduce((s, [k, sign]) => s + sign * Number(vals[k] ?? 0), 0)
 }
 export const isLocked = (r: Report) => !!r.locked_at
-export const money = (n: number | null | undefined) => n == null ? '—' : '$' + Math.round(Number(n)).toLocaleString('en-US')
+export const money = (n: number | null | undefined) => { if (n == null) return '—'; const r = Math.round(Number(n)); return (r < 0 ? '−$' : '$') + Math.abs(r).toLocaleString('en-US') }
 export const fmtTs = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 export type CommitteeStatus = { c: Committee; state: 'ok' | 'draft' | 'miss'; report: Report | null; latest: Report | null }
