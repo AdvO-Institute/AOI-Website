@@ -163,7 +163,7 @@ export default function RolesPanel() {
                       roles.map((r, i) => (
                         <span className={roleChipClass(r.role_key)} key={i}>
                           {(ROLE_LABEL[r.role_key] ?? r.role_key).toUpperCase()}
-                          {r.committee_id
+                          {r.committee_id && r.role_key !== 'treasurer'
                             ? ` · ${(coms.find((c) => c.id === r.committee_id)?.name ?? '').replace(/ Committee.*/, '')}`
                             : ''}
                         </span>
