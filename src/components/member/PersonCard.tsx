@@ -51,13 +51,15 @@ const SEAT_KEYS = ['committee_chair', 'committee_cochair', 'committee_member', '
 type V = Record<string, string>
 
 /** The contact form: its fields' state and the save. Shared by the card's in-place editor and the Add contact window. */
-export function useContactForm(p: Contact | null, canRoles: boolean, me: string, meId: string | null) {
+export function useContactForm(p: Contact | null, canRoles: boolean, me: string, meId: string | null, newStatus = 'never') {
+  // The record has two phone columns for the office (office and practice); the form shows one and keeps both in step.
+  const phone0 = p?.office_phone || p?.practice_phone || ''
   const init = (): V => ({
     first_name: p?.first_name ?? '', last_name: p?.last_name ?? '', credentials: p?.credentials ?? 'DC', title: p?.title ?? '', contact_type: p?.contact_type ?? 'doctor',
-    email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: p?.office_phone ?? '', personal_phone: p?.personal_phone ?? '',
-    practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', practice_city: p?.practice_city ?? '', practice_state: p?.practice_state ?? '', practice_zip: p?.practice_zip ?? '', practice_phone: p?.practice_phone ?? '', practice_website: p?.practice_website ?? '',
+    email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: phone0, personal_phone: p?.personal_phone ?? '',
+    practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', practice_city: p?.practice_city ?? '', practice_state: p?.practice_state ?? '', practice_zip: p?.practice_zip ?? '', practice_website: p?.practice_website ?? '',
     alma_mater: p?.alma_mater ?? '', grad_year: p?.grad_year ? String(p.grad_year) : '', npi: p?.npi ?? '', photo_url: p?.photo_url ?? '', bio: p?.bio ?? '',
-    membership_status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? 'never'), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '', newNote: '',
+    membership_status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? newStatus), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '', newNote: '',
   })
   const initSeats = (): Seat[] => (p?.person_roles ?? []).map((r) => ({ role_key: r.role_key, committee_id: r.committee_id }))
   const [v, setV] = useState<V>(init)
@@ -94,7 +96,7 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
     const prof: Profile = {
       first_name: v.first_name!.trim(), last_name: v.last_name!.trim(), credentials: v.credentials || null, title: v.title || null, contact_type: v.contact_type || 'doctor',
       email: v.email || null, mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, personal_phone: v.personal_phone || null,
-      practice_name: v.practice_name || null, practice_address: v.practice_address || null, practice_city: v.practice_city || null, practice_state: v.practice_state || null, practice_zip: v.practice_zip || null, practice_phone: v.practice_phone || null, practice_website: v.practice_website || null,
+      practice_name: v.practice_name || null, practice_address: v.practice_address || null, practice_city: v.practice_city || null, practice_state: v.practice_state || null, practice_zip: v.practice_zip || null, practice_phone: v.office_phone !== phone0 ? (v.office_phone || null) : (p?.practice_phone ?? null), practice_website: v.practice_website || null,
       alma_mater: v.alma_mater || null, grad_year: v.grad_year ? Number(v.grad_year) : null, npi: v.npi || null, photo_url: v.photo_url || null, bio: v.bio || null,
       techniques: tq, member_since: v.member_since || null, membership_expires: v.membership_expires || null,
       deceased_on: dead ? (v.deceased_on || new Date().toISOString().slice(0, 10)) : null,
@@ -126,8 +128,9 @@ const chk = (on: boolean, label: string, onChange: (on: boolean) => void, disabl
 type CardTab = 'profile' | 'business' | 'background' | 'membership' | 'certification' | 'notes'
 type CertForm = { level: Level; date: string; num: string; target: Level | ''; interest: boolean }
 
-export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, canCert, lastIn, startEditing = false, onClose, onChanged }: {
-  p: Contact; comms: Committee[]; me: string; meId: string | null
+export function PersonCard({ p: given, newStatus = 'never', comms, me, meId, canEdit, canRoles, canInvite, canCert, lastIn, startEditing = false, onClose, onChanged }: {
+  /** null adds someone new: the card opens in edit mode and Save creates the record. */
+  p: Contact | null; newStatus?: string; comms: Committee[]; me: string; meId: string | null
   canEdit: boolean; canRoles: boolean; canInvite: boolean; canCert: boolean
   /** When they last signed in, if the page knows. */
   lastIn?: string
@@ -135,16 +138,18 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
   onClose: () => void; onChanged: () => Promise<void>
 }) {
   const toast = useToast()
+  const isNew = !given
+  const p: Contact = given ?? ({ id: '', first_name: '', last_name: '', credentials: null, contact_type: 'doctor', membership_status: newStatus } as unknown as Contact)
   const [tab, setTab] = useState<CardTab>('profile')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
 
   /* ---- edit mode: profile fields for editors, certification fields for the committee */
-  const f = useContactForm(p, canRoles, me, meId)
+  const f = useContactForm(given, canRoles, me, meId, newStatus)
   const canChange = canEdit || canCert
-  const [editing, setEditing] = useState(startEditing && canChange)
+  const [editing, setEditing] = useState(isNew || (startEditing && canChange))
   const editP = editing && canEdit
-  const editC = editing && canCert
+  const editC = editing && canCert && !isNew
   // The certification record carries what the contact list doesn't (the level being worked toward, interest), so it is read when editing starts.
   const [rec, setRec] = useState<Person | null>(null)
   const [cv, setCv] = useState<CertForm | null>(null)
@@ -161,13 +166,13 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
     })
   }, [editC, rec, p.id])
   const startEdit = () => { f.reset(); setRec(null); setCv(null); setCertErr(null); setEditing(true) }
-  const cancel = () => { f.reset(); setCertErr(null); setEditing(false) }
+  const cancel = () => { if (isNew) return onClose(); f.reset(); setCertErr(null); setEditing(false) }
   async function saveAll() {
     setCertErr(null)
     const certForm = editC && rec && cv && JSON.stringify(cv) !== JSON.stringify(cv0) ? cv : null
     if (certForm && certForm.level !== 'none' && !certForm.date) { setCertErr('An award date is required for an achieved level.'); setTab('certification'); return }
     if (certForm && certForm.target && RANK[certForm.target]! <= RANK[certForm.level]!) { setCertErr('“Working toward” must be above the achieved level.'); setTab('certification'); return }
-    if (editP) { const r = await f.save(); if (!r.ok) { if (r.name) setTab('profile'); return } }
+    if (editP) { const r = await f.save(); if (!r.ok) { if (r.name) setTab('profile'); return } if (isNew) { await onChanged(); toast(r.msg); onClose(); return } }
     if (certForm && rec) {
       setCertSaving(true)
       const c = await overrideCertification(rec, certForm.level, certForm.date || null, certForm.num || null, me, certForm.target || null, certForm.interest)
@@ -191,7 +196,7 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
   const instr = (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
   const activeBoard = (p.board_service ?? []).some((b) => b.status === 'active')
   const fail = (r: { error?: string }) => { if (r.error) { toast(friendlyError(r.error)); return true } return false }
-  const tabs: [CardTab, string][] = [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
+  const tabs: [CardTab, string][] = isNew ? [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['notes', 'Notes']] : [['profile', 'Profile'], ['business', 'Business info'], ['background', 'Background'], ['membership', 'Membership & roles'], ['certification', 'Certification'], ['notes', `Notes${noteCount ? ` (${noteCount})` : ''}`]]
 
   async function welcome() {
     if (!(await askConfirm(`Send ${p.first_name} ${p.last_name} the welcome letter?`, { body: `The “Your account is ready” email, with a link to choose a password, goes to ${p.email}.${p.auth_user_id ? ' Their current password keeps working until they choose a new one.' : ''}`, ok: 'Send welcome letter' }))) return
@@ -231,8 +236,8 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
   return (
     <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && !editing && onClose()}>
       <div className={`cert-modal ctc-card cc${editing ? ' editing' : ''}`} role="dialog" aria-modal="true">
-        <div className="ctc-top"><div className="av">{p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
-          <div style={{ flex: 1, minWidth: 0 }}><h3>{fullName(p)}</h3>{p.title && <div className="ti">{p.title}</div>}<div className="cert-chips" style={{ marginBottom: 0 }}><StatusPill p={p} /><RoleChips p={p} /></div></div>
+        <div className="ctc-top"><div className="av">{isNew ? '+' : p.photo_url ? <img src={p.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /> : initials(p)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><h3>{isNew ? (`${v.first_name} ${v.last_name}`.trim() || (newStatus === 'never' ? 'New contact' : 'New member')) : fullName(p)}</h3>{isNew ? <div className="ti">Only a name is required. Fill in more as you learn it.</div> : <>{p.title && <div className="ti">{p.title}</div>}<div className="cert-chips" style={{ marginBottom: 0 }}><StatusPill p={p} /><RoleChips p={p} /></div></>}</div>
           <div className="cc-ctl"><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button>
             {canChange && (editing
               ? <div className="cc-btns"><button type="button" className="b s-btn on-dark xs" onClick={cancel}>Cancel</button><button type="button" className="b p-btn xs" disabled={f.saving || certSaving} onClick={() => void saveAll()}>{f.saving || certSaving ? 'Saving…' : 'Save'}</button></div>
@@ -253,7 +258,7 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
             <div className="kv"><Row k="Email">{I('email', 'email')}</Row><Row k="Mobile">{I('mobile_phone', 'tel')}</Row><Row k="Personal phone">{I('personal_phone', 'tel')}</Row></div>
             <div className="sec">Headshot &amp; bio</div>
             <div className="kv">
-              <Row k="Headshot"><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{I('photo_url', 'url', 'https://…')}<input ref={f.photoRef} type="file" accept="image/*" hidden onChange={(e) => void f.pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={f.photoBusy} onClick={() => f.photoRef.current?.click()}>{f.photoBusy ? 'Uploading…' : 'Upload'}</button></div></Row>
+              <Row k="Headshot"><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{I('photo_url', 'url', 'https://…')}<input ref={f.photoRef} type="file" accept="image/*" hidden onChange={(e) => void f.pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={f.photoBusy || isNew} onClick={() => f.photoRef.current?.click()}>{f.photoBusy ? 'Uploading…' : 'Upload'}</button></div>{isNew && <div className="evt-hint">Save them first to upload a photo, or paste a link.</div>}</Row>
               <Row k="Bio"><textarea className="fi" rows={4} value={v.bio} onChange={set('bio')} placeholder="Shown on the public directory once they are a member." aria-label="Bio" /></Row>
             </div>
           </> : <>
@@ -274,7 +279,7 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
             <div className="kv">
               <Row k="Practice name">{I('practice_name')}</Row><Row k="Street address">{I('practice_address')}</Row>
               <Row k="City · State · ZIP"><div className="cc-3">{I('practice_city', 'text', 'City')}{I('practice_state', 'text', 'State')}{I('practice_zip', 'text', 'ZIP')}</div></Row>
-              <Row k="Office phone">{I('office_phone', 'tel')}</Row><Row k="Practice phone">{I('practice_phone', 'tel')}</Row><Row k="Website">{I('practice_website', 'text', 'https://…')}</Row>
+              <Row k="Office phone">{I('office_phone', 'tel')}</Row><Row k="Website">{I('practice_website', 'text', 'https://…')}</Row>
             </div>
             {f.offices.map((o, i) => <div key={i}>
               <div className="sec">Office {i + 2}</div>
@@ -353,7 +358,8 @@ export function PersonCard({ p, comms, me, meId, canEdit, canRoles, canInvite, c
             {!canCert && <p className="muted" style={{ marginTop: 10 }}>Only the Executive Director and the Certification Committee chair or co-chair can change certifications.</p>}
           </>}
 
-          {tab === 'notes' && <>
+          {tab === 'notes' && isNew && <><div className="sec">First note</div><textarea className="fi" rows={4} value={v.newNote} onChange={set('newNote')} placeholder="How we met, what they're interested in, a call…" aria-label="First note" /></>}
+          {tab === 'notes' && !isNew && <>
             <div className="sec">Notes (running log)</div>
             {notes.length === 0 && !p.notes && <p className="muted">No notes yet.</p>}
             {notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Institute'} · {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</small></div>)}

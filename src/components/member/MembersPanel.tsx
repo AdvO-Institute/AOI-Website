@@ -7,18 +7,16 @@
  * and searchable. Names open the full contact card with a running notes log.
  * -------------------------------------------------------------------------- */
 import { friendlyError } from '@/lib/friendlyError'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { inviteAllMembers, loginStatus, type InviteRow } from '@/lib/queries/access'
-import { uploadPhotoFor } from '@/lib/queries/photo'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useDensity } from '@/lib/density'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
   roster, state, tabOf, fullName, activeBoard, currentInstructor, advoLevel, otherCerts,
-  saveProfile, createMember,
 } from '@/lib/queries/members'
-import type { Member, Profile } from '@/lib/queries/members'
+import type { Member } from '@/lib/queries/members'
 import { Chips as PersonChips, chipsFor } from './PersonChips'
 import { CERT_LABEL } from '@/lib/chips'
 import { askConfirm } from './opsUi'
@@ -69,7 +67,7 @@ export default function MembersPanel() {
     void contactById(open).then((r) => { if (r.row) setOpenContact(r.row); else toast(r.error ? friendlyError(r.error) : 'Could not read that record.') })
   }, [open, toast])
   const refreshOpen = async () => { await load(); if (open) { const r = await contactById(open); if (r.row) setOpenContact(r.row) } }
-  const [edit, setEdit] = useState<Member | 'new' | null>(null)
+  const [adding, setAdding] = useState(false) // + Add member opens the same card, empty
   /* Compact (one row per member) or comfortable (cards), remembered on this
    * device. Phones always get the cards. */
   const { compact, narrow, setDensity } = useDensity('aoi.members.density', canEdit ? 'compact' : 'comfortable')
@@ -134,7 +132,7 @@ export default function MembersPanel() {
     <>
       <div className="cert-head">
         <div><h1>Members</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>Paid members and current or former board members — {counts.all} total. The full prospect list is under Leads. Recently expired = lapsed within six months and reactivatable; Inactive = longer than that.</div></div>
-        <div className="cert-actions">{canInvite && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
+        <div className="cert-actions">{canInvite && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setAdding(true)}>+ Add member</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
       </div>
       {error && <div className="cert-err" role="alert">{error}</div>}
       <div className="cert-tiles">{TABS.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>
@@ -153,76 +151,12 @@ export default function MembersPanel() {
 
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
       {current && openContact?.id === current.id && <PersonCard key={current.id} startEditing={openEditing} p={openContact} comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canInvite} canInvite={canInvite} canCert={can('manage_certifications')} lastIn={lastIn(current)} onClose={() => setOpen(null)} onChanged={refreshOpen} />}
-      {edit && <EditDialog p={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} />}
+      {adding && <PersonCard p={null} newStatus="active" comms={comms} me={me} meId={meId} canEdit={canEdit} canRoles={canInvite} canInvite={canInvite} canCert={false} onClose={() => setAdding(false)} onChanged={load} />}
     </>
   )
 }
 
 
-function EditDialog({ p, onClose, onSaved }: { p: Member | null; onClose: () => void; onSaved: (m: string) => void }) {
-  const [v, setV] = useState<Record<string, string>>({
-    first_name: p?.first_name ?? '', last_name: p?.last_name ?? '', credentials: p?.credentials ?? 'DC', contact_type: p?.contact_type ?? 'doctor',
-    email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: p?.office_phone ?? '', practice_website: p?.practice_website ?? '',
-    practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', techniques: (p?.techniques ?? []).join(', '),
-    status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? 'active'), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '',
-    photo_url: p?.photo_url ?? '',
-  })
-  const [err, setErr] = useState<string | null>(null); const [saving, setSaving] = useState(false)
-  /* A manager's upload lands in the headshot bucket; the address is saved with the rest of the form. */
-  const photoRef = useRef<HTMLInputElement>(null)
-  const [photoBusy, setPhotoBusy] = useState(false)
-  const pickPhoto = async (file: File | undefined) => {
-    if (!file || !p) return
-    setPhotoBusy(true)
-    const r = await uploadPhotoFor(p.id, file)
-    setPhotoBusy(false)
-    if (photoRef.current) photoRef.current.value = ''
-    if (r.missing) return setErr('Photo uploads are being switched on — paste a link for now.')
-    if (r.error) return setErr('The photo could not be uploaded. Try a JPG or PNG under 10 MB.')
-    setV((s) => ({ ...s, photo_url: r.url ?? '' }))
-  }
-  useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV((s) => ({ ...s, [k]: e.target.value }))
-  async function save() {
-    setErr(null); if (!v.first_name?.trim() || !v.last_name?.trim()) { setErr('First and last name are required.'); return }
-    const dead = v.status === 'deceased'
-    const prof: Profile = { photo_url: v.photo_url || null, first_name: v.first_name!.trim(), last_name: v.last_name!.trim(), credentials: v.credentials || null, contact_type: v.contact_type, email: v.email || null, mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, practice_website: v.practice_website || null, practice_name: v.practice_name || null, practice_address: v.practice_address || null, techniques: (v.techniques ?? '').split(',').map((s) => s.trim()).filter(Boolean), member_since: v.member_since || null, membership_expires: v.membership_expires || null, deceased_on: dead ? (v.deceased_on || new Date().toISOString().slice(0, 10)) : null }
-    if (!dead) prof.membership_status = v.status
-    setSaving(true); const r = p ? await saveProfile(p.id, prof) : await createMember(prof); setSaving(false)
-    if (r.error) { setErr(friendlyError(r.error)); return }
-    onSaved(p ? 'Saved.' : `${prof.first_name} ${prof.last_name} added.`)
-  }
-  return (
-    <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cert-modal wide" role="dialog" aria-modal="true">
-        <div className="mh"><div><h3>{p ? `Edit — ${fullName(p)}` : 'Add a member'}</h3><p>The people record. Roles, board seats and certifications are managed from their own tabs.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
-        <div className="mb">{err && <div className="cert-err">{err}</div>}
-          <div className="cert-grid mform">
-            <div className="cert-fh full" style={{ borderTop: 0, paddingTop: 0 }}>Identity</div><MF k="first_name" l="FIRST NAME" type="text" full={false} v={v} set={set} /><MF k="last_name" l="LAST NAME" type="text" full={false} v={v} set={set} /><MF k="credentials" l="CREDENTIALS" type="text" full={false} v={v} set={set} /><div><label className="flabel" htmlFor="m_type">TYPE</label><select className="fi" id="m_type" value={v.contact_type} onChange={set('contact_type')}><option value="doctor">Doctor</option><option value="student">Student</option></select></div>
-            <div className="cert-fh full">Contact</div><MF k="email" l="EMAIL" type="email" full={false} v={v} set={set} /><MF k="mobile_phone" l="MOBILE" type="text" full={false} v={v} set={set} /><MF k="office_phone" l="OFFICE PHONE" type="text" full={false} v={v} set={set} /><MF k="practice_website" l="WEBSITE" type="text" full={false} v={v} set={set} />
-            <div className="cert-fh full">Practice</div><MF k="practice_name" l="PRACTICE NAME" type="text" full={false} v={v} set={set} /><MF k="practice_address" l="ADDRESS" type="text" full={false} v={v} set={set} /><MF k="techniques" l="TECHNIQUES (COMMA SEPARATED)" type="text" full={true} v={v} set={set} />
-            <div className="cert-fh full">Photo</div>
-            <div className="full"><label className="flabel">HEADSHOT</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {v.photo_url && <span className="ctc-top" style={{ display: 'contents' }}><span className="av" style={{ width: 40, height: 40, fontSize: 13 }}><img src={v.photo_url} alt="" onError={(e) => (e.currentTarget.style.display = 'none')} /></span></span>}
-                <input className="fi" type="url" value={v.photo_url ?? ''} onChange={set('photo_url')} placeholder="https://…" />
-                {p && <><input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Upload'}</button></>}
-              </div>
-              <div className="evt-hint">{p ? 'Members can add their own under My Account. Upload one here, or paste a link.' : 'Save the member first, then upload a photo.'}</div>
-            </div>
-            <div className="cert-fh full">Membership</div><div><label className="flabel" htmlFor="m_status">STATUS</label><select className="fi" id="m_status" value={v.status} onChange={set('status')}><option value="active">Active</option><option value="expired">Expired</option><option value="never">Never a member</option><option value="deceased">Deceased</option></select></div><MF k="deceased_on" l="DATE OF PASSING (IF DECEASED)" type="date" full={false} v={v} set={set} /><MF k="member_since" l="MEMBER SINCE" type="date" full={false} v={v} set={set} /><MF k="membership_expires" l="EXPIRES" type="date" full={false} v={v} set={set} />
-          </div>
-        </div>
-        <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button></div>
-      </div>
-    </div>
-  )
-}
-
-/** Module-level so React keeps the input mounted (and focused) between keystrokes. */
-function MF({ k, l, type, full, v, set }: { k: string; l: string; type: string; full: boolean; v: Record<string, string>; set: (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void }) {
-  return <div className={full ? 'full' : ''}><label className="flabel" htmlFor={`m_${k}`}>{l}</label><input className="fi" id={`m_${k}`} type={type} value={v[k] ?? ''} onChange={set(k)} /></div>
-}
 
 /* ------------------------------------------------------- members area access
  * Every current member who has no login yet, and one button to email them all
