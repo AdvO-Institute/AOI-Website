@@ -19,6 +19,7 @@ import { CONFERENCE_RULE } from '@/content/calendar'
 import { ARTICLES, articleSlug } from '@/content/articles'
 import { PROBLEMS, PROBLEM_ORDER, PROBLEM_SLUG } from '@/content/problems'
 import { faqGraph } from '@/content/faq'
+import { RESOURCE_PAGES, resourcePageLabel, resourcePageTitle } from '@/content/resources'
 
 import HomePage from '@/pages/HomePage'
 import AboutPage from '@/pages/AboutPage'
@@ -38,6 +39,7 @@ import ArticlePage from '@/pages/ArticlePage'
 import ProblemPage from '@/pages/ProblemPage'
 import ContactPage from '@/pages/ContactPage'
 import ResourcesPage from '@/pages/ResourcesPage'
+import ResourcePage from '@/pages/ResourcePage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import ConfirmPage from '@/pages/ConfirmPage'
 import PayPage from '@/pages/PayPage'
@@ -323,7 +325,7 @@ const staticRoutes: RouteEntry[] = [
     meta: {
       title: 'Resources for Students and Doctors',
       description:
-        'Handouts to download, quick links to seminars, certification and membership, and the businesses that partner with the Advanced Orthogonal Institute.',
+        'Handouts and links for each seminar and Fundamentals session, quick links to certification and membership, and the businesses that partner with the Advanced Orthogonal Institute.',
       priority: 0.5,
       updatedAt: UPDATED,
       breadcrumbs: [{ name: 'Resources', path: '/resources' }],
@@ -381,6 +383,26 @@ const seminarRoutes: RouteEntry[] = Object.entries(SEMINARS).map(([key, seminar]
           }]
         : []),
       ...conferenceEvent(key, seminar, `/seminars/${SEMINAR_SLUG[key]}`),
+    ],
+  },
+}))
+
+/** One page per seminar and Fundamentals session (/resources/f1.1). Kept out
+ *  of search while the materials are being posted; they move behind
+ *  membership later (#191). */
+const resourceRoutes: RouteEntry[] = RESOURCE_PAGES.map((page) => ({
+  path: `/resources/${page.slug}`,
+  Component: ResourcePage,
+  param: page.slug,
+  prerender: true,
+  meta: {
+    title: pageTitle(`${resourcePageTitle(page)} · Resources`),
+    description: `Handouts and links from ${resourcePageLabel(page)}, for students and doctors of the Advanced Orthogonal Institute.`,
+    noindex: true,
+    updatedAt: UPDATED,
+    breadcrumbs: [
+      { name: 'Resources', path: '/resources' },
+      { name: resourcePageLabel(page), path: `/resources/${page.slug}` },
     ],
   },
 }))
@@ -481,6 +503,7 @@ const privateRoutes: RouteEntry[] = [
 export const routes: RouteEntry[] = [
   ...staticRoutes,
   ...seminarRoutes,
+  ...resourceRoutes,
   ...articleRoutes,
   ...problemRoutes,
   ...privateRoutes,

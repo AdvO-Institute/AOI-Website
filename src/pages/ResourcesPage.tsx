@@ -1,7 +1,14 @@
 import { Link } from '@/lib/router'
-import { RESOURCE_GROUPS, type Resource } from '@/content/resources'
+import {
+  PARTNERS,
+  QUICK_LINKS,
+  RESOURCE_PAGES,
+  resourcePageLabel,
+  resourcePageTitle,
+  type Resource,
+} from '@/content/resources'
 
-function ResourceTile({ item }: { item: Resource }) {
+export function ResourceTile({ item }: { item: Resource }) {
   const inner = (
     <>
       <span className="res-h">
@@ -24,7 +31,42 @@ function ResourceTile({ item }: { item: Resource }) {
   )
 }
 
+export function ResourceSection({
+  kicker,
+  heading,
+  items,
+  mist,
+}: {
+  kicker: string
+  heading: string
+  items: Resource[]
+  mist?: boolean
+}) {
+  return (
+    <section className={mist ? 'mist tight' : 'tight'}>
+      <div className="wrap">
+        <div className="kick">{kicker}</div>
+        <h2 className="t" style={{ fontSize: '28px' }}>
+          {heading}
+        </h2>
+        <div className="goldrule" />
+        <div className="res-grid">
+          {items.map((item) => (
+            <ResourceTile key={item.href} item={item} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function ResourcesPage() {
+  const seminarPages: Resource[] = RESOURCE_PAGES.map((page) => ({
+    title: resourcePageLabel(page),
+    note: page.session === undefined ? undefined : resourcePageTitle(page),
+    href: `/resources/${page.slug}`,
+  }))
+
   return (
     <>
       <div className="hero-img short">
@@ -39,28 +81,28 @@ export default function ResourcesPage() {
           <div className="kick">For Students &amp; Doctors</div>
           <h1>Resources</h1>
           <p className="sub">
-            Handouts to download, the links you need most, and the businesses that work with
-            the Institute.
+            Handouts and links for each seminar and Fundamentals session, the links you need
+            most, and the businesses that work with the Institute.
           </p>
         </div>
       </div>
 
-      {RESOURCE_GROUPS.map((group, i) => (
-        <section key={group.key} className={i % 2 ? 'mist tight' : 'tight'}>
-          <div className="wrap">
-            <div className="kick">{group.kicker}</div>
-            <h2 className="t" style={{ fontSize: '28px' }}>
-              {group.heading}
-            </h2>
-            <div className="goldrule" />
-            <div className="res-grid">
-              {group.items.map((item) => (
-                <ResourceTile key={item.href} item={item} />
-              ))}
-            </div>
-          </div>
-        </section>
-      ))}
+      <ResourceSection
+        kicker="By Seminar"
+        heading="Materials for each seminar and session."
+        items={seminarPages}
+      />
+      <ResourceSection
+        kicker="Quick Links"
+        heading="Training, membership and feedback."
+        items={QUICK_LINKS}
+        mist
+      />
+      <ResourceSection
+        kicker="Partners"
+        heading="Businesses that work with the Institute."
+        items={PARTNERS}
+      />
     </>
   )
 }
