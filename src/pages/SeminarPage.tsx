@@ -639,7 +639,7 @@ export default function SeminarPage({ param }: { param?: string }) {
             <div className="spons">
               {s.sponsors.map((x) => (
                 <a className={`spon${x.light ? ' light' : ''}`} key={x.name} href={x.url} target="_blank" rel="noopener noreferrer">
-                  <img src={`/images/${x.logo}.webp`} alt={x.name} width={x.w} height={x.h} loading="lazy" decoding="async" />
+                  <img src={`/images/${x.logo.includes('.') ? x.logo : `${x.logo}.webp`}`} alt={x.name} width={x.w} height={x.h} loading="lazy" decoding="async" />
                 </a>
               ))}
             </div>
