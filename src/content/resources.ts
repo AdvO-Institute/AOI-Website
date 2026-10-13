@@ -114,7 +114,7 @@ export type Partner = {
 export const PARTNERS: Partner[] = [
   { name: 'Spinalight', href: 'https://www.spinalight.com/', logo: 'sponsor-spinalight', w: 317, h: 240, light: true },
   { name: 'Sonus: Blueprint', href: 'https://sonusblueprint.com/', logo: 'sponsor-sonus', w: 420, h: 182 },
-  { name: 'The Adjustment Bureau Systems', href: 'https://adjustmentbureausystems.com/', logo: 'sponsor-tabs-vector-mpr.svg', w: 325, h: 51 },
+  { name: 'The Adjustment Bureau Systems', href: 'https://adjustmentbureausystems.com/', logo: 'sponsor-tabs-mpr', w: 1200, h: 187 },
 ]
 
 /** Shown under the partner logos. */

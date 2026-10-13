@@ -354,7 +354,7 @@ export const SEMINARS = {
     },
     ctaH:'Be in the room in St. Petersburg.', ctaP:'Included with AOI membership · two days at the home of Advanced Orthogonal', ctaBtn:'Register for the Conference',
     spk:['silver','billiris','hulsey','miller','beadle','colavita','miranda','bollen','jobarah','pavlovic','corsello','fowler','cs'], keynote:null,
-    sponsors:[{name:'Anode Imaging',logo:'sponsor-anode',url:'https://anodeimaging.com/',w:640,h:159},{name:'Sonus: Blueprint',logo:'sponsor-sonus',url:'https://sonusblueprint.com/',w:420,h:182},{name:'Spinalight',logo:'sponsor-spinalight',url:'https://www.spinalight.com/',light:true,w:317,h:240},{name:'The Adjustment Bureau Systems',logo:'sponsor-tabs-vector-mpr.svg',url:'https://adjustmentbureausystems.com/',w:325,h:51}],
+    sponsors:[{name:'Anode Imaging',logo:'sponsor-anode',url:'https://anodeimaging.com/',w:640,h:159},{name:'Sonus: Blueprint',logo:'sponsor-sonus',url:'https://sonusblueprint.com/',w:420,h:182},{name:'Spinalight',logo:'sponsor-spinalight',url:'https://www.spinalight.com/',light:true,w:317,h:240},{name:'The Adjustment Bureau Systems',logo:'sponsor-tabs-mpr',url:'https://adjustmentbureausystems.com/',w:1200,h:187}],
     agenda:[
       {day:'Day 1',date:'FRI NOV 6',items:[
         {t:'7:00',ap:'AM · DOORS',title:'Registration, Breakfast & Vendor Hall',desc:'Check-in with photo ID, coffee, and the vendor floor opens. Breakfast from 8:00.',who:[]},
