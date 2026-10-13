@@ -592,6 +592,9 @@ footer .flink:hover{color:var(--color-surface-base)}
   .sf p{font-size:13.5px;color:var(--color-content-secondary);line-height:1.6;flex:1}
   .sf .go{align-self:flex-start;border:0;background:none;padding:0;cursor:pointer;font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--color-brand-primary-deep)}
   .spons{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:26px}
+  /* The conference's sponsors sit in a 2×2 block; one column on a phone. */
+  .spons.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:560px){.spons.two{grid-template-columns:1fr}}
   .spon{display:flex;align-items:center;justify-content:center;min-height:130px;padding:24px 28px;border-radius:6px;border:1px solid color-mix(in oklab, var(--color-surface-base) 16%, transparent);background:color-mix(in oklab, var(--color-surface-base) 4%, transparent);transition:transform .25s ease, border-color .25s ease}
   .spon:hover{transform:translateY(-3px);border-color:color-mix(in oklab, var(--color-brand-accent) 60%, transparent)}
   .spon.light{background:var(--color-surface-base)}
@@ -1090,6 +1093,46 @@ dialog.bio-bg::backdrop {
   margin-right: auto;
 }
 
+
+/* ----------------------------------------------------------- resources ---
+   /resources: one tile per handout or link. */
+.res-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 30px;
+}
+.res-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-surface-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  padding: 22px 26px;
+  color: var(--color-content-primary);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.res-tile:hover {
+  border-color: var(--color-brand-primary);
+}
+.res-tile .res-h {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+.res-tile .res-h .a {
+  color: var(--color-brand-primary-deep);
+}
+.res-tile .res-p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-content-secondary);
+}
 
 /* ------------------------------------------------------------- contact ---
    Replaces the inline styles the contact markup carried. */
