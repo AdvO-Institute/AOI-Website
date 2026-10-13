@@ -600,7 +600,7 @@ footer .flink:hover{color:var(--color-surface-base)}
   .spon.light{background:var(--color-surface-base)}
   /* Spinalight's logo is nearly square, so it gets the tile's full height: less padding, same tile. */
   .spon.light{padding-block:12px}
-  .spon.light img{height:126px}
+  .spon.light img{height:124px}
   .spon img{max-width:100%;height:96px;width:auto;object-fit:contain}
   .spon-note{margin-top:22px;font-size:13.5px;color:color-mix(in oklab, var(--color-surface-base) 75%, transparent)}
   .spon-note .t-link{color:var(--color-brand-accent-bright)}
