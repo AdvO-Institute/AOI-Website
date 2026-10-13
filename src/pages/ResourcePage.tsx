@@ -1,13 +1,12 @@
 import { Link } from '@/lib/router'
 import { SEMINAR_SLUG } from '@/content/seminars'
 import {
-  PARTNERS,
   QUICK_LINKS,
   RESOURCE_PAGES,
   resourcePageLabel,
   resourcePageTitle,
 } from '@/content/resources'
-import { ResourceSection } from '@/pages/ResourcesPage'
+import { PartnersSection, ResourceSection } from '@/pages/ResourcesPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 /** One seminar's or Fundamentals session's materials: /resources/f1.1. */
@@ -67,11 +66,7 @@ export default function ResourcePage({ param }: { param?: string }) {
         items={QUICK_LINKS}
         mist
       />
-      <ResourceSection
-        kicker="Partners"
-        heading="Businesses that work with the Institute."
-        items={PARTNERS}
-      />
+      <PartnersSection />
     </>
   )
 }

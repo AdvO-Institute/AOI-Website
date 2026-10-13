@@ -98,21 +98,25 @@ export const QUICK_LINKS: Resource[] = [
   },
 ]
 
-/** Shared by every Resources page. */
-export const PARTNERS: Resource[] = [
-  {
-    title: 'Spinalight',
-    note: 'Adjusting tables.',
-    href: 'https://www.spinalightinc.com',
-  },
-  {
-    title: 'Sonus Blueprint',
-    href: 'https://www.sonusblueprint.com',
-  },
-  {
-    title: 'Sonus Blueprint Sign-up',
-    href: 'https://docs.google.com/forms/d/e/1FAIpQLSduDB0bSFbOEVmFBSR_yRrF-6LnC_V0GkC-bWH98Mc5kFefug/viewform',
-  },
+export type Partner = {
+  name: string
+  href: string
+  /** A file in public/images (no extension), with its pixel size. `light` puts
+   *  a logo made for white on a white tile, as on the conference page. */
+  logo: string
+  w: number
+  h: number
+  light?: boolean
+}
+
+/** Shared by every Resources page; the same logos as the conference sponsors. */
+export const PARTNERS: Partner[] = [
+  { name: 'Spinalight', href: 'https://www.spinalight.com/', logo: 'sponsor-spinalight', w: 317, h: 240, light: true },
+  { name: 'Sonus: Blueprint', href: 'https://sonusblueprint.com/', logo: 'sponsor-sonus', w: 420, h: 182 },
+]
+
+/** Shown under the partner logos. */
+export const PARTNER_LINKS: Resource[] = [
   {
     title: 'Schedule a Meeting with Dr. Beadle',
     href: 'https://calendly.com/sonus_blueprint/meeting-with-dr-beadle',

@@ -1,6 +1,7 @@
 import { Link } from '@/lib/router'
 import {
   PARTNERS,
+  PARTNER_LINKS,
   QUICK_LINKS,
   RESOURCE_PAGES,
   resourcePageLabel,
@@ -60,6 +61,41 @@ export function ResourceSection({
   )
 }
 
+/** The partners' logos, styled like the conference's sponsors. */
+export function PartnersSection() {
+  return (
+    <section className="dark tight sponsors">
+      <div className="wrap">
+        <div className="kick">Partners</div>
+        <h2 className="t" style={{ fontSize: '28px' }}>
+          Businesses that work with the Institute.
+        </h2>
+        <div className="goldrule" />
+        <div className="spons">
+          {PARTNERS.map((x) => (
+            <a
+              className={`spon${x.light ? ' light' : ''}`}
+              key={x.name}
+              href={x.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img src={`/images/${x.logo}.webp`} alt={x.name} width={x.w} height={x.h} loading="lazy" decoding="async" />
+            </a>
+          ))}
+        </div>
+        {PARTNER_LINKS.map((link) => (
+          <p className="spon-note" key={link.href}>
+            <a className="t-link" href={link.href} target="_blank" rel="noopener noreferrer">
+              {link.title}
+            </a>
+          </p>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function ResourcesPage() {
   const seminarPages: Resource[] = RESOURCE_PAGES.map((page) => ({
     title: resourcePageLabel(page),
@@ -98,11 +134,7 @@ export default function ResourcesPage() {
         items={QUICK_LINKS}
         mist
       />
-      <ResourceSection
-        kicker="Partners"
-        heading="Businesses that work with the Institute."
-        items={PARTNERS}
-      />
+      <PartnersSection />
     </>
   )
 }
