@@ -37,6 +37,7 @@ import ArticlesPage from '@/pages/ArticlesPage'
 import ArticlePage from '@/pages/ArticlePage'
 import ProblemPage from '@/pages/ProblemPage'
 import ContactPage from '@/pages/ContactPage'
+import ResourcesPage from '@/pages/ResourcesPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import ConfirmPage from '@/pages/ConfirmPage'
 import PayPage from '@/pages/PayPage'
@@ -313,6 +314,19 @@ const staticRoutes: RouteEntry[] = [
       priority: 0.6,
       updatedAt: UPDATED,
       breadcrumbs: [{ name: 'Contact', path: '/contact' }],
+    },
+  },
+  {
+    path: '/resources',
+    Component: ResourcesPage,
+    prerender: true,
+    meta: {
+      title: 'Resources for Students and Doctors',
+      description:
+        'Handouts to download, quick links to seminars, certification and membership, and the businesses that partner with the Advanced Orthogonal Institute.',
+      priority: 0.5,
+      updatedAt: UPDATED,
+      breadcrumbs: [{ name: 'Resources', path: '/resources' }],
     },
   },
 ]
