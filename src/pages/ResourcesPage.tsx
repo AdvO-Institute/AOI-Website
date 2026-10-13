@@ -80,7 +80,7 @@ export function PartnersSection() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img src={`/images/${x.logo}.webp`} alt={x.name} width={x.w} height={x.h} loading="lazy" decoding="async" />
+              <img src={`/images/${x.logo.includes('.') ? x.logo : `${x.logo}.webp`}`} alt={x.name} width={x.w} height={x.h} loading="lazy" decoding="async" />
             </a>
           ))}
         </div>
