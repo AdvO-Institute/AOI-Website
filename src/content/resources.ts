@@ -34,6 +34,11 @@ const FUNDAMENTALS = ['fund1', 'fund2', 'fund3'] as const
 const MATERIALS: Record<string, Resource[]> = {
   'f1.1': [
     {
+      title: 'Session Notes',
+      note: 'Notes from this session’s presentation (PDF).',
+      href: 'https://drive.google.com/file/d/1kz4ZVOAYzwVHpGV_6cySS05mGpxYsIFg/view?usp=sharing',
+    },
+    {
       title: 'New Terms & Glossary',
       note: 'The Advanced Orthogonal vocabulary in one place.',
       href: 'https://drive.google.com/file/d/1_9JtsFBGjF0w0Mdi8w8IS_Ai1HroIh_Z/view?usp=drive_link',
