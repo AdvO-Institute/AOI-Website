@@ -3307,8 +3307,7 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .org-people { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 8px; width: 100%; }
 .org-seat .org-who, .org-dirs .org-who { flex-direction: column; gap: 6px; width: 150px; text-align: center; }
 .org-seat .org-who b, .org-dirs .org-who b { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
-.org-seat .org-av, .org-dirs .org-av { width: 96px; height: 96px; border-radius: var(--radius-control); font-size: 26px; border: 2px solid var(--color-brand-primary); padding: 2px; background-clip: content-box; }
-.org-seat .org-av img, .org-dirs .org-av img { border-radius: 2px; }
+.org-seat .org-av, .org-dirs .org-av { width: 96px; height: 96px; border-radius: var(--radius-control); font-size: 26px; border: 2px solid var(--color-surface-inverse); }
 .org-com .org-seat .org-av { width: 72px; height: 72px; font-size: 20px; }
 .org-seat i { align-self: center; padding: 10px 0; }
 .org-dirs { flex-direction: column; align-items: stretch; }
