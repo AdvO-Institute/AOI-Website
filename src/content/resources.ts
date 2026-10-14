@@ -16,6 +16,8 @@ export type Resource = {
   title: string
   note?: string
   href: string
+  /** A handout's kind, shown as a small label over the title ("Notes"). */
+  tag?: string
 }
 
 export type ResourcePage = {
@@ -34,12 +36,20 @@ const FUNDAMENTALS = ['fund1', 'fund2', 'fund3'] as const
 const MATERIALS: Record<string, Resource[]> = {
   'f1.1': [
     {
+      title: 'Session Notes',
+      tag: 'Notes · PDF',
+      note: 'Notes from this session’s presentation (PDF).',
+      href: 'https://drive.google.com/file/d/1kz4ZVOAYzwVHpGV_6cySS05mGpxYsIFg/view?usp=sharing',
+    },
+    {
       title: 'New Terms & Glossary',
+      tag: 'Glossary',
       note: 'The Advanced Orthogonal vocabulary in one place.',
       href: 'https://drive.google.com/file/d/1_9JtsFBGjF0w0Mdi8w8IS_Ai1HroIh_Z/view?usp=drive_link',
     },
     {
       title: 'Patient History Clues to Upper Cervical',
+      tag: 'Handout',
       note: 'What in a patient’s history points to an upper cervical problem.',
       href: 'https://drive.google.com/file/d/1Od3PUWZ_3SmoK8TzodAVhRVTFGIElTLS/view?usp=drive_link',
     },
@@ -114,7 +124,7 @@ export type Partner = {
 export const PARTNERS: Partner[] = [
   { name: 'Spinalight', href: 'https://www.spinalight.com/', logo: 'sponsor-spinalight', w: 317, h: 240, light: true },
   { name: 'Sonus: Blueprint', href: 'https://sonusblueprint.com/', logo: 'sponsor-sonus', w: 420, h: 182 },
-  { name: 'The Adjustment Bureau Systems', href: 'https://adjustmentbureausystems.com/', logo: 'sponsor-tabs.svg', w: 324, h: 23 },
+  { name: 'The Adjustment Bureau Systems', href: 'https://adjustmentbureausystems.com/', logo: 'sponsor-tabs-mpr', w: 1200, h: 187 },
 ]
 
 /** Shown under the partner logos. */

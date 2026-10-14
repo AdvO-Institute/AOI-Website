@@ -44,6 +44,7 @@ export default function ResourcePage({ param }: { param?: string }) {
           kicker="Materials"
           heading={`From this ${isSession ? 'session' : 'seminar'}.`}
           items={page.items}
+          handouts
         />
       ) : (
         <section className="tight">

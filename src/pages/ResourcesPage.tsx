@@ -9,9 +9,28 @@ import {
   type Resource,
 } from '@/content/resources'
 
-export function ResourceTile({ item }: { item: Resource }) {
+/** A page with a folded corner: marks a handout. */
+function DocIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h6" />
+    </svg>
+  )
+}
+
+export function ResourceTile({ item, handout }: { item: Resource; handout?: boolean }) {
+  const cls = handout ? 'res-tile handout' : 'res-tile'
   const inner = (
     <>
+      {handout && (
+        <span className="res-top">
+          <span className="res-ic">
+            <DocIcon />
+          </span>
+          {item.tag && <span className="res-tag">{item.tag}</span>}
+        </span>
+      )}
       <span className="res-h">
         {item.title}
         <span className="a" aria-hidden="true">
@@ -22,11 +41,11 @@ export function ResourceTile({ item }: { item: Resource }) {
     </>
   )
   return item.href.startsWith('/') ? (
-    <Link to={item.href} className="res-tile">
+    <Link to={item.href} className={cls}>
       {inner}
     </Link>
   ) : (
-    <a href={item.href} className="res-tile" target="_blank" rel="noopener noreferrer">
+    <a href={item.href} className={cls} target="_blank" rel="noopener noreferrer">
       {inner}
     </a>
   )
@@ -37,11 +56,14 @@ export function ResourceSection({
   heading,
   items,
   mist,
+  handouts,
 }: {
   kicker: string
   heading: string
   items: Resource[]
   mist?: boolean
+  /** Show each item as a handout: icon, label and accent color. */
+  handouts?: boolean
 }) {
   return (
     <section className={mist ? 'mist tight' : 'tight'}>
@@ -53,7 +75,7 @@ export function ResourceSection({
         <div className="goldrule" />
         <div className="res-grid">
           {items.map((item) => (
-            <ResourceTile key={item.href} item={item} />
+            <ResourceTile key={item.href} item={item} handout={handouts} />
           ))}
         </div>
       </div>
