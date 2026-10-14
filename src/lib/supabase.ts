@@ -340,7 +340,8 @@ const searchWords = (term: string) => term.replace(/[,.*()"]/g, ' ').trim().spli
 export function wordsFilter(term: string, fields: string[], prefix?: number): string {
   const words = searchWords(term).map((w) => (prefix ? w.slice(0, prefix) : w))
   if (!words.length) return ''
-  const one = (w: string) => `or(${fields.map((f) => `${f}.ilike.*${encodeURIComponent(w)}*`).join(',')})`
+  // An apostrophe matches any apostrophe or none, so D'Amico finds D’Amico and DAmico too.
+  const one = (w: string) => `or(${fields.map((f) => `${f}.ilike.*${encodeURIComponent(w).replace(/'|%E2%80%99|%E2%80%98|%60/gi, '*')}*`).join(',')})`
   return `and=(${words.map(one).join(',')})`
 }
 
