@@ -1136,6 +1136,44 @@ dialog.bio-bg::backdrop {
   line-height: 1.6;
   color: var(--color-content-secondary);
 }
+/* A seminar's own handouts: gold edge, page icon and a label, so they stand
+   out from the shared links below them. */
+.res-tile.handout {
+  border-top: 4px solid var(--color-brand-accent);
+  background: color-mix(in oklab, var(--color-brand-accent) 7%, var(--color-surface-base));
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--color-surface-inverse) 8%, transparent);
+  gap: 8px;
+}
+.res-tile.handout:hover {
+  border-color: var(--color-brand-accent-strong);
+}
+.res-tile.handout .res-h {
+  font-size: 18px;
+}
+.res-tile .res-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.res-tile .res-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-brand-accent);
+  color: var(--color-surface-base);
+}
+.res-tile .res-tag {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-brand-accent-strong);
+}
 
 /* ------------------------------------------------------------- contact ---
    Replaces the inline styles the contact markup carried. */

@@ -16,6 +16,8 @@ export type Resource = {
   title: string
   note?: string
   href: string
+  /** A handout's kind, shown as a small label over the title ("Notes"). */
+  tag?: string
 }
 
 export type ResourcePage = {
@@ -35,16 +37,19 @@ const MATERIALS: Record<string, Resource[]> = {
   'f1.1': [
     {
       title: 'Session Notes',
+      tag: 'Notes · PDF',
       note: 'Notes from this session’s presentation (PDF).',
       href: 'https://drive.google.com/file/d/1kz4ZVOAYzwVHpGV_6cySS05mGpxYsIFg/view?usp=sharing',
     },
     {
       title: 'New Terms & Glossary',
+      tag: 'Glossary',
       note: 'The Advanced Orthogonal vocabulary in one place.',
       href: 'https://drive.google.com/file/d/1_9JtsFBGjF0w0Mdi8w8IS_Ai1HroIh_Z/view?usp=drive_link',
     },
     {
       title: 'Patient History Clues to Upper Cervical',
+      tag: 'Handout',
       note: 'What in a patient’s history points to an upper cervical problem.',
       href: 'https://drive.google.com/file/d/1Od3PUWZ_3SmoK8TzodAVhRVTFGIElTLS/view?usp=drive_link',
     },
