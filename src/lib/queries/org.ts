@@ -5,7 +5,7 @@
  * -------------------------------------------------------------------------- */
 import { select } from '@/lib/supabase'
 
-export type OrgPerson = { id: string; first_name?: string; last_name?: string; credentials?: string | null; person_roles: { role_key: string; committee_id: number | null }[] }
+export type OrgPerson = { id: string; first_name?: string; last_name?: string; credentials?: string | null; photo_url?: string | null; email?: string | null; mobile_phone?: string | null; office_phone?: string | null; person_roles: { role_key: string; committee_id: number | null }[] }
 export type OrgCommittee = { id: number; key: string; name: string }
 
 /** Board officers, in the order they are shown. */
@@ -15,7 +15,7 @@ const KEYS = ['executive_director', 'board_member', 'board_chair', 'vice_chair',
 
 /** Everyone holding a current seat, with all of their seats. */
 export async function orgPeople(): Promise<{ rows: OrgPerson[]; error?: string }> {
-  const q = await select<OrgPerson>('people', `select=id,first_name,last_name,credentials,person_roles!inner(role_key,committee_id)&person_roles.role_key=in.(${KEYS.join(',')})&order=last_name&limit=500`)
+  const q = await select<OrgPerson>('people', `select=id,first_name,last_name,credentials,photo_url,email,mobile_phone,office_phone,person_roles!inner(role_key,committee_id)&person_roles.role_key=in.(${KEYS.join(',')})&order=last_name&limit=500`)
   return q.data ? { rows: q.data } : { rows: [], error: q.error ?? 'unknown' }
 }
 export async function orgCommittees(): Promise<OrgCommittee[]> {
