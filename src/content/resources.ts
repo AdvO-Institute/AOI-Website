@@ -53,6 +53,12 @@ const MATERIALS: Record<string, Resource[]> = {
       note: 'What in a patient’s history points to an upper cervical problem.',
       href: 'https://drive.google.com/file/d/1Od3PUWZ_3SmoK8TzodAVhRVTFGIElTLS/view?usp=drive_link',
     },
+    {
+      title: 'The Rat Kyphoscoliosis Study',
+      tag: 'Reading · PDF',
+      note: 'Barrios 1992 in plain English: what they did and what it showed.',
+      href: 'https://drive.google.com/file/d/1y4zCpEXKaJqZv0DdPVxjOBeEu99jaQlS/view?usp=sharing',
+    },
   ],
 }
 
