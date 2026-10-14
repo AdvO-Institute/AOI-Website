@@ -129,7 +129,7 @@ function whenText(b: Booked, withYear = false): string {
 
 /* -------------------------------------------------------------- the page -- */
 
-export default function Overview({ onOpen }: { onOpen: (tab: string) => void }) {
+export default function Overview({ onOpen }: { onOpen: (tab: string, event?: string) => void }) {
   const { access, canViewAsMember, viewingAsMember, setViewingAsMember } = useAccess()
   const regKey = useRegKey()
   const register = useRegistration()
@@ -299,7 +299,7 @@ export default function Overview({ onOpen }: { onOpen: (tab: string) => void }) 
                   <ul className="ov-regs">
                     {booked.map((b) => (
                       <li key={b.slug}>
-                        <button type="button" className="ov-link" onClick={() => onOpen('events')}>{b.title}</button>
+                        <button type="button" className="ov-link" onClick={() => onOpen('events', b.slug)}>{b.title}</button>
                         <span className="num">{whenText(b)}</span>
                       </li>
                     ))}
@@ -324,7 +324,7 @@ export default function Overview({ onOpen }: { onOpen: (tab: string) => void }) 
 
 /* ------------------------------------------------------- 1. the alert band -- */
 
-function EventBand({ next, zoom, now, onOpen }: { next: Booked; zoom: string | null; now: number; onOpen: (tab: string) => void }) {
+function EventBand({ next, zoom, now, onOpen }: { next: Booked; zoom: string | null; now: number; onOpen: (tab: string, event?: string) => void }) {
   const { run, title } = next
   const until = run.start - now
   const live = now >= run.start - 15 * MIN && now < run.end
@@ -333,7 +333,7 @@ function EventBand({ next, zoom, now, onOpen }: { next: Booked; zoom: string | n
   const join = zoom ? (
     <a className={`b ${live ? 'p-btn' : 's-btn on-light xs'} ov-join`} href={zoom} target="_blank" rel="noopener noreferrer">Join on Zoom</a>
   ) : null
-  const details = <button type="button" className="ov-go" onClick={() => onOpen('events')}>Event details</button>
+  const details = <button type="button" className="ov-go" onClick={() => onOpen('events', next.slug)}>Event details</button>
 
   if (live) {
     return (

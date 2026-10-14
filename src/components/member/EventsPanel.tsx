@@ -11,6 +11,7 @@
 import { friendlyError } from '@/lib/friendlyError'
 import { SafeLink, askConfirm } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from '@/lib/router'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useRegKey } from '@/lib/queries/CatalogProvider'
 import { useRegistration } from '@/components/blocks/RegistrationDialog'
@@ -162,6 +163,15 @@ export default function EventsPanel() {
     setRows(canManage ? r.rows : r.rows.filter((e) => e.status === 'published' && e.visibility !== 'leadership' && e.visibility !== 'board')); setLoading(false)
   }, [canManage])
   useEffect(() => { void load() }, [load])
+  /* Arriving from Overview's "Event details" opens that event's card, once. */
+  const { state } = useLocation()
+  const asked = (state as { event?: string } | null)?.event ?? null
+  const shown = useRef<string | null>(null)
+  useEffect(() => {
+    if (!asked || shown.current === asked) return
+    const e = rows.find((x) => x.slug === asked); if (!e) return
+    shown.current = asked; setOpen(e.id)
+  }, [asked, rows])
   useEffect(() => { if (canManage) { void loadVenues().then(setVenues); void loadCommittees().then(setCommittees) } }, [canManage])
 
   /* The big number on each tile counts what is still ahead; the mixed tiles

@@ -186,7 +186,7 @@ function Shell() {
             </nav>
           )}
           {tab === 'overview' ? (
-            <Overview onOpen={(key) => navigate(`/account#${key}`)} />
+            <Overview onOpen={(key, event) => navigate(`/account#${key}`, event ? { state: { event } } : undefined)} />
           ) : (
             <MemberPanel tab={tab} label={item?.label ?? tab} />
           )}
