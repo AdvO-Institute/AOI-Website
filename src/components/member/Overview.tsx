@@ -32,6 +32,7 @@ import { CERT_SHORT } from '@/lib/chips'
 import { session } from '@/lib/supabase'
 import { HUDDLE_SLUG, nthWeekday } from '@/content/calendar'
 import { RoleChips } from './MemberShell'
+import EventsPanel from './EventsPanel'
 
 const MIN = 60_000
 const HOUR = 60 * MIN
@@ -140,6 +141,10 @@ export default function Overview({ onOpen }: { onOpen: (tab: string, event?: str
   const [reports, setReports] = useState<ReportDue[]>([])
   const [att, setAtt] = useState<Attention>(EMPTY)
   const [now, setNow] = useState(() => Date.now())
+  /* An event whose card is open here, over the Overview; `rev` reloads after it closes. */
+  const [focus, setFocus] = useState<string | null>(null)
+  const [rev, setRev] = useState(0)
+  const openTab = (tab: string, event?: string) => (tab === 'events' && event ? setFocus(event) : onOpen(tab))
 
   // The clock the alerts read: every 30 seconds, so they escalate without a reload.
   useEffect(() => {
@@ -164,7 +169,7 @@ export default function Overview({ onOpen }: { onOpen: (tab: string, event?: str
     return () => {
       cancelled = true
     }
-  }, [access.person?.id])
+  }, [access.person?.id, rev])
 
   useEffect(() => {
     let cancelled = false
@@ -235,7 +240,7 @@ export default function Overview({ onOpen }: { onOpen: (tab: string, event?: str
       </div>
 
       {next ? (
-        <EventBand next={next} zoom={zoom?.slug === next.slug ? zoom.url : null} now={now} onOpen={onOpen} />
+        <EventBand next={next} zoom={zoom?.slug === next.slug ? zoom.url : null} now={now} onOpen={openTab} />
       ) : regs !== null ? (
         <NextToBook events={events} tier={access.tier} regKey={regKey} register={register} onOpen={onOpen} now={now} />
       ) : null}
@@ -299,7 +304,7 @@ export default function Overview({ onOpen }: { onOpen: (tab: string, event?: str
                   <ul className="ov-regs">
                     {booked.map((b) => (
                       <li key={b.slug}>
-                        <button type="button" className="ov-link" onClick={() => onOpen('events', b.slug)}>{b.title}</button>
+                        <button type="button" className="ov-link" onClick={() => openTab('events', b.slug)}>{b.title}</button>
                         <span className="num">{whenText(b)}</span>
                       </li>
                     ))}
@@ -310,6 +315,8 @@ export default function Overview({ onOpen }: { onOpen: (tab: string, event?: str
           </tbody>
         </table>
       </section>
+
+      {focus && <EventsPanel focus={focus} onDone={(found) => { const f = focus; setFocus(null); setRev((n) => n + 1); if (!found) onOpen('events', f) }} />}
 
       {access.tier === 'guest' && access.roles.length === 0 && (
         <div className="ma-note">
