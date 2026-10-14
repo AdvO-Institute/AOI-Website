@@ -7,7 +7,7 @@
  * phone the viewer's own access lets the database return.
  * -------------------------------------------------------------------------- */
 import { createContext, useContext, useEffect, useState } from 'react'
-import { orgPeople, orgCommittees, OFFICERS, personName, holds } from '@/lib/queries/org'
+import { orgPeople, orgCommittees, orgBoardTerms, siteHeadshot, OFFICERS, personName, holds } from '@/lib/queries/org'
 import type { OrgPerson, OrgCommittee } from '@/lib/queries/org'
 import { Head } from './opsUi'
 
@@ -17,7 +17,8 @@ const Pick = createContext<(p: OrgPerson) => void>(() => {})
 
 function Face({ p }: { p: OrgPerson }) {
   const [broken, setBroken] = useState(false)
-  return <span className="org-av" aria-hidden="true">{p.photo_url && !broken ? <img src={p.photo_url} alt="" loading="lazy" onError={() => setBroken(true)} /> : initials(p)}</span>
+  const src = p.photo_url || siteHeadshot(p)
+  return <span className="org-av" aria-hidden="true">{src && !broken ? <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} /> : initials(p)}</span>
 }
 
 /** A name that opens the person's card; `face` adds the thumbnail. */
@@ -42,9 +43,16 @@ export default function OrgPanel() {
   useEffect(() => {
     let off = false
     void (async () => {
-      const [p, c] = await Promise.all([orgPeople(), orgCommittees()])
+      const [p, c, terms] = await Promise.all([orgPeople(), orgCommittees(), orgBoardTerms()])
       if (off) return
-      setRows(p.rows); setComs(c); setError(p.error ?? null)
+      /* A seated board term counts as a board seat even if the role was never assigned. */
+      const rows = [...p.rows]
+      for (const t of terms) {
+        const have = rows.find((x) => x.id === t.id) ?? (rows.push({ ...t, person_roles: [...t.person_roles] }), rows[rows.length - 1]!)
+        if (!holds(have, 'board_member')) have.person_roles = [...have.person_roles, { role_key: 'board_member', committee_id: null }]
+      }
+      rows.sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''))
+      setRows(rows); setComs(c); setError(p.error ?? null)
     })()
     return () => { off = true }
   }, [])
