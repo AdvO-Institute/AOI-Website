@@ -3298,6 +3298,29 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .org-seat.open { border-style: dashed; }
 .org-dirs { margin-top: 12px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .org-dirs span, .org-mem span { font-family: var(--font-label); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-content-muted); margin-right: 4px; }
+/* Org chart people: a thumbnail and a name that opens the contact card. */
+.org-who { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 2px 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.org-who:hover b, .org-who:focus-visible b { text-decoration: underline; text-underline-offset: 3px; }
+.org-av { width: 34px; height: 34px; border-radius: 999px; overflow: hidden; flex: 0 0 auto; display: grid; place-items: center; background: var(--color-surface-inverse); color: var(--color-brand-accent); font-family: var(--font-display); font-weight: 700; font-size: 12px; }
+.org-av img { width: 100%; height: 100%; object-fit: cover; }
+/* On the chart itself: the seat's title on top, then a square photo with the name under it. */
+.org-people { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 8px; width: 100%; }
+.org-seat .org-who, .org-dirs .org-who { flex-direction: column; gap: 6px; width: 150px; text-align: center; }
+.org-seat .org-who b, .org-dirs .org-who b { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.org-seat .org-av, .org-dirs .org-av { width: 96px; height: 96px; border-radius: var(--radius-control); font-size: 26px; border: 2px solid var(--color-surface-inverse); }
+.org-com .org-seat .org-av { width: 72px; height: 72px; font-size: 20px; }
+.org-seat i { align-self: center; padding: 10px 0; }
+.org-dirs { flex-direction: column; align-items: stretch; }
+.org-mem .org-who, .org-mem .org-memname { display: inline; padding: 0; }
+.org-mem .org-who b { font-weight: inherit; }
+.org-dirs span.org-av, .org-mem span.org-memname { font-family: var(--font-display); letter-spacing: 0; text-transform: none; color: var(--color-brand-accent); margin-right: 0; }
+.org-mem span.org-memname { font-family: inherit; font-size: inherit; color: inherit; }
+.org-card .ctc-top .org-av { width: 64px; height: 64px; font-size: 20px; border: 1.5px solid var(--color-brand-accent); background: var(--color-surface-inverse-raised); }
+.org-line-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.org-line-item:last-child { border-bottom: 0; }
+.org-line-item > span:first-child { width: 60px; font-family: var(--font-label); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-content-muted); }
+.org-line-item b { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.org-acts { display: flex; gap: 6px; }
 .org-line { width: 2px; height: 22px; background: var(--color-border-strong); margin: 0 auto; }
 .org-coms { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .org-com { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--color-surface-base); }
