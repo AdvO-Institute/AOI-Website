@@ -25,7 +25,7 @@ Button: Register for the Conference
 
 ## Benefits
 Heading: Why doctors come to the Conference
-- Practical Clinical Topics: The dizzy patient, why a correction doesn’t hold, scar tissue, and more, with two hands-on labs where you practice what you’ve just learned.
+- Practical Clinical Topics: The dizzy patient, the myodural bridge, scar tissue, and more, with two hands-on labs where you practice what you’ve just learned.
 - Your Colleagues, in One Room: Talk through hard cases with doctors who do what you do, and keep up with imaging and research together instead of on your own.
 - 14 CE Hours: Live, in-person instruction through Sherman College of Chiropractic. Check your state’s status below.
 - Shape the Year Ahead: The research project, the instructor pathway and the 2027 announcements happen here, with members in the room.
