@@ -32,6 +32,14 @@ export type ResourcePage = {
 
 const FUNDAMENTALS = ['fund1', 'fund2', 'fund3'] as const
 
+/** On every Fundamentals session page, after its own handouts. */
+const GLOSSARY: Resource = {
+  title: 'New Terms & Glossary',
+  tag: 'Glossary',
+  note: 'The Advanced Orthogonal vocabulary in one place.',
+  href: 'https://drive.google.com/file/d/1_9JtsFBGjF0w0Mdi8w8IS_Ai1HroIh_Z/view?usp=drive_link',
+}
+
 /** Handouts and links for each page, by slug. A page left out has none yet. */
 const MATERIALS: Record<string, Resource[]> = {
   'f1.1': [
@@ -42,22 +50,18 @@ const MATERIALS: Record<string, Resource[]> = {
       href: 'https://drive.google.com/file/d/1kz4ZVOAYzwVHpGV_6cySS05mGpxYsIFg/view?usp=sharing',
     },
     {
-      title: 'New Terms & Glossary',
-      tag: 'Glossary',
-      note: 'The Advanced Orthogonal vocabulary in one place.',
-      href: 'https://drive.google.com/file/d/1_9JtsFBGjF0w0Mdi8w8IS_Ai1HroIh_Z/view?usp=drive_link',
+      title: 'The Rat Kyphoscoliosis Study',
+      tag: 'Reading · PDF',
+      note: 'Barrios 1992 in plain English: what they did and what it showed.',
+      href: 'https://drive.google.com/file/d/1y4zCpEXKaJqZv0DdPVxjOBeEu99jaQlS/view?usp=sharing',
     },
+  ],
+  'f1.2': [
     {
       title: 'Patient History Clues to Upper Cervical',
       tag: 'Handout',
       note: 'What in a patient’s history points to an upper cervical problem.',
       href: 'https://drive.google.com/file/d/1Od3PUWZ_3SmoK8TzodAVhRVTFGIElTLS/view?usp=drive_link',
-    },
-    {
-      title: 'The Rat Kyphoscoliosis Study',
-      tag: 'Reading · PDF',
-      note: 'Barrios 1992 in plain English: what they did and what it showed.',
-      href: 'https://drive.google.com/file/d/1y4zCpEXKaJqZv0DdPVxjOBeEu99jaQlS/view?usp=sharing',
     },
   ],
 }
@@ -69,7 +73,7 @@ export const RESOURCE_PAGES: ResourcePage[] = [
   { slug: 'intensive', seminar: 'intensive' as const },
   { slug: 'bootcamp', seminar: 'bootcamp' as const },
   { slug: 'annual-conference', seminar: 'conference' as const },
-].map((page) => ({ ...page, items: MATERIALS[page.slug] ?? [] }))
+].map((page) => ({ ...page, items: [...(MATERIALS[page.slug] ?? []), ...('session' in page ? [GLOSSARY] : [])] }))
 
 type AgendaDay = { items: { title: string }[] }
 
