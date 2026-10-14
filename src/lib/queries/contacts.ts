@@ -10,7 +10,7 @@
  * committee chair (is_membership_manager) read and write; everyone else
  * only sees themselves.
  * -------------------------------------------------------------------------- */
-import { select, patch, insert, remove, headers, SB_URL, ensureSession, rpcResult } from '@/lib/supabase'
+import { select, patch, insert, remove, headers, SB_URL, ensureSession, rpcResult, searchSelect } from '@/lib/supabase'
 
 export const TECHNIQUES = ['Advanced Orthogonal', 'Atlas Orthogonal', 'Atlas Orthometrics', 'Orthospinology', 'EPIC', 'NUCCA', 'Blair']
 export const ROLE_LABEL: Record<string, string> = {
@@ -199,3 +199,12 @@ async function peopleOp(name: string, args: Record<string, unknown>): Promise<Pe
 }
 export const mergePeople = (keep: string, drop: string) => peopleOp('merge_people', { p_keep: keep, p_drop: drop })
 export const deletePerson = (id: string) => peopleOp('delete_person', { p_id: id })
+
+/** Name search for the merge picker, with enough to tell two records apart. */
+export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_city: string | null }
+export async function findPeople(q: string): Promise<MergeHit[]> {
+  const t = q.trim().replace(/[,.*()]/g, '')
+  if (t.length < 2) return []
+  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_city&${f}&order=last_name.asc&limit=${n}`)
+  return r.data ?? []
+}

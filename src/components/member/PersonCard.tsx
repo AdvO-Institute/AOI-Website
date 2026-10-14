@@ -402,7 +402,7 @@ export function PersonCard({ p: given, newStatus = 'never', vendorReady = false,
             {activeBoard && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => void endSeat()}>End board service</button></div>}
             <Sec title="Instructor" items={(p.instructor_records ?? []).map((i) => kv(i.level === 'senior_instructor' ? 'Senior instructor' : 'Instructor',`${i.status ?? ''}${i.technique ? ` · ${i.technique}` : ''}${i.instructor_date ? ` · since ${fmtD(i.instructor_date)}` : ''}`))} />
             {instr && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => void endInstr()}>End instructor service</button></div>}
-            {canRoles && !isNew && !editing && <><div className="sec">Duplicate or removal</div><div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => setMerging(true)}>Merge with another record…</button> <button type="button" className="b s-btn on-light xs" onClick={() => void confirmDelete(p).then((r) => finished(r, 'Deleted.'))}>Delete this person</button></div></>}
+            {canRoles && !isNew && !editing && <><div className="sec">Duplicate or removal</div><div className="act merge-act"><button type="button" className="b s-btn on-light xs" onClick={() => setMerging(true)}>Merge with another record…</button><button type="button" className="b s-btn on-light xs" onClick={() => void confirmDelete(p).then((r) => finished(r, 'Deleted.'))}>Delete this person</button></div></>}
           </>)}
 
           {tab === 'certification' && <>

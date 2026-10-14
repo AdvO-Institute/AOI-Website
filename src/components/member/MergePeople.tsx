@@ -5,11 +5,12 @@
  * choosing and the confirming.
  * -------------------------------------------------------------------------- */
 import { useEffect, useState } from 'react'
-import { searchPeople, type PersonHit } from '@/lib/queries/eventsAdmin'
-import { mergePeople, deletePerson, type PeopleOp } from '@/lib/queries/contacts'
+import { mergePeople, deletePerson, findPeople, type PeopleOp, type MergeHit } from '@/lib/queries/contacts'
 import { Modal, askConfirm } from './opsUi'
 
-type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null }
+type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_city?: string | null }
+/** What tells two same-name records apart: email, membership, city. */
+const detail = (p: Who) => [p.email ?? 'no email', p.membership_status, p.practice_city].filter(Boolean).join(' · ')
 const name = (p: Who) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
 const NOT_YET = 'Merging and deleting are not switched on yet. Chris needs to add them on the database side.'
 
@@ -23,13 +24,13 @@ export async function confirmDelete(p: Who): Promise<PeopleOp | null> {
 
 export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
   const [q, setQ] = useState('')
-  const [hits, setHits] = useState<PersonHit[]>([])
-  const [other, setOther] = useState<PersonHit | null>(null)
+  const [hits, setHits] = useState<MergeHit[]>([])
+  const [other, setOther] = useState<MergeHit | null>(null)
   const [keepThis, setKeepThis] = useState(false)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     let off = false
-    const t = setTimeout(() => void searchPeople(q).then((r) => { if (!off) setHits(r.filter((h) => h.id !== p.id)) }), 250)
+    const t = setTimeout(() => void findPeople(q).then((r) => { if (!off) setHits(r.filter((h) => h.id !== p.id)) }), 250)
     return () => { off = true; clearTimeout(t) }
   }, [q, p.id])
 
@@ -37,7 +38,8 @@ export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => voi
   const drop = other && (keepThis ? other : p)
   async function go() {
     if (!keep || !drop) return
-    if (!(await askConfirm(`Merge into ${name(keep)}?`, { body: `Everything on ${name(drop)} (registrations, payments, certifications, roles, notes and the login) moves to ${name(keep)}, blanks are filled in from it, and the duplicate is removed. This cannot be undone.`, ok: 'Merge', danger: true }))) return
+    const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
+    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed. This cannot be undone.`, ok: 'Merge', danger: true }))) return
     setBusy(true); const r = await mergePeople(keep.id, drop.id); setBusy(false)
     onDone(r, keep.id)
   }
@@ -48,12 +50,12 @@ export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => voi
       {!other ? <>
         <label className="flabel" htmlFor="merge-q">The other record</label>
         <input id="merge-q" className="fi" autoFocus autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a first or last name" />
-        <div className="merge-hits">{hits.map((h) => <button type="button" key={h.id} className="merge-hit" onClick={() => setOther(h)}>{name(h)}</button>)}
+        <div className="merge-hits">{hits.map((h) => <button type="button" key={h.id} className="merge-hit" onClick={() => setOther(h)}><b>{name(h)}</b><span>{detail(h)}</span></button>)}
           {q.trim().length >= 2 && hits.length === 0 && <p className="muted" style={{ margin: '8px 0 0' }}>No one else by that name.</p>}</div>
       </> : <>
         <div className="flabel">Keep which record?</div>
-        <label className="merge-pick"><input type="radio" name="keep" checked={!keepThis} onChange={() => setKeepThis(false)} /> {name(other)} <span className="muted">(the one you found)</span></label>
-        <label className="merge-pick"><input type="radio" name="keep" checked={keepThis} onChange={() => setKeepThis(true)} /> {name(p)} <span className="muted">(this card{p.email ? ` · ${p.email}` : ''})</span></label>
+        <label className="merge-pick"><input type="radio" name="keep" checked={!keepThis} onChange={() => setKeepThis(false)} /> <span><b>{name(other)}</b> <span className="muted">the one you found · {detail(other)}</span></span></label>
+        <label className="merge-pick"><input type="radio" name="keep" checked={keepThis} onChange={() => setKeepThis(true)} /> <span><b>{name(p)}</b> <span className="muted">this card · {detail(p)}</span></span></label>
         <button type="button" className="b s-btn on-light xs" style={{ marginTop: 10 }} onClick={() => setOther(null)}>Pick a different record</button>
       </>}
     </div>
