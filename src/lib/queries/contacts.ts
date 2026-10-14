@@ -10,7 +10,7 @@
  * committee chair (is_membership_manager) read and write; everyone else
  * only sees themselves.
  * -------------------------------------------------------------------------- */
-import { select, patch, insert, remove, headers, SB_URL, ensureSession } from '@/lib/supabase'
+import { select, patch, insert, remove, headers, SB_URL, ensureSession, rpcResult } from '@/lib/supabase'
 
 export const TECHNIQUES = ['Advanced Orthogonal', 'Atlas Orthogonal', 'Atlas Orthometrics', 'Orthospinology', 'EPIC', 'NUCCA', 'Blair']
 export const ROLE_LABEL: Record<string, string> = {
@@ -181,3 +181,21 @@ export async function saveRoles(personId: string, seats: Seat[], keepInstructorL
   const rows = seats.map((s) => ({ person_id: personId, role_key: s.role_key, committee_id: s.committee_id, instructor_level: s.role_key === 'instructor' ? keepInstructorLevel : null }))
   return insert('person_roles', rows)
 }
+
+/* Merging two records for the same person, and deleting a record. Both are
+ * database functions on the Supabase side (merge_people, delete_person) that
+ * check the caller is Board or full admin and do the work in one step: a merge
+ * moves every registration, payment, role, note and the login onto the record
+ * kept, fills its blanks, then removes the other; a delete refuses a record
+ * with history. Until they exist, `missing` says so. */
+export type PeopleOp = { ok: boolean; error?: string; missing?: boolean }
+async function peopleOp(name: string, args: Record<string, unknown>): Promise<PeopleOp> {
+  const r = await rpcResult(name, args)
+  if (!r.error) return { ok: true }
+  const missing = r.status === 404 || /PGRST202|Could not find the function/i.test(r.error)
+  let msg = r.error
+  try { msg = (JSON.parse(r.error) as { message?: string }).message ?? msg } catch { /* plain text */ }
+  return { ok: false, error: msg, missing }
+}
+export const mergePeople = (keep: string, drop: string) => peopleOp('merge_people', { p_keep: keep, p_drop: drop })
+export const deletePerson = (id: string) => peopleOp('delete_person', { p_id: id })
