@@ -11,6 +11,7 @@
 import { friendlyError } from '@/lib/friendlyError'
 import { SafeLink, askConfirm } from './opsUi'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from '@/lib/router'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useRegKey } from '@/lib/queries/CatalogProvider'
 import { useRegistration } from '@/components/blocks/RegistrationDialog'
@@ -92,7 +93,9 @@ function Chips({ e }: { e: EventRow }) {
   )
 }
 
-export default function EventsPanel() {
+/** With `focus`, shows only that event's card and the dialogs it leads to, for
+ * the Overview; `onDone` runs when the last one closes (false: not found). */
+export default function EventsPanel({ focus, onDone }: { focus?: string; onDone?: (found: boolean) => void } = {}) {
   const toast = useToast()
   const { access, can, viewingAsMember } = useAccess()
   const canManage = can('full_admin') || can('board') || can('manage_seminars')
@@ -162,6 +165,19 @@ export default function EventsPanel() {
     setRows(canManage ? r.rows : r.rows.filter((e) => e.status === 'published' && e.visibility !== 'leadership' && e.visibility !== 'board')); setLoading(false)
   }, [canManage])
   useEffect(() => { void load() }, [load])
+  /* Arriving from Overview's "Event details" opens that event's card, once. */
+  const { state } = useLocation()
+  const asked = focus ?? (state as { event?: string } | null)?.event ?? null
+  const shown = useRef<string | null>(null)
+  useEffect(() => {
+    if (!asked || loading || shown.current === asked) return
+    shown.current = asked
+    const e = rows.find((x) => x.slug === asked); if (e) setOpen(e.id); else if (focus) onDone?.(false)
+  }, [asked, rows, loading])
+  /* On the Overview, hand back once every dialog is closed. */
+  const idle = open == null && !edit && !confirm && !cancelFor && !requestFor && !regsFor && room == null
+  const busy = useRef(false)
+  useEffect(() => { if (!idle) busy.current = true; else if (focus && busy.current) { busy.current = false; onDone?.(true) } }, [idle])
   useEffect(() => { if (canManage) { void loadVenues().then(setVenues); void loadCommittees().then(setCommittees) } }, [canManage])
 
   /* The big number on each tile counts what is still ahead; the mixed tiles
@@ -201,8 +217,9 @@ export default function EventsPanel() {
   async function onDuplicate(e: EventRow) {
     const r = await duplicateEvent(e, meId)
     if (r.error) { toast('The event could not be copied. ' + friendlyError(r.error)); return }
-    await load(); setOpen(null)
+    await load()
     const copy = (await listEvents()).rows.find((x) => x.id === r.id)
+    setOpen(null)
     toast('Duplicated as a draft — change the dates and publish when ready')
     if (copy) setEdit(copy)
   }
@@ -217,7 +234,7 @@ export default function EventsPanel() {
     setConfirm(null); await load(); toast('Unpublished. The event is saved as a draft.')
   }
 
-  if (loading) return <><h1>Events</h1><div className="ma-sub">Reading the Institute calendar…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
+  if (loading) return focus ? null : <><h1>Events</h1><div className="ma-sub">Reading the Institute calendar…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
 
   const upcoming = list.filter((e) => !isPast(e))
   const past = list.filter((e) => isPast(e)).reverse()
@@ -272,27 +289,7 @@ export default function EventsPanel() {
   const months: Record<string, { y: number; m: number; items: EventRow[] }> = {}
   if (layout === 'cal') for (const e of list) { const z = zoned(e.starts_at, shownZone(e)); if (!z) continue; const k = `${z.y}-${String(z.m).padStart(2, '0')}`; (months[k] ??= { y: z.y, m: z.m, items: [] }).items.push(e) }
   const current = open ? rows.find((x) => x.id === open) ?? null : null
-
-  return (
-    <>
-      <div className="cert-head">
-        <div><h1>Events</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>{canManage ? 'Every seminar, course, conference, board meeting, committee sync and deadline — one list, in date order. Click a card for the full details.' : 'Your events — RSVP, register, and see what’s coming. Click one for the details.'}</div></div>
-        {canManage && <div className="cert-actions"><button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Create event</button><button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export CSV</button></div>}
-      </div>
-      {error && <div className="cert-err" role="alert">{error}</div>}
-      <div className={`cert-tiles${canManage ? '' : ' three'}`}>{(canManage ? TABS : MEMBER_TABS).map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b><i>{split[k] ?? ' '}</i></button>)}</div>
-      <div className="cert-search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-        <input type="text" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQ('')} autoComplete="off" placeholder="Search by title, venue, category, speaker…" aria-label="Search events" />
-        {q && <button type="button" className="clr" aria-label="Clear search" onClick={() => setQ('')}>×</button>}
-      </div>
-      <div className="evt-bar"><span className="cnt">{list.length} {list.length === 1 ? 'event' : 'events'}{q ? ` matching “${q}”` : ''} · sorted by date</span>
-        <div className="evt-segs">{!narrow && <div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div>}<div className="evt-seg"><button type="button" className={layout === 'list' ? 'on' : ''} onClick={() => setLayout('list')}>List</button><button type="button" className={layout === 'cal' ? 'on' : ''} onClick={() => setLayout('cal')}>Calendar</button></div></div></div>
-      {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `Nothing matches “${q}”.` : 'No events in this list.'}</div>}
-      {layout === 'list'
-        ? <>{upcoming.length > 0 && <><div className="evt-grp">Upcoming</div>{compact ? table(upcoming) : upcoming.map(card)}</>}{past.length > 0 && <><div className="evt-grp">Past</div>{compact ? table(past) : past.map(card)}</>}</>
-        : Object.keys(months).sort().map((k) => <div key={k}><div className="evt-grp">{MONL[months[k]!.m]} {months[k]!.y}</div>{compact ? table(months[k]!.items) : months[k]!.items.map(card)}</div>)}
-
+  const dialogs = <>
       {current && <DetailDialog e={current} canManage={canManage} onClose={() => setOpen(null)} onEdit={() => { setOpen(null); setEdit(current) }} onDuplicate={() => void onDuplicate(current)} onRegs={() => { setOpen(null); setRegsFor(current) }} onCheckin={canCheckin ? () => { setOpen(null); setRoom(current.id) } : undefined} attending={mine.has(current.slug ?? '')} onCancelRsvp={!canManage && !isPast(current) && freeReg(mine.get(current.slug ?? '')) ? () => setCancelFor(current) : undefined} onRequestCancel={!canManage && !isPast(current) && mine.has(current.slug ?? '') && !freeReg(mine.get(current.slug ?? '')) ? () => setRequestFor(current) : undefined} />}
       {edit && <FormDialog e={edit === 'new' ? null : edit} venues={venues} committees={committees} meId={meId} onClose={() => setEdit(null)} onSaved={async (m) => { setEdit(null); await load(); toast(m) }} onRemove={(e) => { setEdit(null); setConfirm(e) }} />}
       {confirm && (
@@ -323,6 +320,30 @@ export default function EventsPanel() {
       )}
       {regsFor && <RegsDialog e={regsFor} canManage={canManage} onClose={() => setRegsFor(null)} onBack={() => { setRegsFor(null); setOpen(regsFor.id) }} onChanged={load} onCheckin={canCheckin ? () => { setRegsFor(null); setRoom(regsFor.id) } : undefined} />}
       {room != null && <CheckinRoom eventId={room} onClose={() => { setRoom(null); void load() }} />}
+  </>
+  if (focus) return dialogs
+
+  return (
+    <>
+      <div className="cert-head">
+        <div><h1>Events</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>{canManage ? 'Every seminar, course, conference, board meeting, committee sync and deadline — one list, in date order. Click a card for the full details.' : 'Your events — RSVP, register, and see what’s coming. Click one for the details.'}</div></div>
+        {canManage && <div className="cert-actions"><button type="button" className="b p-btn sm" onClick={() => setEdit('new')}>+ Create event</button><button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export CSV</button></div>}
+      </div>
+      {error && <div className="cert-err" role="alert">{error}</div>}
+      <div className={`cert-tiles${canManage ? '' : ' three'}`}>{(canManage ? TABS : MEMBER_TABS).map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b><i>{split[k] ?? ' '}</i></button>)}</div>
+      <div className="cert-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input type="text" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQ('')} autoComplete="off" placeholder="Search by title, venue, category, speaker…" aria-label="Search events" />
+        {q && <button type="button" className="clr" aria-label="Clear search" onClick={() => setQ('')}>×</button>}
+      </div>
+      <div className="evt-bar"><span className="cnt">{list.length} {list.length === 1 ? 'event' : 'events'}{q ? ` matching “${q}”` : ''} · sorted by date</span>
+        <div className="evt-segs">{!narrow && <div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div>}<div className="evt-seg"><button type="button" className={layout === 'list' ? 'on' : ''} onClick={() => setLayout('list')}>List</button><button type="button" className={layout === 'cal' ? 'on' : ''} onClick={() => setLayout('cal')}>Calendar</button></div></div></div>
+      {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `Nothing matches “${q}”.` : 'No events in this list.'}</div>}
+      {layout === 'list'
+        ? <>{upcoming.length > 0 && <><div className="evt-grp">Upcoming</div>{compact ? table(upcoming) : upcoming.map(card)}</>}{past.length > 0 && <><div className="evt-grp">Past</div>{compact ? table(past) : past.map(card)}</>}</>
+        : Object.keys(months).sort().map((k) => <div key={k}><div className="evt-grp">{MONL[months[k]!.m]} {months[k]!.y}</div>{compact ? table(months[k]!.items) : months[k]!.items.map(card)}</div>)}
+
+      {dialogs}
     </>
   )
 }
