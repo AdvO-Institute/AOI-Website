@@ -25,6 +25,7 @@ import InternshipsPanel from './InternshipsPanel'
 import CollegesPanel from './CollegesPanel'
 import InstructorsPanel from './InstructorsPanel'
 import ResearchPanel from './ResearchPanel'
+import ResearchLibraryPanel from './ResearchLibraryPanel'
 import TasksPanel from './TasksPanel'
 import { findNav } from '@/lib/nav'
 import ReportsPanel from './ReportsPanel'
@@ -109,6 +110,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'colleges') return <CollegesPanel />
   if (tab === 'instructors') return <InstructorsPanel />
   if (tab === 'research') return <ResearchPanel />
+  if (tab === 'library') return <ResearchLibraryPanel />
   if (tab === 'tasks') return <TasksPanel />
   if (tab === 'reports') return <ReportsPanel />
   if (tab.startsWith('c-')) return <ReportsPanel committee={findNav(tab)?.committee} key={tab} />
