@@ -87,10 +87,11 @@ export const NAV: NavItem[] = [
   { key: 'calendar', label: 'Calendar', group: 'events', always: true },
 
   /* -------------------------------------------------------------- library --
-   * The Research Committee's Upper Cervical Research Library, open to every
-   * signed-in person. Separate from Committees → Research, which is the
+   * The Research Committee's Upper Cervical Research Library. Board, the
+   * administrators and the Research Director for now; every member later
+   * (James, 2026-10-20). Separate from Committees → Research, which is the
    * committee's own project tool (#213). */
-  { key: 'library', label: 'Research Library', group: 'library', always: true },
+  { key: 'library', label: 'Research Library', group: 'library', any: ['board', 'full_admin', 'manage_research'] },
 
   /* ----------------------------------------------------------------- work -- */
   // Tasks: anyone with a role can be assigned, so anyone with a role sees the tab.

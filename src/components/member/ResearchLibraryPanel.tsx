@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------------
  * Research Library — the Research Committee's Upper Cervical Research
- * Library, for every signed-in person (#213).
+ * Library (#213). Who sees the tab is set in src/lib/nav.ts.
  *
  * The records are a static export of the committee's library, kept in the
  * repo at public/data/research-library/publications.json and fetched when
