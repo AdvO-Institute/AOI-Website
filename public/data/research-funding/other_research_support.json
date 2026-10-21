@@ -1,0 +1,1780 @@
+{
+  "schema": "aoi-funding-public-other-support-v1",
+  "generated_from": "funding/data (canonical datasets)",
+  "as_of": "2026-10-20",
+  "record_count": 21,
+  "records": [
+    {
+      "record_id": "PRG-0125",
+      "program_name": "IPRRF Travel Grants (conference presentations)",
+      "funding_organization": "Ida P. Rolf Research Foundation",
+      "mechanism": "Travel or conference award",
+      "award_amount": "up to USD 1,000",
+      "award_min": null,
+      "award_max": 1000,
+      "currency": "USD",
+      "research_categories": "Structural Integration and related disciplines",
+      "eligible_study_types": "clinical trials; case studies; clinical audits; quality of life; mechanistic studies",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "One author must be a certified Structural Integration practitioner or eligible for IASI membership; work must be accepted for presentation; reimbursement after the conference.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://rolfresearchfoundation.org/grants-awards/travel-awards",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Practitioners presenting accepted work may apply; one author must be a certified Structural Integration practitioner.",
+      "details": {
+        "organization_id": "ORG-0173",
+        "organization_url": "https://rolfresearchfoundation.org/",
+        "organization_type": "nonprofit",
+        "funding_category": [
+          "travel_award"
+        ],
+        "mechanism_type": "travel_award",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "individual_researcher"
+        ],
+        "applicant_restrictions": "For clinical practitioners/researchers presenting accepted oral or poster work; one author must be a certified Structural Integration practitioner or IASI-eligible; reimbursement-based.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "conditional",
+        "membership_details": "One author must be a certified SI practitioner or eligible for IASI membership.",
+        "geographic_eligibility": [],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Practitioners are named as eligible and no affiliation is stated, but an SI-certified co-author is required.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "online application",
+          "acceptance letter and abstract",
+          "author CVs",
+          "expense report with receipts within 30 days"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "permitted",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Travel reimbursement only; meals and incidentals excluded; half paid after publication.",
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Small travel support; requires a Structural Integration co-author.",
+        "aoi_affiliation_reasoning": "Travel grants of up to USD 1,000 are offered for oral or poster presentations, and \"one author must be a certified Structural Integration practitioner or eligible for IASI membership\" (EVD-0535); no institutional affiliation is required. A DC can apply alone without AOI if an SI-certified co-author is on the work, so the value is Independent, with the co-author rule kept as a restriction.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0535"
+        ],
+        "classification_change_note": "unchanged: practitioners presenting accepted work may apply without an institution.",
+        "publication_reason": "Small travel reimbursement for presenting completed work; usable by a DC with an SI co-author.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Fetched the travel-awards page. Confirmed: up to USD 1,000 reimbursement ($500 after presentation, up to $500 after peer-reviewed acceptance), for 'Clinical Practitioners/Researchers' presenting SI-related findings; one author must be a certified Structural Integration practitioner (IASI member or eligible); meals/incidentals excluded. A travel award for presenting completed work, topic-restricted to Structural Integration. 'Conditional' stands. Non-ISO 'rolling' deadline cleared.",
+        "evidence_ids": [
+          "EVD-0535",
+          "EVD-0536"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0047",
+      "program_name": "ASB Research Travel Grant",
+      "funding_organization": "American Society of Biomechanics",
+      "mechanism": "Travel or conference award",
+      "award_amount": "up to USD 1,500",
+      "award_min": null,
+      "award_max": 1500,
+      "currency": "USD",
+      "research_categories": "biomechanics",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "ASB Regular membership (USD 140 a year; for individuals with an established professional reputation in biomechanics). A host institution or lab must agree to receive the visitor. Not for travel to the ASB annual meeting.",
+      "application_deadline_or_cycle": "annual; last known deadline 2026-01-15; next cycle not yet published",
+      "application_status": "Recurring; next cycle not yet posted",
+      "official_program_url": "https://asbweb.org/?p=255444",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Open to all ASB Regular members (USD 140 a year). Pays up to USD 1,500 travel to a host lab for research collaboration. Not for the annual meeting.",
+      "details": {
+        "organization_id": "ORG-0053",
+        "organization_url": "https://asbweb.org/",
+        "organization_type": "scientific_society",
+        "funding_category": [
+          "travel_award"
+        ],
+        "mechanism_type": "travel_award",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "annual",
+        "known_deadlines": [
+          {
+            "date": "2026-01-15",
+            "cycle_label": "2026",
+            "evidence_id": "EVD-0166"
+          }
+        ],
+        "current_status": "recurring_expected",
+        "applicant_types_eligible": [
+          "individual_researcher",
+          "independent_clinician"
+        ],
+        "applicant_restrictions": "All ASB regular members; travel/lodging to host institution for research collaboration; not for annual meeting.",
+        "institutional_affiliation_required": "unknown",
+        "membership_required": "required",
+        "membership_details": "ASB Regular membership: USD 140 a year, for individuals with an established professional reputation in biomechanics; no degree, faculty or institutional rule stated. Early Career rate USD 80 within 5 years of terminal degree.",
+        "geographic_eligibility": [],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Open to any ASB regular member. ASB Regular membership (USD 140) is for individuals with an established professional reputation in biomechanics and sets no degree or faculty rule, so a DC active in biomechanics can join and apply individually. A host institution must receive the visitor.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "permitted",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": null,
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Could fund an AOI clinician to train in a biomechanics/motion-capture lab.",
+        "aoi_affiliation_reasoning": "ASB states the Research Travel Grant is \"open to all ASB regular members\" for travel to a host institution, not the annual meeting (EVD-0166). Regular membership is described as for individuals with an established professional reputation in biomechanics (USD 140), with no degree, faculty or institutional rule (round-3 finding R3C2-EVD-001). A DC can join and apply as an individual; membership is a condition the DC meets by joining, not a block, and no AOI or institutional sponsorship is needed, so the value is Independent.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0166"
+        ],
+        "classification_change_note": "unchanged: an individual DC who joins ASB as a Regular member can apply directly.",
+        "publication_reason": "Travel award, not project funding, but usable by an individual DC to train or collaborate in a biomechanics lab.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Re-fetched: up to $1,500 travel/lodging to a host institution, all ASB regular members, not for annual meeting; deadline January 15, 2026 (passed); the 2025 cycle was 'Not awarded'. ICE conditional appropriate (ASB regular membership for DCs unverified). Distinct program on shared page. Travel award, not research funding. Round 3 (classifier 2): ASB membership page fetched 2026-10-20; Regular membership (USD 140) is for 'individuals with an established professional reputation in biomechanics', with no degree, faculty or institutional rule; membership_details and independent_clinician_notes updated. ICE kept conditional (membership condition).",
+        "evidence_ids": [
+          "EVD-0166",
+          "EVD-0569"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0059",
+      "program_name": "ISSLS Prize for Lumbar Spine Research",
+      "funding_organization": "International Society for the Study of the Lumbar Spine",
+      "mechanism": "Prize for completed work",
+      "award_amount": "up to USD 20,000",
+      "award_min": null,
+      "award_max": 20000,
+      "currency": "USD",
+      "research_categories": "lumbar spine; biomechanics; clinical science",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "Unpublished full manuscript submitted to ISSLS and the European Spine Journal in the 15 August to 15 October window; at least one author must attend the ISSLS annual meeting at own expense.",
+      "application_deadline_or_cycle": "annual; last known deadline 2026-10-15; next cycle not yet published",
+      "application_status": "Closed; recurs (next cycle not yet posted)",
+      "official_program_url": "https://issls.org/the-issls-prize-for-lumbar-spine-research",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Prize for an unpublished lumbar spine manuscript; no membership or affiliation needed. Submit 15 August to 15 October; winners attend the meeting at their own cost.",
+      "details": {
+        "organization_id": "ORG-0061",
+        "organization_url": "https://issls.org/",
+        "organization_type": "scientific_society",
+        "funding_category": [
+          "prize_award"
+        ],
+        "mechanism_type": "prize_award",
+        "application_url": null,
+        "award_typical": 20000,
+        "funding_duration": null,
+        "application_cycle": "annual",
+        "known_deadlines": [
+          {
+            "date": "2026-10-15",
+            "cycle_label": "2027 Prize (closed)",
+            "evidence_id": "EVD-0190"
+          }
+        ],
+        "current_status": "closed",
+        "applicant_types_eligible": [
+          "individual_researcher",
+          "university_investigator",
+          "independent_clinician"
+        ],
+        "applicant_restrictions": "Unpublished full manuscript submitted simultaneously to European Spine Journal; author must attend meeting at own cost.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "International.",
+        "independent_clinician_eligibility": "eligible",
+        "independent_clinician_notes": "No membership or affiliation criterion stated; highly competitive.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": null,
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Lumbar focus; prize for completed high-level work.",
+        "aoi_affiliation_reasoning": "ISSLS awards the prize for a \"full, original article not previously published\" submitted to the ISSLS Prize and the European Spine Journal in the 15 August to 15 October window, and the winning author must attend the annual meeting at own expense (EVD-0190, EVD-0324); no membership, degree or affiliation criterion is listed (EVD-0190). Any author, including a DC in private practice, may submit as an individual, so the value is Independent.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0190",
+          "EVD-0324"
+        ],
+        "classification_change_note": "unchanged: open to any author with no membership or affiliation rule.",
+        "publication_reason": "Prize for completed lumbar spine research, open to any author; the 2027 cycle closed but it recurs annually.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "ISSLS Prize page re-fetched: up to three awards of USD 20,000 (Basic, Bioengineering, Clinical Science); full original unpublished manuscript submitted simultaneously to European Spine Journal in 15 Aug-15 Oct window; deadline Oct 15, 2026; 2027 applications now closed; winning author must attend 2027 ISSLS meeting in Montreal at own expense. No membership/affiliation stated. This is a PRIZE FOR COMPLETED WORK, not prospective research funding; category prize_award is correct; ICE 'eligible' retained only in the sense that no applicant restriction is stated. Notes amended to make the prize nature explicit.",
+        "evidence_ids": [
+          "EVD-0190",
+          "EVD-0324"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0057",
+      "program_name": "ASRF Case Study Project (in-kind case report support)",
+      "funding_organization": "Australian Spinal Research Foundation",
+      "mechanism": "In-kind support or credits",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": null,
+      "research_categories": "chiropractic case reports; quality of life; functional outcomes",
+      "eligible_study_types": "case report",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "Must be a chiropractor; patient consent form; case must fit the yearly ASRF theme (2026: vertebral subluxation and quality-of-life outcomes).",
+      "application_deadline_or_cycle": "annual; last known deadline 2026-08-02; next cycle not yet published",
+      "application_status": "Recurring; next cycle not yet posted",
+      "official_program_url": "https://spinalresearch.com.au/research/asrf-case-study-project/",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Any chiropractor worldwide may submit a case; ASRF writers prepare the report and you are named co-author. No cash. Annual, around early August.",
+      "details": {
+        "organization_id": "ORG-0022",
+        "organization_url": "https://spinalresearch.com.au/",
+        "organization_type": "nonprofit",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "in_kind_support",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "annual",
+        "known_deadlines": [
+          {
+            "date": "2026-08-02",
+            "cycle_label": "2026 submissions (closed)",
+            "evidence_id": "EVD-0186"
+          }
+        ],
+        "current_status": "recurring_expected",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "private_practice"
+        ],
+        "applicant_restrictions": "Chiropractors; patient consent form required; topic set by ASRF each round.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "unknown",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "Chiropractors around the globe.",
+        "independent_clinician_eligibility": "eligible",
+        "independent_clinician_notes": "Designed for practicing chiropractors; yields co-authorship and writing support, not money. Annual recurrence inferred.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": null,
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Directly usable by AOI private-practice members for case report publication; no funding. Note subluxation-framing.",
+        "aoi_affiliation_reasoning": "ASRF \"collects case information from Chiropractors around the globe\" and the submitter is \"named as Co-Author of the resulting case report\" (EVD-0186). No institutional, membership or national rule is published, so a DC in private practice takes part directly as an individual without AOI involvement, which makes the value Independent. It provides writing support, not money.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0186"
+        ],
+        "classification_change_note": "unchanged: any chiropractor can submit a case directly.",
+        "publication_reason": "In-kind case report writing support open to any chiropractor; the 2026 round closed but it runs annually.",
+        "confidence": "verified_official",
+        "qa_status": "verified",
+        "qa_notes": "ASRF Case Study Project page re-fetched: collects cases 'from Chiropractors around the globe'; submitter named co-author with ASRF writers; no payment; annual since 2021; 2026 deadline COB 2 Aug 2026 AEST (now passed); 2026 theme vertebral subluxation and quality-of-life outcomes. In-kind writing support, NOT a cash grant; funding_category 'other' and notes are honest. ICE eligible is accurate for this in-kind service.",
+        "evidence_ids": [
+          "EVD-0186"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0071",
+      "program_name": "CMCC Adjunct Professorship (research affiliation pathway)",
+      "funding_organization": "Canadian Memorial Chiropractic College",
+      "mechanism": "Other mechanism",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "CAD",
+      "research_categories": "chiropractic research",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "Recommendation by a CMCC Division Director; CV and evidence of expertise and scholarship (degree, publications); term appointment, usually 3 years.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://www.cmcc.ca/about-cmcc/documents/public-policies/Adjunct-Professorships.pdf",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Unpaid adjunct appointment for externally employed clinicians, on a CMCC director's recommendation. Gives ethics board access and a base for external grants; no internal funding.",
+      "details": {
+        "organization_id": "ORG-0077",
+        "organization_url": "https://www.cmcc.ca/",
+        "organization_type": "university",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "other",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": "Usually 3-year renewable term",
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "individual_researcher"
+        ],
+        "applicant_restrictions": "Appointment by recommendation of a Division Director to the VP Academic; requires CV and evidence of expertise and scholarship (e.g., degree, publications). Unpaid (honoraria possible).",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "CA"
+        ],
+        "geographic_notes": "No explicit geographic limit stated; practical involvement implies Toronto-area or remote collaboration.",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Not a grant. Gives externally employed clinicians REB access, library, equipment, grant administration and ability to apply to external agencies through CMCC; adjuncts excluded from CMCC internal research funds.",
+        "irb_requirements": "Access to CMCC Research Ethics Board for adjunct research initiatives.",
+        "application_requirements": [
+          "Division Director letter of support",
+          "CV"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Not a funding program.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Model of how chiropractic colleges can extend IRB/REB and grant-administration infrastructure to field clinicians; similar arrangements should be asked of US colleges.",
+        "aoi_affiliation_reasoning": "CMCC adjunct appointments are \"term academic appointments, usually for three years\" for clinicians normally employed elsewhere, made on a Division Director's letter of support and a CV judged on expertise and scholarship (EVD-0221). Adjuncts \"are given access to the Research Ethics Board (REB)\" and \"are eligible to apply through CMCC to external research granting agencies\" (EVD-0220). A DC in private practice can seek the appointment as an individual without AOI or other sponsorship, so the value is Independent; it is an affiliation route, not funding.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0220",
+          "EVD-0221"
+        ],
+        "classification_change_note": "unchanged: an individual DC can be appointed directly on a director's recommendation.",
+        "publication_reason": "Affiliation route that gives an individual DC ethics board access and an institutional base for external grants.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Official CMCC policy PDF re-fetched; confirms term appointments (usually 3 years) on Division Director recommendation and that adjuncts 'are not eligible to apply to the CMCC's internal research or professional development funds'. NOT a funding program: an unpaid academic-affiliation pathway that can provide REB access and an institutional base for external grant applications. 'open' means appointments are made on an ongoing recommendation basis, not an open call. Kept because affiliation is the main barrier for independent DCs, but it must not be counted as funding.",
+        "evidence_ids": [
+          "EVD-0220",
+          "EVD-0221",
+          "EVD-0348"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0113",
+      "program_name": "Emergent Ventures (individual grants and fellowships)",
+      "funding_organization": "Mercatus Center at George Mason University",
+      "mechanism": "Other mechanism",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "any field",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "Applicant at least 13; AI-written applications rejected; one application per applicant and project.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Unknown",
+      "official_program_url": "https://www.mercatus.org/emergentventures",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Open to any individual aged 13 or over worldwide. Funds scalable new ideas; clinical research is not a stated priority.",
+      "details": {
+        "organization_id": "ORG-0165",
+        "organization_url": "https://www.mercatus.org/",
+        "organization_type": "university",
+        "funding_category": [
+          "other",
+          "fellowship"
+        ],
+        "mechanism_type": "other",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "unknown",
+        "applicant_types_eligible": [
+          "individual_researcher",
+          "independent_clinician",
+          "small_team"
+        ],
+        "applicant_restrictions": "Open to individuals worldwide aged 13 or over; dedicated tranches (e.g., US science policy, travel for career development). AI-written applications rejected. Projects judged on scalable impact; clinical research is not a stated priority.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "Worldwide.",
+        "independent_clinician_eligibility": "eligible",
+        "independent_clinician_notes": "The only stated eligibility rule is age 13 or over; no affiliation requirement. Fit for a clinical study is uncertain because the program favours scalable 'zero to one' ideas.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "online application form"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "No cost rules published.",
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Clear eligibility for unaffiliated individuals, but focus is general innovation, not clinical research; award sizes are not published on the page.",
+        "aoi_affiliation_reasoning": "The only stated rule is \"Applicants must be at least 13 years old\", open to \"thinkers and doers worldwide\" (EVD-0496), with no affiliation, degree or membership requirement. A DC can apply alone without AOI, so the value is Independent, though the program favours scalable general-innovation ideas over clinical studies.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0496"
+        ],
+        "classification_change_note": "unchanged: any individual aged 13 or over may apply.",
+        "publication_reason": "General-innovation grants and fellowships open to any individual; not a research funder, but a usable route for a DC with a scalable idea.",
+        "confidence": "verified_official",
+        "qa_status": "verified",
+        "qa_notes": "mercatus.org/emergentventures returned HTTP 403 to curl; read via the WebFetch tool instead. Confirmed: 'Applicants must be at least 13 years old', worldwide 'thinkers and doers' with scalable 'zero to one' ideas, AI-written applications rejected, one application per applicant and project, dedicated tranches. No affiliation rule and no award sizes stated; whether applications are currently being reviewed is not stated, so 'unknown' status is right. 'Eligible' is supported (individuals, no affiliation requirement), but it is a general-innovation program, not a clinical research funder; relevance 'low' is right.",
+        "evidence_ids": [
+          "EVD-0496",
+          "EVD-0497"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0036",
+      "program_name": "Experiment.com research crowdfunding",
+      "funding_organization": "Experiment (Experiment.com)",
+      "mechanism": "Crowdfunding platform",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "all sciences",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Independent",
+      "additional_eligibility_requirements": "Project must pass staff review for clarity, scientific accuracy and feasibility; pages conflict on whether only US-based researchers are supported.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://experiment.com/start",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Crowdfunding, not a grant. Independent researchers may post projects; money comes from public backers, all-or-nothing, minus about 8% platform fee plus processing. Get IRB review for human-subjects work.",
+      "details": {
+        "organization_id": "ORG-0045",
+        "organization_url": "https://experiment.com/",
+        "organization_type": "corporate",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "crowdfunding",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "individual_researcher",
+          "small_team",
+          "nonprofit",
+          "university_investigator"
+        ],
+        "applicant_restrictions": "Staff review for clarity, scientific accuracy, feasibility; all-or-nothing funding.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": "Page states both US-only (FAQ) and US/UK/CA/AU.",
+        "independent_clinician_eligibility": "eligible",
+        "independent_clinician_notes": "Explicitly encourages independent science; funds raised from the public, not a grant. IRB not addressed on page - AOI should still obtain IRB for human-subjects work.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "conditional"
+        },
+        "allowable_expenses_notes": "Funds paid as gift to research organization with no indirect costs applied; ~8% platform + 2.9% + 30c processing on success. Budget categories not specified on page.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Practical for $1k-$10k pilot budgets when combined with AOI member networks; reputational and fundraising effort required.",
+        "aoi_affiliation_reasoning": "Experiment.com states 'You don't have to be at an established institution to do research, and we encourage independent science', and no membership or affiliation rule is stated (EVD-0131, EVD-0315). A DC in private practice can launch a campaign individually without AOI, so the value stays Independent; projects pass a staff review and funds come from the public on an all-or-nothing basis.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0131",
+          "EVD-0315"
+        ],
+        "classification_change_note": "unchanged: the platform expressly supports independent researchers outside institutions.",
+        "publication_reason": "Crowdfunding platform open to independent researchers; useful for small pilot budgets.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Start page fetched: 'You don't have to be at an established institution to do research'; all-or-nothing; 8% platform fee + 2.9% + 30c; staff review for clarity, scientific accuracy, feasibility; no membership or IRB requirement mentioned; country statements inconsistent (US/UK/CA/AU vs US-only in FAQ). This is crowdfunding from the public, not a grant: notes made explicit. 'eligible' kept (explicitly open to independent researchers). Added evidence covering membership_required.",
+        "evidence_ids": [
+          "EVD-0131",
+          "EVD-0132",
+          "EVD-0315"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0006",
+      "program_name": "PCORI Eugene Washington Engagement Award: Building Capacity for Small Organizations to Engage in Patient-Centered CER",
+      "funding_organization": "Patient-Centered Outcomes Research Institute",
+      "mechanism": "Other mechanism",
+      "award_amount": "up to USD 300,000",
+      "award_min": null,
+      "award_max": 300000,
+      "currency": "USD",
+      "research_categories": "patient-centered comparative effectiveness research capacity building",
+      "eligible_study_types": "capacity-building/engagement project (not a research study)",
+      "aoi_affiliation": "Independent / AOI",
+      "additional_eligibility_requirements": "Organization only (for-profit practice, AOI or another nonprofit, or via a fiscal sponsor); average operating budget of USD 1.5 million or less over the past two fiscal years; existing ties to researchers and patients; no more than USD 125,000 previously received from Engagement Awards; letter of intent required.",
+      "application_deadline_or_cycle": "2027-01-11 (biannual)",
+      "application_status": "Recurring; next cycle not yet posted",
+      "official_program_url": "https://www.pcori.org/funding-opportunities/announcement/engagement-award-building-capacity-small-organizations-engage-patient-centered-comparative-clinical-effectiveness-research-cer-fall-2026-cycle",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "For small organizations only, not individuals; nonprofit and for-profit organizations, such as a small practice or AOI, may apply if they meet the budget rule. Funds patient engagement and research-partnership building, not the study itself.",
+      "details": {
+        "organization_id": "ORG-0004",
+        "organization_url": "https://www.pcori.org/",
+        "organization_type": "nonprofit",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "other",
+        "application_url": "https://www.pcori.org/funding-announcement-notice/2026/new-application-portal-pcori-connect",
+        "award_typical": null,
+        "funding_duration": "up to 2 years",
+        "application_cycle": "biannual",
+        "known_deadlines": [
+          {
+            "date": "2026-10-01",
+            "cycle_label": "Fall 2026 LOI (passed)",
+            "evidence_id": "EVD-0027"
+          },
+          {
+            "date": "2027-01-11",
+            "cycle_label": "Fall 2026 full application (invitation only)",
+            "evidence_id": "EVD-0027"
+          }
+        ],
+        "current_status": "recurring_expected",
+        "applicant_types_eligible": [
+          "nonprofit",
+          "professional_association",
+          "other"
+        ],
+        "applicant_restrictions": "Organizations only (individuals not permitted). Average yearly operating budget <= $1.5 million over past two fiscal years; <= $125,000 previously received from Engagement Award program; must show existing ties to researchers/research networks and patients/stakeholders. Cannot apply to other Engagement Award PFAs in same cycle.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": "PCORI generally allows foreign organizations only with demonstrable benefit to US healthcare (secondary).",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Individual clinicians cannot apply. AOI as a small 501(c)(3) appears to fit the operating-budget limit (unverified) and could apply to build capacity for patient-centered CER (e.g., patient advisory panels, research-partnership building), but not to fund a study itself.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "permitted"
+        },
+        "allowable_expenses_notes": "Total costs cap includes indirect costs. PCORI cost principles document linked from PFA not reviewed.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Relevant to AOI as an organization building a practice-based research network; does not fund data collection/analysis studies.",
+        "aoi_affiliation_reasoning": "PCORI states 'Individuals are not permitted to apply' but eligible applicants include 'any private sector research organization, including any non-profit or for-profit organization', with a fiscal sponsor permitted (EVD-0029); this award also requires an 'average yearly operating budget of $1.5 million or less over the past two fiscal years' (EVD-0027). A small DC practice could plausibly be the for-profit applicant, and AOI as a small nonprofit could apply if its status and budget are confirmed, so both routes are plausible and the value is Independent / AOI. The organization-type rule comes from a secondary copy of the official page.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0027",
+          "EVD-0029"
+        ],
+        "classification_change_note": "changed from AOI Affiliation Required: PCORI accepts for-profit and nonprofit organizations, so a small practice is a route and AOI is not mandatory.",
+        "publication_reason": "Engagement capacity award, not a research grant, but directly useful for AOI building a practice-based research network.",
+        "confidence": "verified_official",
+        "qa_status": "verified",
+        "qa_notes": "QA G1: WebFetch got 403, but a plain HTTP GET with a browser user agent returned the page on 2026-10-20. Confirmed: up to $300,000 total costs (direct + indirect), 2-year maximum, LOI due 2026-10-01, full application due 2027-01-11 (invitation only), operating budget <= $1.5M averaged over two fiscal years, <= $125,000 in prior Engagement Awards. Matches the record. Funds engagement capacity, not research (category 'other' is honest). Geographic restriction not re-checked.",
+        "evidence_ids": [
+          "EVD-0027",
+          "EVD-0028",
+          "EVD-0029",
+          "EVD-0030"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0074",
+      "program_name": "Pearl IRB exemption determination and independent IRB review",
+      "funding_organization": "Pearl IRB",
+      "mechanism": "Research service (fee-based)",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "human subjects research compliance",
+      "eligible_study_types": "exempt research; expedited; full board",
+      "aoi_affiliation": "Independent / AOI",
+      "additional_eligibility_requirements": "",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://www.pearlirb.com/exemption-determination/",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Paid independent IRB that works directly with individual investigators; exempt determinations in 1 to 3 business days. Fees by quote. Not funding.",
+      "details": {
+        "organization_id": "ORG-0088",
+        "organization_url": "https://www.pearlirb.com/",
+        "organization_type": "corporate",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "research_service",
+        "application_url": "https://www.pearlirb.com/fee-schedule/",
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "private_practice",
+          "university_investigator"
+        ],
+        "applicant_restrictions": "Serves sponsors, CROs, investigators and institutions; fee schedule by request.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "eligible",
+        "independent_clinician_notes": "Investigators may request exemption determinations directly; 1-3 business day turnaround for exempt studies. Price unknown (gated).",
+        "irb_requirements": "Provides IRB review.",
+        "application_requirements": [
+          "fee schedule request form"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Fees not published.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Fast exempt determinations for chart reviews; cost must be quoted.",
+        "aoi_affiliation_reasoning": "Pearl IRB lists \"Investigators\" as a client group separately from \"Institutions\" (EVD-0350) and says investigators or institutions request exemption determinations, with 1 to 3 business day turnaround for exempt studies (EVD-0213). A DC in private practice can contract the service directly as an investigator, and AOI could contract it as an institution, so both routes are supported and the value is Independent / AOI. Fees are given only on request, and it is a paid service, not funding.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0213",
+          "EVD-0350"
+        ],
+        "classification_change_note": "changed from Independent: the service serves both individual investigators and institutions, so AOI can also use it.",
+        "publication_reason": "Commercial IRB service that individual investigators can use directly; useful for chart reviews and exempt studies.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Pearl IRB exemption page re-fetched: investigators or institutions request exemption determinations; 1-3 business day turnaround; fee schedule gated behind a form. 'Who We Serve' page lists Investigators as a client group separate from Institutions, supporting institutional_affiliation_required 'not_required'. NOT FUNDING: commercial IRB service; ICE 'eligible' means a DC may purchase the service; price unknown.",
+        "evidence_ids": [
+          "EVD-0212",
+          "EVD-0213",
+          "EVD-0350"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0073",
+      "program_name": "USM ORIO fee-for-service IRB review for external investigators",
+      "funding_organization": "University of Southern Maine - Office of Research Integrity and Outreach (IRB external review service)",
+      "mechanism": "Research service (fee-based)",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "human subjects research compliance",
+      "eligible_study_types": "retrospective chart review; case series; observational study; survey",
+      "aoi_affiliation": "Independent / AOI",
+      "additional_eligibility_requirements": "",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://usm.maine.edu/orio/wp-content/uploads/sites/361/2022/07/IRB-External-Reviews-Fee-Schedule.pdf",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Paid IRB review open to individual investigators. Published fees: USD 250 (not human subjects), 500 exempt, 750 expedited, 1,500 full board. Not funding.",
+      "details": {
+        "organization_id": "ORG-0091",
+        "organization_url": "https://usm.maine.edu/",
+        "organization_type": "university",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "research_service",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": "Exempt renewal at least every 3 years; expedited/full board yearly",
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "private_practice",
+          "nonprofit"
+        ],
+        "applicant_restrictions": "Service offered to institutions and individual investigators who need review by a federally registered IRB with an FWA; acceptance at USM's discretion ('may be able to offer').",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "eligible",
+        "independent_clinician_notes": "Explicitly open to individual investigators as PAYING clients ('eligible' = may purchase the service, not receive funding). Published fees (USD): NHSR determination 250, exempt 500, expedited 750, full board 1,500; renewals 0-750.",
+        "irb_requirements": "Provides the IRB review itself.",
+        "application_requirements": [
+          "protocol submission"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Fees are costs to the investigator (amounts are fees, not awards; award_min/max fields hold fee range).",
+        "relevance_to_aoi": "high",
+        "relevance_notes": "Lowest-cost, published-price IRB pathway found for an unaffiliated DC's chart review or observational study.",
+        "aoi_affiliation_reasoning": "USM writes: \"If you are an institution or individual investigator who needs a review by a federally registered IRB with a Federalwide Assurance, we may be able to offer our review services\", with published fees from USD 250 to 1,500 (EVD-0235, EVD-0236). A DC in private practice can buy the review directly as an individual investigator, and AOI could equally buy it as an institution. Both routes are supported by the published text, so the value is Independent / AOI. It is a paid service, not funding, and acceptance is at USM's discretion.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0235",
+          "EVD-0236"
+        ],
+        "classification_change_note": "changed from Independent: the service is offered to both individual investigators and institutions, so AOI can also use it.",
+        "publication_reason": "Paid IRB review open to individual investigators, the cheapest published IRB route found for a practising DC.",
+        "confidence": "verified_official",
+        "qa_status": "verified",
+        "qa_notes": "Official USM fee schedule PDF (updated 06/30/2026) re-fetched: NHSR determination $250, exempt $500, expedited $750, full board $1,500, engagement determination $50; renewals expedited $375, full board $750; offered to 'institution or individual investigator'. NOT FUNDING: paid IRB service; ICE 'eligible' means an independent DC may PURCHASE the service (acceptance at USM discretion). Award fields correctly null; funding_category 'other'. Relevance 'high' kept as research infrastructure, not as funding.",
+        "evidence_ids": [
+          "EVD-0235",
+          "EVD-0236",
+          "EVD-0349"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0117",
+      "program_name": "Microsoft for Nonprofits Azure credit (annual sponsorship)",
+      "funding_organization": "Microsoft Corporation - Microsoft for Nonprofits",
+      "mechanism": "In-kind support or credits",
+      "award_amount": "up to USD 2,000",
+      "award_min": null,
+      "award_max": 2000,
+      "currency": "USD",
+      "research_categories": "computing infrastructure",
+      "eligible_study_types": "computational analysis; data storage",
+      "aoi_affiliation": "AOI Affiliation Suggested",
+      "additional_eligibility_requirements": "Applicant must be a nonprofit validated by Microsoft's supplier (AOI or another eligible nonprofit; AOI's status unconfirmed); credit usable only for Azure services published by Microsoft; unused credit does not roll over.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Unknown",
+      "official_program_url": "https://www.microsoft.com/en-us/nonprofits/faq",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Cloud computing credit, not cash, for validated nonprofits only; individual practices cannot apply.",
+      "details": {
+        "organization_id": "ORG-0167",
+        "organization_url": "https://www.microsoft.com/en-us/nonprofits",
+        "organization_type": "corporate",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "in_kind_support",
+        "application_url": "https://nonprofit.microsoft.com/",
+        "award_typical": null,
+        "funding_duration": "12 months, renewable",
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "unknown",
+        "applicant_types_eligible": [
+          "nonprofit"
+        ],
+        "applicant_restrictions": "Recognized nonprofit validated through Microsoft for Nonprofits; credit applies to eligible Azure services only; unused credit does not roll over.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "Country rules not confirmed.",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Individuals and practices are not eligible; AOI as a validated nonprofit could obtain the credit and use it for its research computing.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "Microsoft for Nonprofits registration and validation",
+          "activation of Azure sponsorship offer"
+        ],
+        "allowable_expenses": {
+          "research_software": "conditional",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "prohibited",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "prohibited",
+          "publication_fees": "prohibited",
+          "travel": "prohibited",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Not cash. In-kind Azure credit usable only for Azure services published by Microsoft (compute, storage, etc.); cannot be applied to other Microsoft products. Whether Azure-hosted AI model usage counts is not stated; subscriptions are not covered.",
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Small in-kind computing offset for AOI's computational work; not research funding.",
+        "aoi_affiliation_reasoning": "The credit is for nonprofits whose \"Eligibility is validated by Microsoft's third-party validation supplier\" (EVD-0509), and it is \"an Azure credit, not a monetary grant\" (EVD-0508). Individuals and practices cannot obtain it; any validated nonprofit can, so AOI is one possible route only if validated. As an in-kind credit for nonprofits generally, it is AOI Affiliation Suggested.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0509",
+          "EVD-0508"
+        ],
+        "classification_change_note": "changed from AOI Affiliation Required: an in-kind credit for any validated nonprofit, not a route that requires AOI specifically.",
+        "publication_reason": "In-kind cloud credit of USD 2,000 a year that AOI could use for research computing; not cash.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Fetched microsoft.com/en-us/nonprofits/faq (live 2026-10-20, undated; mentions Copilot, so post-2023 text). Confirmed USD 2,000/yr Azure credit, 'not a monetary grant', annual renewal, no roll-over, usable only for 'Azure services published by Microsoft', validated nonprofits only, no hardware grant program. Not research funding: an in-kind cloud credit for AOI as a nonprofit. Removed 'equipment_grant' category (FAQ: no hardware program). ai_subscriptions downgraded to unknown: the FAQ does not list AI subscriptions and the credit cannot be used for other Microsoft products. Status kept 'unknown': the FAQ describes the offer in the present tense but has no dated availability statement.",
+        "evidence_ids": [
+          "EVD-0508",
+          "EVD-0509",
+          "EVD-0542"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0111",
+      "program_name": "Anthropic AI for Science Program (API credits)",
+      "funding_organization": "Anthropic PBC",
+      "mechanism": "In-kind support or credits",
+      "award_amount": "up to USD 20,000",
+      "award_min": null,
+      "award_max": 20000,
+      "currency": "USD",
+      "research_categories": "medicine/healthcare; biology and life sciences; computer science",
+      "eligible_study_types": "computational analysis; data analysis",
+      "aoi_affiliation": "AOI Affiliation Suggested",
+      "additional_eligibility_requirements": "Applicant at least 18; consent from employer or institution where affiliated; program designed for researchers attached to research institutions (recommended, not mandated; AOI or another research institution); biosecurity screening and usage policy; credits are API-only and cannot pay for the Claude web app.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://support.claude.com/en/articles/11199177-anthropics-ai-for-science-program",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "API credits, not cash. Individuals may apply, but the program is designed for researchers at research institutions, so applying with an institutional attachment (AOI or another) is stronger.",
+      "details": {
+        "organization_id": "ORG-0163",
+        "organization_url": "https://www.anthropic.com/",
+        "organization_type": "corporate",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "in_kind_support",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": "6 months",
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "nonprofit",
+          "university_investigator",
+          "individual_researcher"
+        ],
+        "applicant_restrictions": "In-kind API credits (not cash, not usable for the Claude web app). For researchers in academia and nonprofit organizations; affiliated applicants need institutional consent; biosecurity screening; usage policy applies; one organization ID per team.",
+        "institutional_affiliation_required": "conditional",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "Residents of sanctioned countries excluded (per rules summary); no other geographic limit found.",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "In-kind API credits only, not money. The FAQ says the program 'is designed for researchers attached to research institutions' and evaluates whether the team is 'attached to a research institution'; the rules allow individuals but an unaffiliated DC is unlikely to score well. Realistic route: apply through AOI as a nonprofit research organization for a computational project.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "online application describing team and research project"
+        ],
+        "allowable_expenses": {
+          "research_software": "prohibited",
+          "ai_subscriptions": "prohibited",
+          "statistical_analysis": "prohibited",
+          "personnel": "prohibited",
+          "equipment": "prohibited",
+          "imaging_measurement": "prohibited",
+          "participant_expenses": "prohibited",
+          "publication_fees": "prohibited",
+          "travel": "prohibited",
+          "administrative_indirect": "prohibited"
+        },
+        "allowable_expenses_notes": "The award consists only of Anthropic API credits; it cannot be spent on any other cost. ai_subscriptions marked conditional because credits cover API use, explicitly not the Claude.ai subscription.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Useful for AOI computational work (text mining of records, data cleaning, analysis code) when model API use is a real cost. Note: this record concerns the developer of the model used for this research; it was included on the same criteria as other in-kind programs.",
+        "aoi_affiliation_reasoning": "The terms admit any applicant who is \"at least 18 years of age\", with employer or institutional consent where affiliated (EVD-0491), but the FAQ says the program \"is designed for researchers attached to research institutions\" (EVD-0543). The funder recommends institutional attachment without mandating it, and any research institution would serve, not AOI specifically, so the value is AOI Affiliation Suggested; a DC may still apply alone, though more weakly.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0543",
+          "EVD-0491"
+        ],
+        "classification_change_note": "changed from AOI Affiliation Preferred: the old value is retired, and the funder recommends but does not mandate attachment to any research institution, which fits AOI Affiliation Suggested.",
+        "publication_reason": "In-kind API credits (up to USD 20,000) useful for AOI computational work; not cash.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Fetched the Claude Help Center article (dated March 16, 2026) and anthropic.com/ai-for-science-program-rules. Confirmed: up to USD 20,000 in API credits for 6 months, monthly evaluation (first Monday), credits not usable for the Claude web app, usage policy applies. The FAQ says the program 'is designed for researchers attached to research institutions' and scores 'attached to a research institution' under merit; the rules allow individuals 18+ but require employer/institution consent where affiliated. Treated like other in-kind programs: not cash, conditional at best (via AOI as a nonprofit research institute). ai_subscriptions set to 'prohibited' (credits do not apply to the Claude web app). Non-ISO 'monthly' deadline cleared.",
+        "evidence_ids": [
+          "EVD-0489",
+          "EVD-0490",
+          "EVD-0491",
+          "EVD-0543"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0010",
+      "program_name": "NIH Extramural Loan Repayment Program for Clinical Researchers (LRP-CR)",
+      "funding_organization": "National Institutes of Health",
+      "mechanism": "Loan repayment",
+      "award_amount": "up to USD 50,000",
+      "award_min": null,
+      "award_max": 50000,
+      "currency": "USD",
+      "research_categories": "patient-oriented clinical research",
+      "eligible_study_types": "any qualifying clinical research (patient-oriented, human subjects)",
+      "aoi_affiliation": "AOI Affiliation Suggested",
+      "additional_eligibility_requirements": "Research must be supported by a domestic nonprofit (AOI or another nonprofit or university) or US government agency; US citizen, national or permanent resident; doctoral degree (DC listed); at least 20 hours a week of qualifying research for 2 years; educational debt of at least 20% of institutional base salary; no research funding or salary from a for-profit organization (whether practice income counts is unresolved).",
+      "application_deadline_or_cycle": "2026-11-19 (annual)",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-081.html",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Repays up to USD 50,000 a year of educational debt; it does not fund a project. DCs are eligible but need 20+ hours a week of research sponsored by a nonprofit or government agency (a university, AOI if eligible, or another nonprofit).",
+      "details": {
+        "organization_id": "ORG-0001",
+        "organization_url": "https://grants.nih.gov/",
+        "organization_type": "government_federal",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "loan_repayment",
+        "application_url": "https://grants.nih.gov/funding/funding-categories/lrp",
+        "award_typical": null,
+        "funding_duration": "2-year initial contract (renewable)",
+        "application_cycle": "annual",
+        "known_deadlines": [
+          {
+            "date": "2026-11-19",
+            "cycle_label": "FY27 Extramural LRP (opened 2026-09-01)",
+            "evidence_id": "EVD-0053"
+          }
+        ],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "individual_researcher",
+          "early_career"
+        ],
+        "applicant_restrictions": "Doctoral degree including D.C.; >=20 h/week of qualifying research for >=2 years supported by a domestic nonprofit (501) or US government entity; educational debt >=20% of institutional base salary; ineligible if receiving research funding support or salary from a for-profit organization; Institutional Business Official must certify. US citizens, nationals, or permanent residents (stated in NOT-OD-26-081).",
+        "institutional_affiliation_required": "required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Loan repayment (paid to lender on the researcher's behalf), not a research grant. D.C. degree is explicitly eligible. A chiropractor could potentially qualify if conducting >=20 h/week of clinical research sponsored by a nonprofit such as AOI (501(c)(3)) whose business official certifies salary and support. Major uncertainties: whether income from the clinician's own for-profit practice triggers the for-profit exclusion; whether AOI can credibly certify 'institutional base salary'. Confirm with NIH Division of Loan Repayment.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "Online LRP application",
+          "Institutional Business Official certification",
+          "Research plan, mentor/recommender letters (standard LRP; not verified)"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Not applicable - repays qualified educational debt only.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Chiropractors often carry high educational debt; a part-time research role at AOI could, if eligible, unlock up to $50,000/yr in loan repayment. Requires a substantial (>=20 h/week) research commitment.",
+        "aoi_affiliation_reasoning": "Applicants may hold a 'D.C.' degree, but their research must be 'supported by a domestic nonprofit foundation (e.g., universities) or U.S. government agency' (EVD-0051), certified by the sponsor's business official (EVD-0052), and they are ineligible if they 'receive any research funding support or salary from a for-profit institution or organization' (EVD-0333). A DC applies individually but needs a nonprofit or government research sponsor, which could be AOI (if a 501 exempt organization) or any university or other nonprofit, so the value is AOI Affiliation Suggested. Whether practice income triggers the for-profit exclusion is unresolved.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0051",
+          "EVD-0052",
+          "EVD-0333"
+        ],
+        "classification_change_note": "changed from AOI Affiliation Required: any domestic nonprofit or government sponsor satisfies the rule, so AOI is one option, not a requirement.",
+        "publication_reason": "Loan repayment, not a research grant, but DCs are explicitly eligible and AOI could be the nonprofit sponsor.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "QA G1 fetched NOT-OD-26-081 and the NIH LRP page: D.C. explicitly listed, at least 20 h/week, research must be supported by a domestic nonprofit or US government entity, ineligible with any for-profit research funding or salary, up to $50,000/yr, US citizens/nationals/permanent residents, applications 2026-09-01 to 2026-11-19, award start 2027-07-01. All match. This is LOAN REPAYMENT, not research funding: 'other' is correct, and notes now say so plainly. The citizenship rule is now confirmed from the notice. Round 3 (classifier 1): applicant_restrictions held an unapplied edit instruction ('<replace ending with: ...>') instead of text; restored the round-1 text with the confirmed citizenship ending.",
+        "evidence_ids": [
+          "EVD-0051",
+          "EVD-0052",
+          "EVD-0053",
+          "EVD-0333"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0009",
+      "program_name": "CIHR Planning and Dissemination Grants - Institute Community Support (ICS)",
+      "funding_organization": "Canadian Institutes of Health Research",
+      "mechanism": "Other mechanism",
+      "award_amount": "up to CAD 75,000",
+      "award_min": null,
+      "award_max": 75000,
+      "currency": "CAD",
+      "research_categories": "musculoskeletal health (IMHA); neurosciences (INMHA); aging; pain",
+      "eligible_study_types": "planning meetings; dissemination/knowledge translation (not research costs)",
+      "aoi_affiliation": "AOI Affiliation Suggested",
+      "additional_eligibility_requirements": "Canadian postsecondary affiliation or a Canadian not-for-profit organization as applicant (AOI only if it is a Canadian not-for-profit); CIHR-authorized administering institution; SGBA training certificate.",
+      "application_deadline_or_cycle": "biannual; last known deadline 2026-06-03; next cycle not yet published",
+      "application_status": "Recurring; next cycle not yet posted",
+      "official_program_url": "https://www.researchnet-recherchenet.ca/rnr16/vwOpprtntyDtls.do?all=1&masterList=true&next=1&org=CIHR&prog=4323&resultCount=25&sort=program&type=EXACT&view=currentOpps&language=E",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Canada only. Funds research planning meetings and knowledge sharing, not studies. Applicant must be linked to a Canadian university or be a Canadian not-for-profit.",
+      "details": {
+        "organization_id": "ORG-0009",
+        "organization_url": "https://cihr-irsc.gc.ca/",
+        "organization_type": "government_federal",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "other",
+        "application_url": "https://www.researchnet-recherchenet.ca/",
+        "award_typical": null,
+        "funding_duration": "up to 1 year",
+        "application_cycle": "biannual",
+        "known_deadlines": [
+          {
+            "date": "2025-06-19",
+            "cycle_label": "Summer 2025 (closed)",
+            "evidence_id": "EVD-0048"
+          },
+          {
+            "date": "2026-06-03",
+            "cycle_label": "Summer 2026 (closed; date from search summaries only, not seen on an official page)",
+            "evidence_id": "EVD-0050"
+          }
+        ],
+        "current_status": "recurring_expected",
+        "applicant_types_eligible": [
+          "university_investigator",
+          "nonprofit",
+          "trainee_resident",
+          "other"
+        ],
+        "applicant_restrictions": "NPA must be an independent researcher/knowledge user affiliated with a Canadian postsecondary institution, a government researcher, trainee, or a Canadian non-governmental not-for-profit organization; substantive role in Canada; funds administered by a CIHR-authorized institution by start date; SGBA training certificate required. Institute-specific caps (often $10,000-$25,000).",
+        "institutional_affiliation_required": "conditional",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "CA"
+        ],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "A Canadian chiropractor in private practice cannot be NPA as an individual, but a Canadian not-for-profit (e.g., a provincial chiropractic research nonprofit) can; AOI (if US-incorporated) is not eligible as NPA. Funds meetings/KT, not studies.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "prohibited",
+          "equipment": "prohibited",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "permitted",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Eligible: participant travel/accommodation, hospitality, modest honoraria, meeting rooms, translation, dissemination. Not eligible: equipment purchase, operating costs of research, PI salaries.",
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Could support a Canadian research-planning meeting on upper cervical/MSK research; does not fund data collection.",
+        "aoi_affiliation_reasoning": "The nominated principal applicant must be affiliated with a Canadian postsecondary institution or be a Canadian non-governmental not-for-profit organization, with funds administered by a CIHR-authorized institution (EVD-0045, EVD-0048). A private-practice DC cannot apply alone, but a Canadian member could apply with a Canadian university affiliation or through any Canadian not-for-profit; AOI counts only if it is a Canadian not-for-profit, which is not known. An organizational sponsor is required but need not be AOI, so the value is AOI Affiliation Suggested.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0045",
+          "EVD-0048"
+        ],
+        "classification_change_note": "changed from Eligibility Unconfirmed: a Canadian university affiliation or any Canadian not-for-profit satisfies the rule, so the organizational route is established and does not depend on AOI.",
+        "publication_reason": "Planning and dissemination meeting grant (not project funding), usable by Canadian members through a Canadian not-for-profit.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "QA G1 read the ResearchNet page by plain HTTP GET (WebFetch failed an SSL check). Confirmed: max $75,000 (institute caps vary), up to 1 year, $140,000 IMHA pool, NPA categories include a Canadian non-governmental not-for-profit. However the program_url is the ARCHIVED Summer 2025 competition (deadline 2025-06-19), not a live call. The 2026-06-03 Summer 2026 deadline comes from search summaries (EVD-0050 says so); the CIHR 36097 page shows no date. Relabelled that deadline as unverified. The CIHR page confirms twice-yearly launches (Spring and Winter).",
+        "evidence_ids": [
+          "EVD-0045",
+          "EVD-0048",
+          "EVD-0049",
+          "EVD-0050",
+          "EVD-0332"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0072",
+      "program_name": "Individual Investigator Agreement (extension of an institution's FWA to an unaffiliated investigator)",
+      "funding_organization": "HHS Office for Human Research Protections - Individual Investigator Agreement mechanism",
+      "mechanism": "Other mechanism",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "human subjects research compliance",
+      "eligible_study_types": "any human subjects research with an FWA-holding collaborator",
+      "aoi_affiliation": "AOI Affiliation Suggested",
+      "additional_eligibility_requirements": "Study must be led by an investigator at an FWA-holding organization that requests the IIA; any FWA-holding organization (usually a university), AOI only if it obtains its own FWA. Human research protection training and conflict of interest disclosure.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://cdn.vanderbilt.edu/vu-wpfsx/wp-content/uploads/sites/27/2025/04/Researcher_-IIA-request-procedure-1.pdf",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Not funding. Lets a clinician without an institution act as a study investigator under a partner organization's IRB, when that organization leads the study.",
+      "details": {
+        "organization_id": "ORG-0092",
+        "organization_url": "https://www.hhs.gov/ohrp/",
+        "organization_type": "government_federal",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "other",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "private_practice"
+        ],
+        "applicant_restrictions": "Must be collaborating on a study led by an investigator at the FWA-holding institution, which requests the IIA; institution decides whether OHRP conditions are met; training (e.g., CITI/PHRP) and COI disclosure required.",
+        "institutional_affiliation_required": "conditional",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Standard way an unaffiliated DC is covered as engaged investigator on a university-IRB-approved study (e.g., enrolling patients in own practice). Not a route for a DC-only study.",
+        "irb_requirements": "Covered under the institution's FWA and IRB of record.",
+        "application_requirements": [
+          "signed IIA",
+          "human subjects training",
+          "COI disclosure"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Not a funding program.",
+        "relevance_to_aoi": "high",
+        "relevance_notes": "Core mechanism for AOI members to join university-led studies as site investigators.",
+        "aoi_affiliation_reasoning": "An IIA is \"a formal contract between Vanderbilt University, a Federalwide Assured (FWA) organization, and an individual investigator who is not affiliated with an FWA organization\", requested by the FWA organization's researchers (EVD-0217); Lehigh likewise requires unaffiliated researchers engaged in university-initiated research to sign one (EVD-0218). A DC cannot obtain an IIA alone: an FWA-holding organization leading the study is required, but it can be any such organization (usually a university), and AOI could fill that role only if it obtained its own FWA, which is unconfirmed. An organizational partner that need not be AOI makes the value AOI Affiliation Suggested.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0217",
+          "EVD-0218"
+        ],
+        "classification_change_note": "changed from AOI Affiliation Required: the IIA works through any FWA-holding organization leading the study, not specifically AOI.",
+        "publication_reason": "Regulatory route that lets a practising DC enrol patients as an engaged investigator on an institution-led study; not funding.",
+        "confidence": "secondary_source",
+        "qa_status": "corrected",
+        "qa_notes": "Vanderbilt IIA guidance PDF re-fetched (document marked 'VU HRPP Draft January 2025'): IIA is a contract between an FWA institution and 'an individual investigator who is not affiliated with an FWA organization'; requested by the VU researcher, institution decides. OHRP page still returns 403 to automated fetch. NOT FUNDING: a regulatory/IRB coverage mechanism; award fields correctly null. relevance 'high' retained as infrastructure (it is the standard route for an unaffiliated DC to be an engaged investigator) but it must not be presented as a grant. 'open' = mechanism is generally available, no call.",
+        "evidence_ids": [
+          "EVD-0217",
+          "EVD-0218"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0118",
+      "program_name": "Statistics Without Borders pro bono statistical consulting",
+      "funding_organization": "American Statistical Association - Statistics Without Borders",
+      "mechanism": "Research service (fee-based)",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "statistics; survey design; data analysis",
+      "eligible_study_types": "survey; program evaluation; observational analysis",
+      "aoi_affiliation": "AOI Affiliation Suggested",
+      "additional_eligibility_requirements": "Client must be a nonprofit or government organization lacking statistical resources (AOI or another nonprofit; AOI's status unconfirmed); discretionary approval; may be declined if work displaces paid staff or the client can afford a paid statistician.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Unknown",
+      "official_program_url": "https://community.amstat.org/statisticswithoutborders/aboutswb/swbguidelines",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Free statistical consulting for nonprofit organizations, at the volunteers' discretion; individuals are not named as eligible.",
+      "details": {
+        "organization_id": "ORG-0168",
+        "organization_url": "https://statisticswithoutborders.org/",
+        "organization_type": "scientific_society",
+        "funding_category": [
+          "other"
+        ],
+        "mechanism_type": "research_service",
+        "application_url": "https://statisticswithoutborders.org/",
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "unknown",
+        "applicant_types_eligible": [
+          "nonprofit"
+        ],
+        "applicant_restrictions": "Non-profit organizations and government agencies lacking statistical resources; nonreligious, nonpolitical public-benefit purposes; projects approved by SWB Chair/Co-Chair; declines work that displaces paid staff, and refers clients who can afford a paid statistician (non-urgent, non-specialized requests) to paid help.",
+        "institutional_affiliation_required": "not_required",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "No formal restriction found; emphasis on international health.",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Individuals are not named; AOI as a nonprofit could request help. Acceptance is discretionary.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "permitted",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "In-kind volunteer statistical consulting replaces a statistical-analysis cost; no cash.",
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Could cover statistical analysis for a retrospective AOI dataset, but priority is low-resource international organizations.",
+        "aoi_affiliation_reasoning": "SWB provides \"pro bono statistical consulting work for non-profit organizations\", with each project approved by the Chair or Co-Chair (EVD-0510), and clients able to pay may be referred to a paid statistician (EVD-0547). Individuals are not named, so a member's study would go through a nonprofit client, which could be AOI if its status is confirmed or another nonprofit; that makes the value AOI Affiliation Suggested.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0510",
+          "EVD-0547"
+        ],
+        "classification_change_note": "changed from AOI Affiliation Required: the service is for any nonprofit client, not AOI specifically.",
+        "publication_reason": "Pro bono statistics service that AOI could request for member studies; not funding.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Fetched the SWB guidelines page. Confirmed: pro bono statistical consulting for non-profit organizations, Chair/Co-Chair approval required, requests declined if the client is off-loading work. Also: if the client can afford paid statistical help and the request is not urgent or specialized, SWB will suggest a paid statistician. In-kind, not money. 'Conditional' (AOI as nonprofit) stands; discretionary.",
+        "evidence_ids": [
+          "EVD-0510",
+          "EVD-0511",
+          "EVD-0547"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0114",
+      "program_name": "VeDA Vestibular Research Travel Award (ANS Spring Meeting)",
+      "funding_organization": "American Neurotology Society",
+      "mechanism": "Prize for completed work",
+      "award_amount": "up to USD 1,500",
+      "award_min": null,
+      "award_max": 1500,
+      "currency": "USD",
+      "research_categories": "vestibular outcomes research; balance",
+      "eligible_study_types": "any design reported as an abstract and manuscript",
+      "aoi_affiliation": "Eligibility Unconfirmed",
+      "additional_eligibility_requirements": "Residence in the US or Canada; abstract on vestibular outcomes selected for oral presentation and presented in person; IRB approval obtained before data collection.",
+      "application_deadline_or_cycle": "2026-10-22 (annual)",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://www.americanneurotologysociety.com/veda-vestibular-research-travel-award",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "US or Canada residents. Award for the best vestibular-outcomes abstract presented in person; membership rules not stated.",
+      "details": {
+        "organization_id": "ORG-0166",
+        "organization_url": "https://www.americanneurotologysociety.com/",
+        "organization_type": "professional_society",
+        "funding_category": [
+          "travel_award",
+          "prize_award"
+        ],
+        "mechanism_type": "prize_award",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "annual",
+        "known_deadlines": [
+          {
+            "date": "2026-10-22",
+            "cycle_label": "Abstract submission for ANS Spring Meeting 2027 (Seattle, April 9-11, 2027)",
+            "evidence_id": "EVD-0500"
+          },
+          {
+            "date": "2026-11-23",
+            "cycle_label": "Cover letter and draft manuscript for award consideration",
+            "evidence_id": "EVD-0500"
+          }
+        ],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "other"
+        ],
+        "applicant_restrictions": "Best abstract in vestibular outcomes research selected for ORAL presentation at the ANS Spring Meeting; presenter must attend in person; applicant must reside in the US or Canada; final manuscript in Otology & Neurotology format.",
+        "institutional_affiliation_required": "unknown",
+        "membership_required": "unknown",
+        "membership_details": "Award page and abstract instructions do not state a membership requirement; not confirmed.",
+        "geographic_eligibility": [
+          "US",
+          "CA"
+        ],
+        "geographic_notes": null,
+        "independent_clinician_eligibility": "unknown",
+        "independent_clinician_notes": "The only applicant rule on the award page is US/Canada residence. Neither the award page nor the abstract instructions reviewed state a membership or affiliation rule, but they do not affirm open access either. IRB approval before data collection is required, which an independent DC can obtain from an independent IRB.",
+        "irb_requirements": "IRB/IACUC approval (number and approving entity) required if applicable, obtained before data collection.",
+        "application_requirements": [
+          "abstract via ANS submission system with disclosure form",
+          "cover letter and draft manuscript",
+          "in-person oral presentation"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "A cash award; no expense rules.",
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Small, but the topic (vestibular outcomes) matches AOI balance/vestibular work; a prize for completed work rather than project funding.",
+        "aoi_affiliation_reasoning": "The only applicant rule is \"Applicants must reside in the United States or Canada\" (EVD-0499), and the abstract instructions cover IRB approval (EVD-0501) but neither state nor exclude a membership, degree or affiliation requirement for presenting at the meeting. The published requirements are insufficient to show that an unaffiliated DC's abstract would be accepted, so the value stays Eligibility Unconfirmed.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0499",
+          "EVD-0501"
+        ],
+        "classification_change_note": "unchanged: presenter and membership rules not published.",
+        "publication_reason": "USD 1,500 award for the best vestibular-outcomes abstract presented at the ANS meeting; relevant to vestibular work, not project funding.",
+        "confidence": "verified_official",
+        "qa_status": "verified",
+        "qa_notes": "Fetched the award page and the 2027 abstract instructions. Confirmed: USD 1,500 yearly award for the best vestibular-outcomes abstract selected for ORAL presentation; in-person presentation; US/Canada residence; cover letter and draft manuscript by 2026-11-23; abstract deadline 2026-10-22 23:59 PT (call for papers Sept 1-Oct 22, 2026, so open today). Abstract instructions anticipate 'practice names' among authors, but neither page states a membership, degree or affiliation rule, so eligibility stays 'unknown'. This is a prize for completed work presented at a meeting, not project funding (funding_category and relevance_notes already say so). Oral presenters must also submit a full manuscript to Otology & Neurotology by 2027-03-12.",
+        "evidence_ids": [
+          "EVD-0498",
+          "EVD-0499",
+          "EVD-0500",
+          "EVD-0501"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0037",
+      "program_name": "ACC-RAC NBCE Research Awards Competition",
+      "funding_organization": "Association of Chiropractic Colleges",
+      "mechanism": "Prize for completed work",
+      "award_amount": "USD 2,000 to 2,000",
+      "award_min": 2000,
+      "award_max": 2000,
+      "currency": "USD",
+      "research_categories": "chiropractic clinical science; basic science; chiropractic education",
+      "eligible_study_types": "any completed study accepted for ACC-RAC presentation",
+      "aoi_affiliation": "Eligibility Unconfirmed",
+      "additional_eligibility_requirements": "Abstract accepted for ACCRAC presentation; unpublished study; manuscript must be accepted by JMPT or JCE for the award to be paid.",
+      "application_deadline_or_cycle": "annual; last known deadline 2026-03-01; next cycle not yet published",
+      "application_status": "Recurring; next cycle not yet posted",
+      "official_program_url": "https://www.chirocolleges.org/?p=5419",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Prize for completed, unpublished research presented at ACCRAC (6 x USD 2,000). Whether non-faculty DCs may submit abstracts is not confirmed.",
+      "details": {
+        "organization_id": "ORG-0046",
+        "organization_url": "https://www.chirocolleges.org/",
+        "organization_type": "professional_society",
+        "funding_category": [
+          "prize_award"
+        ],
+        "mechanism_type": "prize_award",
+        "application_url": null,
+        "award_typical": 2000,
+        "funding_duration": null,
+        "application_cycle": "annual",
+        "known_deadlines": [
+          {
+            "date": "2026-03-01",
+            "cycle_label": "ACCRAC 2026 competition entry",
+            "evidence_id": "EVD-0144"
+          }
+        ],
+        "current_status": "recurring_expected",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "individual_researcher",
+          "university_investigator",
+          "student"
+        ],
+        "applicant_restrictions": "Study must be accepted for platform or poster presentation at ACC-RAC and not yet submitted/published; manuscript must be accepted by JMPT or JCE for award to be paid.",
+        "institutional_affiliation_required": "unknown",
+        "membership_required": "unknown",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "No geographic restriction stated.",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Official 2026 page states no student or institutional restriction; eligibility hinges on ACC-RAC abstract acceptance (whether non-faculty DCs may submit abstracts was not verified). Third-party listing says student researchers (C-EVD-012), unconfirmed.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "Cover page + manuscript draft (IMRaD) in one Word file",
+          "Competition intent form"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": null,
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Prize for completed work rather than funding to conduct research; useful for case series/chart-review dissemination.",
+        "aoi_affiliation_reasoning": "Eligible entries are 'research studies accepted for platform or poster presentation at ACCRAC 2026' not yet published, with payment only if JMPT or JCE accepts the manuscript (EVD-0144). The official page states no student or institutional restriction, but who may submit ACCRAC abstracts is not shown and a third-party listing says student researchers (EVD-0146), so whether a practising DC qualifies is not established and the value stays Eligibility Unconfirmed.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0144",
+          "EVD-0146"
+        ],
+        "classification_change_note": "unchanged: who may submit qualifying ACCRAC abstracts is not established.",
+        "publication_reason": "Prize for completed chiropractic research, useful for disseminating member case series and chart reviews.",
+        "confidence": "verified_official",
+        "qa_status": "verified",
+        "qa_notes": "ACC page re-fetched: $12,000 total, six awards of $2,000; study must be accepted for ACCRAC 2026 platform/poster presentation and not yet submitted/published; entry by March 1, 2026; award paid only if manuscript accepted by JMPT or JCE. Prize for completed work (prize_award correct, not a research grant). Official page states no student restriction; who may submit ACCRAC abstracts not shown. ICE conditional kept.",
+        "evidence_ids": [
+          "EVD-0144",
+          "EVD-0145",
+          "EVD-0146"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0107",
+      "program_name": "SPINEWORK Adjustment Grants",
+      "funding_organization": "SPINEWORK research network (NCCIH U24 AT011978; University of Minnesota / University of Pennsylvania)",
+      "mechanism": "Other mechanism",
+      "award_amount": "up to USD 10,000",
+      "award_min": null,
+      "award_max": 10000,
+      "currency": "USD",
+      "research_categories": "force-based spinal manipulation; spine pain",
+      "eligible_study_types": "workshops; media content; conference travel; not necessarily research",
+      "aoi_affiliation": "Eligibility Unconfirmed",
+      "additional_eligibility_requirements": "Topic must relate to force-based manipulation and spine pain; free SPINEWORK membership may be expected (not stated); funding depends on the NCCIH U24 award, whose current period ends 2027-03-31.",
+      "application_deadline_or_cycle": "rolling; no deadline published",
+      "application_status": "Open (verified on verification date)",
+      "official_program_url": "https://spinework.umn.edu/funding-opportunities",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Who may apply is not published; SPINEWORK membership is free and open to chiropractors. Ask the network before applying; funding may end March 2027.",
+      "details": {
+        "organization_id": "ORG-0160",
+        "organization_url": "https://spinework.umn.edu/",
+        "organization_type": "university",
+        "funding_category": [
+          "other",
+          "travel_award"
+        ],
+        "mechanism_type": "other",
+        "application_url": "https://forms.gle/ewkLh68i6KVHMysm8",
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "rolling",
+        "known_deadlines": [],
+        "current_status": "open",
+        "applicant_types_eligible": [
+          "other"
+        ],
+        "applicant_restrictions": "Eligibility for Adjustment Grants is not stated on the page; the Google Form could not be read (login wall). Topic must relate to force-based manipulations and spine pain.",
+        "institutional_affiliation_required": "unknown",
+        "membership_required": "unknown",
+        "membership_details": "SPINEWORK membership is free and open to chiropractors and other practitioners; whether membership is required for Adjustment Grants is not stated (it is required for Flex grants).",
+        "geographic_eligibility": [
+          "US"
+        ],
+        "geographic_notes": "Not stated for Adjustment Grants; Flex grants exclude foreign institutions.",
+        "independent_clinician_eligibility": "unknown",
+        "independent_clinician_notes": "Page does not say who may apply. Free membership is explicitly open to chiropractors, which makes an application by a DC plausible, but no text confirms it. Ask SPINEWORK before applying.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "Google Form proposal"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "permitted",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Examples given: workshops, online media content, conference travel. Research costs not described for this mechanism.",
+        "relevance_to_aoi": "high",
+        "relevance_notes": "Topic is chiropractic/force-based manipulation; could fund a workshop, dissemination media, or conference travel for AOI members.",
+        "aoi_affiliation_reasoning": "The page offers \"Flexible grants of up to $10,000 for an endeavor, activity, or initiative (not necessarily research)\" (EVD-0473) but never says who may apply, and the application form could not be read. Network membership is free and open to chiropractors (EVD-0475), which makes a DC application plausible but not established, so the value stays Eligibility Unconfirmed.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0473",
+          "EVD-0475"
+        ],
+        "classification_change_note": "unchanged: applicant rules unpublished and the form unreadable.",
+        "publication_reason": "Flexible cash support for workshops, media or conference travel on spinal manipulation, not project research funding; directly relevant to DCs.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Fetched spinework.umn.edu/funding-opportunities and /join-spinework-network; re-queried NIH RePORTER for U24AT011978. Confirmed up to USD 10,000, 'not necessarily research' (workshop, online media, conference travel), 'Proposals will be accepted at any time'. Who may apply is not stated anywhere; the Google Form (forms.gle) returns a JS-only redirect page and could not be read. RePORTER: 5U24AT011978-05 is the FY2026 award, budget period 2026-04-01 to 2027-03-31, project end 2027-03-31 (University of Pennsylvania), i.e. the final year of the current award. Eligibility stays 'unknown'. Non-ISO 'rolling' deadline cleared; contradictory note ('not checked' vs RePORTER result) rewritten.",
+        "evidence_ids": [
+          "EVD-0473",
+          "EVD-0475",
+          "EVD-0478",
+          "EVD-0537",
+          "EVD-0539"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0075",
+      "program_name": "Chiropractic Academy for Research Leadership (CARL) fellowship",
+      "funding_organization": "Chiropractic Academy for Research Leadership",
+      "mechanism": "Fellowship or training award",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "chiropractic research leadership",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Eligibility Unconfirmed",
+      "additional_eligibility_requirements": "Early or mid-career chiropractic researcher (career stage); selection by competitive call and interview.",
+      "application_deadline_or_cycle": "irregular; no deadline published",
+      "application_status": "Closed; recurs (next cycle not yet posted)",
+      "official_program_url": "https://www.carlresearchfellows.org/",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Leadership and mentoring fellowship for early and mid-career chiropractic researchers. Current cohort runs 2025 to 2027; criteria for the next call not published.",
+      "details": {
+        "organization_id": "ORG-0079",
+        "organization_url": "https://www.carlresearchfellows.org/",
+        "organization_type": "other",
+        "funding_category": [
+          "fellowship",
+          "training_grant"
+        ],
+        "mechanism_type": "fellowship_training",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": "Multi-year cohort with annual week-long residentials",
+        "application_cycle": "irregular",
+        "known_deadlines": [],
+        "current_status": "closed",
+        "applicant_types_eligible": [
+          "early_career",
+          "individual_researcher"
+        ],
+        "applicant_restrictions": "Early-career chiropractic researchers selected by international competitive call (written application + interview).",
+        "institutional_affiliation_required": "unknown",
+        "membership_required": "not_required",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "International.",
+        "independent_clinician_eligibility": "unknown",
+        "independent_clinician_notes": "Targets early-career RESEARCHERS (career stage), most of whom were academically engaged; whether a practice-based DC without academic affiliation is eligible is not stated.",
+        "irb_requirements": null,
+        "application_requirements": [
+          "written application",
+          "interview"
+        ],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": "Sponsors appear to cover participation; no direct research award documented.",
+        "relevance_to_aoi": "low",
+        "relevance_notes": "Capacity-building only; relevant for an AOI member pursuing a research career.",
+        "aoi_affiliation_reasoning": "CARL \"aims to link promising early/mid stage career researchers who are dedicated to developing high-quality evidence regarding chiropractic\" and announced its third cohort for 2025 to 2027 (EVD-0351); fellows are selected by international call, written application and interview (EVD-0209). No eligibility criteria or institutional rule are published, so whether a practice-based DC without an academic post qualifies cannot be determined and the value stays Eligibility Unconfirmed.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0351",
+          "EVD-0209"
+        ],
+        "classification_change_note": "unchanged: no eligibility criteria are published for the next call.",
+        "publication_reason": "Chiropractic research leadership fellowship useful to a member building a research career; current cohort selected, future calls irregular.",
+        "confidence": "verified_official",
+        "qa_status": "corrected",
+        "qa_notes": "Official CARL site found (carlresearchfellows.org, linked from the Australian Chiropractors Association CARL page). It announces the THIRD cohort of CARL Fellows for 2025-2027; no open call or eligibility criteria published. Aimed at 'early/mid stage career researchers' (career stage, not institution status). Not a funding award to individuals (sponsored leadership/mentoring academy). Status set to 'closed' (cohort selected through 2027).",
+        "evidence_ids": [
+          "EVD-0209",
+          "EVD-0351"
+        ]
+      }
+    },
+    {
+      "record_id": "PRG-0038",
+      "program_name": "WFC-NCMIC Research Awards (Biennial Congress paper competition)",
+      "funding_organization": "World Federation of Chiropractic",
+      "mechanism": "Prize for completed work",
+      "award_amount": "not published",
+      "award_min": null,
+      "award_max": null,
+      "currency": "USD",
+      "research_categories": "chiropractic; musculoskeletal; spine",
+      "eligible_study_types": "",
+      "aoi_affiliation": "Eligibility Unconfirmed",
+      "additional_eligibility_requirements": "Abstract accepted for the WFC Biennial Congress; original unpublished work expanded to a full manuscript; registered presenter.",
+      "application_deadline_or_cycle": "irregular; no deadline published",
+      "application_status": "Recurring; next cycle not yet posted",
+      "official_program_url": "https://www.wfc.org/website/documents/1315_research-awards-competition-wfc25-4.pdf",
+      "verification_date": "2026-10-20",
+      "eligibility_notes": "Prize for completed research presented at the World Federation of Chiropractic congress. Rules for the next congress are not yet published.",
+      "details": {
+        "organization_id": "ORG-0047",
+        "organization_url": "https://www.wfc.org/",
+        "organization_type": "professional_society",
+        "funding_category": [
+          "prize_award"
+        ],
+        "mechanism_type": "prize_award",
+        "application_url": null,
+        "award_typical": null,
+        "funding_duration": null,
+        "application_cycle": "irregular",
+        "known_deadlines": [],
+        "current_status": "recurring_expected",
+        "applicant_types_eligible": [
+          "independent_clinician",
+          "individual_researcher",
+          "university_investigator",
+          "student"
+        ],
+        "applicant_restrictions": "Abstract must be accepted for presentation at the WFC Biennial Congress; original, unpublished work; full manuscript required; presenter registered.",
+        "institutional_affiliation_required": "unknown",
+        "membership_required": "unknown",
+        "membership_details": null,
+        "geographic_eligibility": [],
+        "geographic_notes": "International congress; no country restriction seen.",
+        "independent_clinician_eligibility": "conditional",
+        "independent_clinician_notes": "Any presenter with an accepted congress abstract appears eligible; must register for the congress.",
+        "irb_requirements": null,
+        "application_requirements": [],
+        "allowable_expenses": {
+          "research_software": "unknown",
+          "ai_subscriptions": "unknown",
+          "statistical_analysis": "unknown",
+          "personnel": "unknown",
+          "equipment": "unknown",
+          "imaging_measurement": "unknown",
+          "participant_expenses": "unknown",
+          "publication_fees": "unknown",
+          "travel": "unknown",
+          "administrative_indirect": "unknown"
+        },
+        "allowable_expenses_notes": null,
+        "relevance_to_aoi": "medium",
+        "relevance_notes": "Prize pool over USD 25,000 total in 2025, split across categories; rewards completed research, not a project grant.",
+        "aoi_affiliation_reasoning": "Search snippets say 'research abstracts accepted for presentation at the 2025 WFC Biennial Congress will be eligible', with registered presenters only (EVD-0147); the official PDF could not be read. Any accepted presenter appears eligible, but the rule is not confirmed from the official text and the next congress call is not published, so the value stays Eligibility Unconfirmed.",
+        "aoi_affiliation_evidence_ids": [
+          "EVD-0147"
+        ],
+        "classification_change_note": "unchanged: the rule comes only from search snippets and the next call is unpublished.",
+        "publication_reason": "Prize for completed chiropractic research at the biennial congress; recurs with each congress.",
+        "confidence": "secondary_source",
+        "qa_status": "flagged",
+        "qa_notes": "WFC 2025 awards PDF still not machine-readable (CID-font PDF; WebFetch and local extraction failed). Search snippets confirm 2025 structure: abstracts accepted at the Biennial Congress, expanded to full manuscript, registered presenters only; about US$25,500 prize pool; abstract deadline Jan 20 2025, paper deadline Apr 11 2025. No 2027 congress call found. Prize for completed work (prize_award correct). Remains secondary_source.",
+        "evidence_ids": [
+          "EVD-0147",
+          "EVD-0148"
+        ]
+      }
+    }
+  ]
+}
