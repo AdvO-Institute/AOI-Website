@@ -91,7 +91,10 @@ export const NAV: NavItem[] = [
    * administrators and the Research Director for now; every member later
    * (James, 2026-10-20). Separate from Committees → Research, which is the
    * committee's own project tool (#213). */
-  { key: 'library', label: 'Research Library', group: 'library', any: ['board', 'full_admin', 'manage_research'] },
+  { key: 'library', label: 'Research Library', tabLabel: 'Publications', group: 'library', any: ['board', 'full_admin', 'manage_research'] },
+  /* The research funding directory (grants and other research support) is a
+   * tab on the Research Library page; same readers (James, 2026-10-20). */
+  { key: 'funding', label: 'Research Funding', tabLabel: 'Funding', group: 'library', under: 'library', any: ['board', 'full_admin', 'manage_research'] },
 
   /* ----------------------------------------------------------------- work -- */
   // Tasks: anyone with a role can be assigned, so anyone with a role sees the tab.
