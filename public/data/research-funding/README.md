@@ -2,7 +2,7 @@
 
 `research_grants.json` (cash research grants) and `other_research_support.json` (prizes, travel awards, in-kind support and
 other mechanisms that are not grants) are the public exports of the AOI research funding tables. The members area reads
-both files from this folder and shows them on the **Funding** tab of the Research Library page
+both files from this folder and shows them on the **Research Funding** page under Library
 (`src/components/member/ResearchFundingPanel.tsx`); nothing is built from them and nothing is in Supabase.
 
 `DATA_DICTIONARY.md` and `SOURCE_README.md` are the files that came with the export: every field, the Application Pathway

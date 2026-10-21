@@ -2,7 +2,7 @@
  * Research Funding — the research funding directory compiled for members:
  * cash research grants and, kept apart from them, other kinds of research
  * support (prizes, travel awards, in-kind credits, fee-based services).
- * A tab on the Research Library page; who sees it is set in src/lib/nav.ts.
+ * Its own item under Library in the rail; who sees it is set in src/lib/nav.ts.
  *
  * The records are two static exports in public/data/research-funding/
  * (README and DATA_DICTIONARY beside them), fetched when the tab opens and
