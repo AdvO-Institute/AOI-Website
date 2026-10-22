@@ -6,12 +6,17 @@
  * are. Which state shows is decided by the recovery flag initSession() raised
  * when it adopted that token, not by anything typed on the login card.
  *
+ * The Institute's own emails link here with the token in the address and a
+ * one-time code printed beside it. Neither is used until the member presses a
+ * button: email scanners open every link, and a link that signed in on arrival
+ * was spent by the scanner before the member clicked.
+ *
  * Client-only and noindex, like /account.
  * -------------------------------------------------------------------------- */
 import { useState } from 'react'
 import { Link, useNavigate } from '@/lib/router'
 import {
-  requestPasswordReset, updatePassword, isRecovery, signOut, linkError, clearLinkError,
+  requestPasswordReset, updatePassword, isRecovery, signOut, linkError, clearLinkError, verifyRecovery,
 } from '@/lib/supabase'
 import { requestReset } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
@@ -47,7 +52,15 @@ export default function ResetPasswordPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const { refresh } = useAccess()
-  const [recovering] = useState(() => typeof window !== 'undefined' && isRecovery())
+  const [recovering, setRecovering] = useState(() => typeof window !== 'undefined' && isRecovery())
+  // The token from the email's button, waiting for the member to press Continue.
+  const [tokenHash, setTokenHash] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    const q = new URLSearchParams(window.location.search)
+    return q.get('type') === 'recovery' ? q.get('token_hash') : null
+  })
+  const [codeMode, setCodeMode] = useState(false)
+  const [code, setCode] = useState('')
   const [email, setEmail] = useState('')
   const [pw1, setPw1] = useState('')
   const [pw2, setPw2] = useState('')
@@ -74,6 +87,39 @@ export default function ResetPasswordPage() {
       setError((err as Error).message || 'Could not start the reset.')
     }
     setBusy(false)
+  }
+
+  async function redeem(proof: Parameters<typeof verifyRecovery>[0]) {
+    setError(null)
+    setBusy(true)
+    try {
+      await verifyRecovery(proof)
+      window.history.replaceState({}, '', window.location.pathname)
+      setTokenHash(null)
+      setRecovering(true)
+    } catch (err) {
+      window.history.replaceState({}, '', window.location.pathname)
+      setTokenHash(null)
+      setCodeMode(false)
+      setSent(false)
+      setNotice((err as Error).message)
+    }
+    setBusy(false)
+  }
+
+  async function handleCode(event: React.FormEvent) {
+    event.preventDefault()
+    setError(null)
+    const digits = code.replace(/\D/g, '')
+    if (!email.trim()) {
+      setError('Enter the email address the code was sent to.')
+      return
+    }
+    if (digits.length < 6) {
+      setError('Enter the code from the email.')
+      return
+    }
+    await redeem({ email: email.trim(), token: digits })
   }
 
   async function handleSet(event: React.FormEvent) {
@@ -167,6 +213,102 @@ export default function ResetPasswordPage() {
     )
   }
 
+  /* --------------------------------------- from the email's button, not yet used */
+  if (tokenHash) {
+    return (
+      <Card
+        title="Choose a New Password"
+        lede="One more click and you can set a new password for your member account."
+      >
+        <h3>
+          Almost there<span className="gr" />
+        </h3>
+        <div style={{ marginTop: '4px', display: 'grid', gap: '10px' }}>
+          <button
+            type="button"
+            className="b p-btn"
+            style={{ justifyContent: 'center' }}
+            disabled={busy}
+            onClick={() => void redeem({ token_hash: tokenHash })}
+          >
+            {busy ? 'One moment…' : 'Continue'}
+          </button>
+          <Link className="t-link" style={{ textAlign: 'center', fontSize: '12px' }} to="/account">
+            Back to sign in
+          </Link>
+        </div>
+      </Card>
+    )
+  }
+
+  /* ---------------------------------------------------- typing the emailed code */
+  if (codeMode) {
+    return (
+      <Card
+        title="Enter Your Code"
+        lede="Type the code from your reset email, and you can choose a new password."
+      >
+        <h3>
+          Reset code<span className="gr" />
+        </h3>
+        <form onSubmit={handleCode}>
+          <label className="flabel" htmlFor="rp-cemail">
+            EMAIL
+          </label>
+          <input
+            className="fi"
+            id="rp-cemail"
+            type="email"
+            autoComplete="email"
+            placeholder="you@practice.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setError(null)
+            }}
+          />
+          <label className="flabel" htmlFor="rp-code">
+            CODE
+          </label>
+          <input
+            className="fi"
+            id="rp-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            maxLength={12}
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value)
+              setError(null)
+            }}
+          />
+          {error && (
+            <div className="li-err" role="alert">
+              {error}
+            </div>
+          )}
+          <div style={{ marginTop: '20px', display: 'grid', gap: '10px' }}>
+            <button type="submit" className="b p-btn" style={{ justifyContent: 'center' }} disabled={busy}>
+              {busy ? 'One moment…' : 'Continue'}
+            </button>
+            <button
+              type="button"
+              className="t-link"
+              style={{ textAlign: 'center', fontSize: '12px', background: 'none', border: 0, cursor: 'pointer' }}
+              onClick={() => {
+                setCodeMode(false)
+                setError(null)
+              }}
+            >
+              Back
+            </button>
+          </div>
+        </form>
+      </Card>
+    )
+  }
+
   /* ------------------------------------------------------------- arriving cold */
   if (sent) {
     return (
@@ -179,13 +321,24 @@ export default function ResetPasswordPage() {
         </h3>
         <p className="acct-help" style={{ marginTop: 0 }}>
           Open the email and follow the link — it brings you straight back here to choose a new
-          password. The link works once and expires after an hour.
+          password. If the link says it has expired, use the code in the same email instead.
         </p>
         <div style={{ marginTop: '20px', display: 'grid', gap: '10px' }}>
           <button
             type="button"
             className="b s-btn on-light"
             style={{ justifyContent: 'center' }}
+            onClick={() => {
+              setSent(false)
+              setCodeMode(true)
+            }}
+          >
+            I have a code
+          </button>
+          <button
+            type="button"
+            className="t-link"
+            style={{ textAlign: 'center', fontSize: '12px', background: 'none', border: 0, cursor: 'pointer' }}
             onClick={() => setSent(false)}
           >
             Didn&rsquo;t get it? Send again
@@ -246,6 +399,17 @@ export default function ResetPasswordPage() {
         <div style={{ marginTop: '20px', display: 'grid', gap: '10px' }}>
           <button type="submit" className="b p-btn" style={{ justifyContent: 'center' }} disabled={busy}>
             {busy ? 'One moment…' : 'Send Reset Link'}
+          </button>
+          <button
+            type="button"
+            className="t-link"
+            style={{ textAlign: 'center', fontSize: '12px', background: 'none', border: 0, cursor: 'pointer' }}
+            onClick={() => {
+              setCodeMode(true)
+              setError(null)
+            }}
+          >
+            Already have a code from the email?
           </button>
           <Link className="t-link" style={{ textAlign: 'center', fontSize: '12px' }} to="/account">
             Back to sign in
