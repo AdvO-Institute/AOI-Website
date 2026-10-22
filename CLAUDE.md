@@ -37,13 +37,24 @@ rendering contract, the route manifest and why both matter.
 
 The database, the edge functions (payments, email, check-in) and every secret
 live in Supabase and take effect the moment they are changed. No branch, no
-review, no undo. They belong to the Executive Director.
+review, no undo. The project is in the AOI account; the Executive Director has
+the final say over it.
 
-- Only Chris's sessions change Supabase: SQL, edge function deploys, secrets,
-  Auth settings. A change James needs there goes through Chris.
+- Chris's or James's sessions change Supabase (SQL, edge function deploys,
+  secrets, Auth settings), each for their own pull requests (agreed in #218).
+  James's sessions keep to these:
+  1. Additive only. Nothing is renamed or dropped.
+  2. One change at a time. Check each one on the preview address before making
+     the next. The preview uses the live database, so a change is live the
+     moment it runs.
+  3. The SQL and function code go in the pull request first, so there is a
+     record before anything runs.
+  4. Nothing in Chris's pull requests or Supabase work changes without asking
+     him.
+  5. Secrets stay in Supabase. No key ever goes in the repo.
 - The repo copies of the edge functions under `supabase/functions/` are the
   record of what is deployed. Edit them in a pull request like any other file;
-  deploying them is Chris's step.
+  deploying them is the step of whoever owns that pull request.
 - Database changes are additive. Never rename or drop an existing table, column
   or function without explicit permission, even when it looks unused.
 - Never put a password, API key, token, or member's personal information in the
