@@ -495,7 +495,9 @@ export async function rpcResult<T = unknown>(name: string, args: Record<string, 
     return { data: null, error: (err as Error).message || 'Could not reach the server.', status: 0 }
   }
   if (!res.ok) return { data: null, error: await res.text().catch(() => `${res.status}`), status: res.status }
-  return { data: (await res.json()) as T, status: res.status }
+  // A function that returns nothing (merge_people) answers with an empty body.
+  const text = await res.text()
+  return { data: (text ? JSON.parse(text) : null) as T, status: res.status }
 }
 
 export async function rpc<T = unknown>(name: string, args: Record<string, unknown> = {}): Promise<T | null> {

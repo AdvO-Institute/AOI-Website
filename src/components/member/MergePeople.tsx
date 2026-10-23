@@ -5,10 +5,10 @@
  * choosing and the confirming.
  * -------------------------------------------------------------------------- */
 import { useEffect, useState } from 'react'
-import { mergePeople, deletePerson, findPeople, type PeopleOp, type MergeHit } from '@/lib/queries/contacts'
+import { mergePeople, deletePerson, findPeople, suggestMerges, type PeopleOp, type MergeHit, type MergeSuggestion } from '@/lib/queries/contacts'
 import { Modal, askConfirm } from './opsUi'
 
-type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_city?: string | null }
+type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_city?: string | null; auth_user_id?: string | null }
 /** What tells two same-name records apart: email, membership, city. */
 const detail = (p: Who) => [p.email ?? 'no email', p.membership_status, p.practice_city].filter(Boolean).join(' · ')
 const name = (p: Who) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
@@ -22,12 +22,18 @@ export async function confirmDelete(p: Who): Promise<PeopleOp | null> {
   return deletePerson(p.id)
 }
 
-export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
+export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<MergeHit[]>([])
-  const [other, setOther] = useState<MergeHit | null>(null)
+  const [other, setOther] = useState<Who | null>(start ?? null)
   const [keepThis, setKeepThis] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [likely, setLikely] = useState<MergeSuggestion[] | null>(null)
+  useEffect(() => {
+    let off = false
+    void suggestMerges(p.id).then((r) => { if (!off) setLikely(r) })
+    return () => { off = true }
+  }, [p.id])
   useEffect(() => {
     let off = false
     const t = setTimeout(() => void findPeople(q).then((r) => { if (!off) setHits(r.filter((h) => h.id !== p.id)) }), 250)
@@ -39,17 +45,23 @@ export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => voi
   async function go() {
     if (!keep || !drop) return
     const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
-    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed. This cannot be undone.`, ok: 'Merge', danger: true }))) return
+    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed.${keep.auth_user_id && drop.auth_user_id ? ` Both records have a login: the one on ${name(keep)} stays, and the other is switched off.` : ''} This cannot be undone.`, ok: 'Merge', danger: true }))) return
     setBusy(true); const r = await mergePeople(keep.id, drop.id); setBusy(false)
     onDone(r, keep.id)
   }
 
   return <Modal onClose={onClose}>
-    <div className="mh"><div><h3>Merge {name(p)} with another record</h3><p>For one person entered twice. Find the other record, then choose which one to keep.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+    <div className="mh"><div><h3>Merge {name(p)} with another record</h3><p>For one person entered twice. Pick the other record, then choose which one to keep.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
     <div className="mb">
       {!other ? <>
-        <label className="flabel" htmlFor="merge-q">The other record</label>
-        <input id="merge-q" className="fi" autoFocus autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a first or last name" />
+        {q.trim().length < 2 && <>
+          <div className="flabel">Possible matches</div>
+          <div className="merge-hits">{likely === null ? <p className="muted" style={{ margin: 0 }}>Looking for records with the same email, phone or a similar name…</p>
+            : likely.length ? likely.map((h) => <button type="button" key={h.id} className="merge-hit" onClick={() => setOther(h)}><b>{name(h)}</b><span>{h.why.join(' · ')} · {detail(h)}</span></button>)
+            : <p className="muted" style={{ margin: 0 }}>No one shares this email or phone, and no one has a similar name.</p>}</div>
+        </>}
+        <label className="flabel" htmlFor="merge-q" style={{ marginTop: 12 }}>Or find the other record by name</label>
+        <input id="merge-q" className="fi" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a first or last name" />
         <div className="merge-hits">{hits.map((h) => <button type="button" key={h.id} className="merge-hit" onClick={() => setOther(h)}><b>{name(h)}</b><span>{detail(h)}</span></button>)}
           {q.trim().length >= 2 && hits.length === 0 && <p className="muted" style={{ margin: '8px 0 0' }}>No one else by that name.</p>}</div>
       </> : <>
