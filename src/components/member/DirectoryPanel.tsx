@@ -12,6 +12,7 @@ import { useAccess } from '@/lib/queries/AccessProvider'
 import { useDensity } from '@/lib/density'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
+import { similarPeopleIds } from '@/lib/supabase'
 import {
   everyone, membersOnly, vendorDetails, committees as loadCommittees,
   TECHNIQUES, ROLE_LABEL, LEVEL_LABEL, fullName, state, advoLevel, otherCerts,
@@ -79,12 +80,26 @@ export default function DirectoryPanel() {
   const tabs = TABS.filter(([k]) => seeAll || MEMBER_TABS.includes(k))
   const inTab = (p: Contact, t: Tab) => t === 'all' ? where(p) !== 'deceased' : t === 'vendor' ? !!p.is_vendor : where(p) === t
   const counts = useMemo(() => { const c = Object.fromEntries(TABS.map(([k]) => [k, 0])) as Record<Tab, number>; for (const p of rows) for (const [k] of TABS) if (inTab(p, k)) c[k]++; return c }, [rows])
-  const list = useMemo(() => {
+  const exact = useMemo(() => {
     const t = q.trim().toLowerCase()
     return rows.filter((p) => inTab(p, tab) && (!tech || (p.techniques ?? []).includes(tech)) &&
       (!t || [fullName(p), `${p.first_name} ${p.last_name}`, p.email, p.practice_name, p.practice_city, p.practice_state, p.alma_mater, p.office_phone, p.mobile_phone, p.vendor_company, (p.techniques ?? []).join(' ')].filter(Boolean).some((v) => String(v).toLowerCase().includes(t))))
       .sort((a, b) => (a.first_name ?? '').localeCompare(b.first_name ?? '', undefined, { sensitivity: 'base' }) || (a.last_name ?? '').localeCompare(b.last_name ?? '', undefined, { sensitivity: 'base' }))
   }, [rows, tab, q, tech])
+  /* Nothing matches what was typed: show the closest names instead, from the
+   * database's typo-proof search, best first. */
+  const [near, setNear] = useState<{ q: string; ids: string[] }>({ q: '', ids: [] })
+  const wantNear = q.trim().length >= 3 && exact.length === 0
+  useEffect(() => {
+    if (!wantNear) return
+    const term = q.trim()
+    const t = setTimeout(() => { void similarPeopleIds(term).then((ids) => setNear({ q: term, ids })).catch(() => {}) }, 300)
+    return () => clearTimeout(t)
+  }, [wantNear, q])
+  const closest = wantNear && near.q === q.trim()
+    ? rows.filter((p) => near.ids.includes(p.id) && inTab(p, tab) && (!tech || (p.techniques ?? []).includes(tech))).sort((a, b) => near.ids.indexOf(a.id) - near.ids.indexOf(b.id))
+    : []
+  const list = closest.length ? closest : exact
 
   function exportCsv() {
     const cols = ['first_name', 'last_name', 'credentials', 'status', 'member_since', 'membership_expires', 'email', 'mobile_phone', 'office_phone', 'practice_name', 'practice_address', 'practice_city', 'practice_state', 'practice_zip', 'practice_website', 'techniques', 'advo_level', 'roles', 'vendor_company', 'alma_mater', 'grad_year', 'npi']
@@ -144,7 +159,7 @@ export default function DirectoryPanel() {
         </div>
         <select className="fi" style={{ margin: 0 }} value={tech} onChange={(e) => setTech(e.target.value)} aria-label="Filter by technique"><option value="">All techniques</option>{TECHNIQUES.map((t) => <option key={t}>{t}</option>)}</select>
       </div>
-      <div className="evt-bar"><span className="cnt">{list.length} of {counts[tab]}{q ? ` match “${q}”` : ''}{tech ? ` · ${tech}` : ''} · alphabetical by first name</span>
+      <div className="evt-bar"><span className="cnt">{closest.length ? `No exact match for “${q.trim()}” · ${closest.length} closest name${closest.length === 1 ? '' : 's'}${tech ? ` · ${tech}` : ''} · closest first` : `${list.length} of ${counts[tab]}${q ? ` match “${q}”` : ''}${tech ? ` · ${tech}` : ''} · alphabetical by first name`}</span>
         {!narrow && <div className="evt-segs"><div className="evt-seg"><button type="button" className={compact ? 'on' : ''} onClick={() => setDensity('compact')}>Compact</button><button type="button" className={!compact ? 'on' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button></div></div>}</div>
       {list.length === 0 && <div className="cert-card" style={{ textAlign: 'center', color: 'var(--color-content-muted)', padding: 30 }}>{q ? `No one in ${tabLabel} matches “${q}”.` : tab === 'vendor' && !vendorReady ? 'Vendors appear here once the database has the vendor fields.' : 'No one in this list.'}</div>}
       {living.length > 0 && (compact ? table(living) : living.map(card))}

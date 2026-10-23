@@ -395,10 +395,21 @@ function closeness(term: string, row: Record<string, unknown>, fields: string[])
   return words.reduce((sum, w) => sum + best(w), 0) / words.length
 }
 
+/** The people whose names are closest to what was typed, best first, from the
+ *  database's typo-proof search (`search_people`, #61). Living people only;
+ *  row security still decides who can be seen. Empty when nothing is close or
+ *  the search can't be reached, so callers fall back to their own search. */
+export async function similarPeopleIds(term: string, max = 30): Promise<string[]> {
+  if (term.trim().length < 3) return []
+  const r = await rpcResult<{ id: string }[]>('search_people', { q: term.trim(), max_rows: max })
+  return Array.isArray(r.data) ? r.data.map((p) => p.id) : []
+}
+
 /** A people search that forgives typos. It runs the exact search first; if
- *  that finds nobody, it searches again on the first three letters of each
- *  word and keeps the closest names. `build` turns a filter and a row limit
- *  into the query string. */
+ *  that finds nobody, people searches ask the database for the closest names,
+ *  and otherwise (or if that finds nobody) it searches again on the first three
+ *  letters of each word and keeps the closest names. `build` turns a filter and
+ *  a row limit into the query string. */
 export async function searchSelect<T>(
   table: string,
   term: string,
@@ -409,6 +420,17 @@ export async function searchSelect<T>(
   const exact = wordsFilter(term, fields)
   const first = await select<T>(table, build(exact, limit))
   if (first.error || (first.data ?? []).length) return first
+  if (table === 'people') {
+    const ids = await similarPeopleIds(term)
+    if (ids.length) {
+      const near = await select<T>(table, build(`id=in.(${ids.join(',')})`, ids.length))
+      const rank = (row: T) => ids.indexOf(String((row as Record<string, unknown>).id))
+      // Callers that don't select the id can't be put in order, so they use the fallback below.
+      if (near.data?.length && near.data.every((row) => rank(row) >= 0)) {
+        return { data: [...near.data].sort((a, b) => rank(a) - rank(b)).slice(0, limit) }
+      }
+    }
+  }
   const loose = wordsFilter(term, fields, 3)
   if (!loose || loose === exact) return first
   const wide = await select<T>(table, build(loose, 100))
