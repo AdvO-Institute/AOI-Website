@@ -18,7 +18,11 @@
 //                        Members list.
 //
 // The link itself comes from Supabase (admin generate_link), so no password is
-// ever created, seen, or sent by this function.
+// ever created, seen, or sent by this function. Password links point at our own
+// reset page with the token in the address, and the email also prints a
+// one-time code. Neither is used until the member presses a button there:
+// email scanners open every link, and spent Supabase's one-time link before the
+// member ever clicked.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, RESEND_API_KEY.
 // Optional: NOTIFY_FROM, REPLY_TO, SITE_ORIGIN.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -55,7 +59,7 @@ const greeting = (p: Person) => (/\bDC\b|\bDO\b|\bMD\b|DCCJP/i.test(String(p.cre
 /* ------------------------------------------------------------------ auth */
 /** A password-setting link for this email. Creates the account only when asked;
  *  the public reset path never creates one, so an unknown address stays unknown. */
-async function linkFor(email: string, createIfMissing = false): Promise<{ link: string; userId: string } | { error: string }> {
+async function linkFor(email: string, createIfMissing = false): Promise<{ link: string; userId: string; code: string } | { error: string }> {
   const gen = async () => {
     const r = await sb(`/auth/v1/admin/generate_link`, { method: "POST", body: JSON.stringify({ type: "recovery", email, options: { redirect_to: REDIRECT } }) });
     return { ok: r.ok, body: await r.json().catch(() => ({})) } as { ok: boolean; body: any };
@@ -68,10 +72,14 @@ async function linkFor(email: string, createIfMissing = false): Promise<{ link: 
     g = await gen();
     if (!g.ok) return { error: `could not make the link: ${JSON.stringify(g.body).slice(0, 200)}` };
   }
-  const link = g.body?.action_link ?? g.body?.properties?.action_link;
+  const hashed = g.body?.hashed_token ?? g.body?.properties?.hashed_token;
+  const action = g.body?.action_link ?? g.body?.properties?.action_link;
+  const code = String(g.body?.email_otp ?? g.body?.properties?.email_otp ?? "");
   const userId = g.body?.user?.id ?? g.body?.id;
+  // Our page with the token, used only on a click; Supabase's own link if no token came back.
+  const link = hashed ? `${REDIRECT}?token_hash=${encodeURIComponent(hashed)}&type=recovery` : action;
   if (!link || !userId) return { error: "no link returned" };
-  return { link, userId };
+  return { link, userId, code };
 }
 
 /** A one-click sign-in link, only for an address that already has a login.
@@ -142,8 +150,10 @@ async function logoBase64(): Promise<string | null> {
   return LOGO;
 }
 
-function inviteEmail(p: Person, link: string, email: string): { subject: string; html: string } {
-  const rows: EmailRow[] = [["Your login", email], ["Membership", p.membership_expires ? `Current through ${new Date(p.membership_expires + "T12:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}` : "Current"]];
+const codeNote = (code: string) => code ? ` If the button says the link has expired, go to ${SITE_ORIGIN.replace(/^https?:\/\//, "")}/reset-password, choose “Already have a code from the email?” and enter the code above.` : "";
+
+function inviteEmail(p: Person, link: string, email: string, code = ""): { subject: string; html: string } {
+  const rows: EmailRow[] = [["Your login", email], ["Code", code], ["Membership", p.membership_expires ? `Current through ${new Date(p.membership_expires + "T12:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}` : "Current"]];
   return {
     subject: "Set up your Advanced Orthogonal Institute account",
     html: renderEmail({
@@ -156,7 +166,7 @@ function inviteEmail(p: Person, link: string, email: string): { subject: string;
       ],
       rows,
       cta: { label: "Choose your password", href: link },
-      note: "This link is good for 24 hours. If it expires, go to advancedorthogonal.com, click Member Login, then “Forgot your password?” and we will send a new one.",
+      note: `This link and code are good for 24 hours.${codeNote(code)} If both have expired, go to advancedorthogonal.com, click Member Login, then “Forgot your password?” and we will send a new one.`,
     }),
   };
 }
@@ -173,7 +183,7 @@ function signInEmail(name: string, link: string): { subject: string; html: strin
     }),
   };
 }
-function resetEmail(name: string, link: string): { subject: string; html: string } {
+function resetEmail(name: string, link: string, email: string, code = ""): { subject: string; html: string } {
   return {
     subject: "Reset your Advanced Orthogonal Institute password",
     html: renderEmail({
@@ -181,8 +191,9 @@ function resetEmail(name: string, link: string): { subject: string; html: string
       preheader: "Choose a new password for your member account.",
       eyebrow: "Members area", title: "Choose a new", titleAccent: "password.",
       paragraphs: [`Hi ${name}, here is your link to set a new password for the members area.`, "If you did not ask for this, you can ignore this email — nothing changes until a new password is saved."],
+      rows: [["Your login", email], ["Code", code]],
       cta: { label: "Set a new password", href: link },
-      note: "This link is good for 24 hours.",
+      note: `This link and code are good for 24 hours.${codeNote(code)}`,
     }),
   };
 }
@@ -211,7 +222,7 @@ async function invitePerson(p: Person, overrideEmail?: string): Promise<{ ok: bo
   const owner = await profileOwner(l.userId);
   if (owner && owner !== p.id) return { ok: false, email, detail: "that login already belongs to a different contact record" };
   await linkProfile(p, l.userId, email);
-  const m = inviteEmail(p, l.link, email);
+  const m = inviteEmail(p, l.link, email, l.code);
   const sent = await send(email, m.subject, m.html);
   return { ok: sent, email, detail: sent ? undefined : "the link was created but the email did not send" };
 }
@@ -298,7 +309,7 @@ Deno.serve(async (req: Request) => {
     const l = await linkFor(email); // never creates an account
     if (!("error" in l)) {
       const p = await personBy(`auth_user_id=eq.${l.userId}`);
-      const m = resetEmail(p ? greeting(p) : "there", l.link);
+      const m = resetEmail(p ? greeting(p) : "there", l.link, email, l.code);
       await send(email, m.subject, m.html);
     }
     return json(200, { ok: true, message: "If that address has an account, a reset link is on its way." });

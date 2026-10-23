@@ -290,6 +290,30 @@ export async function requestPasswordReset(email: string, redirect: string): Pro
   }
 }
 
+/** Redeems a reset token on purpose, after the member presses a button — either
+ *  the token carried in the email's link, or the code printed in the email.
+ *  Email scanners open every link to check it; a link that signed in on arrival
+ *  was used up by the scanner before the member ever clicked. */
+export async function verifyRecovery(
+  proof: { token_hash: string } | { email: string; token: string },
+): Promise<void> {
+  const res = await sbFetch(`${SB_URL}/auth/v1/verify`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'recovery', ...proof }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || !data.access_token) {
+    throw new Error('That link or code has expired or was already used. Request a new one below.')
+  }
+  adopt(data)
+  try {
+    window.sessionStorage.setItem(RECOVERY_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Sets a new password for whoever the current token belongs to — either a
  *  signed-in member changing it, or someone arriving from a recovery link. */
 export async function updatePassword(password: string): Promise<void> {
@@ -340,7 +364,8 @@ const searchWords = (term: string) => term.replace(/[,.*()"]/g, ' ').trim().spli
 export function wordsFilter(term: string, fields: string[], prefix?: number): string {
   const words = searchWords(term).map((w) => (prefix ? w.slice(0, prefix) : w))
   if (!words.length) return ''
-  const one = (w: string) => `or(${fields.map((f) => `${f}.ilike.*${encodeURIComponent(w)}*`).join(',')})`
+  // An apostrophe matches any apostrophe or none, so D'Amico finds D’Amico and DAmico too.
+  const one = (w: string) => `or(${fields.map((f) => `${f}.ilike.*${encodeURIComponent(w).replace(/'|%E2%80%99|%E2%80%98|%60/gi, '*')}*`).join(',')})`
   return `and=(${words.map(one).join(',')})`
 }
 

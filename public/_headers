@@ -21,3 +21,7 @@
 # HTML is revalidated so a content change goes live on the next deploy.
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
+
+# Data files the members area fetches (the Research Library) change by pull request, under the same name.
+/data/*
+  Cache-Control: public, max-age=0, must-revalidate

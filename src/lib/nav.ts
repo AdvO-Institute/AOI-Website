@@ -14,7 +14,7 @@
  * -------------------------------------------------------------------------- */
 import type { Access, Capability } from './access'
 
-export type NavGroup = 'home' | 'mycommittees' | 'events' | 'work' | 'people' | 'committees' | 'admin'
+export type NavGroup = 'home' | 'mycommittees' | 'events' | 'library' | 'work' | 'people' | 'committees' | 'admin'
 
 export type NavItem = {
   key: string
@@ -86,6 +86,16 @@ export const NAV: NavItem[] = [
   { key: 'events', label: 'Events', group: 'events', always: true },
   { key: 'calendar', label: 'Calendar', group: 'events', always: true },
 
+  /* -------------------------------------------------------------- library --
+   * The Research Committee's Upper Cervical Research Library. Board, the
+   * administrators and the Research Director for now; every member later
+   * (James, 2026-10-20). Separate from Committees → Research, which is the
+   * committee's own project tool (#213). */
+  { key: 'library', label: 'Research Library', group: 'library', any: ['board', 'full_admin', 'manage_research'] },
+  /* The research funding directory (grants and other research support): its
+   * own rail item under Research Library, same readers (James, 2026-10-20). */
+  { key: 'funding', label: 'Research Funding', group: 'library', any: ['board', 'full_admin', 'manage_research'] },
+
   /* ----------------------------------------------------------------- work -- */
   // Tasks: anyone with a role can be assigned, so anyone with a role sees the tab.
   { key: 'tasks', label: 'Tasks', group: 'work', any: [...LEADERSHIP, 'instructor_tools'], when: (a) => a.roles.length > 0 || a.capabilities.includes('full_admin') },
@@ -132,6 +142,7 @@ export const GROUP_LABEL: Record<NavGroup, string> = {
   home: 'Home',
   mycommittees: 'My Committees',
   events: 'Events',
+  library: 'Library',
   work: 'Work',
   people: 'People',
   committees: 'Committees',
@@ -152,7 +163,7 @@ export const FOLDS: NavGroup[] = ['work', 'people', 'committees', 'admin']
 
 /** Every tab this person may open, grouped, with empty groups dropped. The rail skips `under` items. */
 export function navFor(access: Access): { group: NavGroup; items: NavItem[] }[] {
-  const order: NavGroup[] = ['home', 'mycommittees', 'events', 'work', 'people', 'committees', 'admin']
+  const order: NavGroup[] = ['home', 'mycommittees', 'events', 'library', 'work', 'people', 'committees', 'admin']
   // Committees this person chairs or co-chairs get their own group near the top, still in 01–10 order.
   const chairs = (i: NavItem) => Boolean(i.committee) && access.committees.some((c) => c.leads && isCommittee(c, i.committee!))
   return order
