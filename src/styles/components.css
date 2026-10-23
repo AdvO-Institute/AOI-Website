@@ -3338,6 +3338,13 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .merge-pick .muted { color: var(--color-content-muted); font-size: 13px; }
 .merge-hit span { font-size: 13px; color: var(--color-content-muted); }
 .cc .act.merge-act { gap: 8px; }
+/* Possible duplicates (DuplicatesDialog.tsx): two records side by side, why, and the choices. */
+.dup-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 14px; padding: 10px 12px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); background: var(--color-surface-base); }
+.dup-pair > div:not(.dup-why):not(.dup-act) { display: grid; gap: 2px; min-width: 0; }
+.dup-pair span { font-size: 13px; color: var(--color-content-muted); overflow-wrap: anywhere; }
+.dup-why { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: var(--color-content-secondary); text-transform: uppercase; letter-spacing: .04em; font-family: var(--font-display); }
+.dup-act { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+@media (max-width: 560px) { .dup-pair { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------------------------------------------------- research library --- */
 .rlib-note { margin: 0 0 18px; padding: 10px 14px; border-left: 3px solid var(--color-brand-accent); border-radius: 0 4px 4px 0; background: var(--color-status-pending-surface); color: var(--color-status-pending-content); font-size: 13px; line-height: 1.5; }

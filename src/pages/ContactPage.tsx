@@ -62,13 +62,13 @@ export default function ContactPage() {
       if (data.error === 'rate_limited') {
         setError(
           data.detail ??
-            'Too many messages from this connection. Please try again shortly or call (727) 677-0001.',
+            'Too many messages from this connection. Please try again shortly or call (656) 222-1099.',
         )
       } else if (data.error === 'invalid_fields') {
         setError('Please check the highlighted details and try again.')
       } else {
         setError(
-          'We could not send that just now. Please email Info@AdvancedOrthogonal.com or call (727) 677-0001.',
+          'We could not send that just now. Please email Info@AdvancedOrthogonal.com or call (656) 222-1099.',
         )
       }
     } catch {
@@ -117,7 +117,7 @@ export default function ContactPage() {
                 <div>
                   <div className="ct-h">Call the Institute</div>
                   <div className="ct-p">
-                    <a href="tel:+17276770001">+1 (727) 677-0001</a>
+                    <a href="tel:+16562221099">+1 (656) 222-1099</a>
                   </div>
                 </div>
               </div>
@@ -181,7 +181,7 @@ export default function ContactPage() {
                 <h3>Message sent</h3>
                 <p>
                   Thank you — the Institute has your message and will be in touch shortly. For
-                  anything urgent, call (727) 677-0001.
+                  anything urgent, call (656) 222-1099.
                 </p>
               </div>
             ) : (
@@ -259,7 +259,7 @@ export default function ContactPage() {
                   {busy ? 'Sending…' : 'Send Message'}
                 </button>
                 <p className="cm-note">
-                  We answer every message. Urgent? Call (727) 677-0001.
+                  We answer every message. Urgent? Call (656) 222-1099.
                 </p>
               </form>
             )}

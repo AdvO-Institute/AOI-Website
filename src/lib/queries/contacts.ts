@@ -201,10 +201,52 @@ export const mergePeople = (keep: string, drop: string) => peopleOp('merge_peopl
 export const deletePerson = (id: string) => peopleOp('delete_person', { p_id: id })
 
 /** Name search for the merge picker, with enough to tell two records apart. */
-export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_city: string | null }
+export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_city: string | null; auth_user_id: string | null }
 export async function findPeople(q: string): Promise<MergeHit[]> {
   const t = q.trim().replace(/[,.*()]/g, '')
   if (t.length < 2) return []
-  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_city&${f}&order=last_name.asc&limit=${n}`)
+  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_city,auth_user_id&${f}&order=last_name.asc&limit=${n}`)
   return r.data ?? []
+}
+
+/** Records that may be the same person as `id`, best first, each with why:
+ *  the same email, a shared phone number (any of the four, compared by its
+ *  last ten digits) or a close name (search_people, which forgives typos). */
+export type MergeSuggestion = MergeHit & { why: string[] }
+const PHONES = ['personal_phone', 'mobile_phone', 'office_phone', 'practice_phone'] as const
+type PhoneRow = MergeHit & Partial<Record<(typeof PHONES)[number], string | null>>
+const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-10)
+export async function suggestMerges(id: string): Promise<MergeSuggestion[]> {
+  const base = 'id,first_name,last_name,credentials,email,membership_status,practice_city,auth_user_id'
+  const cols = `${base},${PHONES.join(',')}`
+  const me = (await select<PhoneRow>('people', `select=${cols}&id=eq.${id}`)).data?.[0]
+  if (!me) return []
+  const found = new Map<string, MergeSuggestion>()
+  const add = (rows: PhoneRow[] | null | undefined, why: (h: PhoneRow) => string | null) => {
+    for (const h of rows ?? []) {
+      const w = h.id === id ? null : why(h)
+      if (!w) continue
+      const s = found.get(h.id) ?? { id: h.id, first_name: h.first_name, last_name: h.last_name, credentials: h.credentials, email: h.email, membership_status: h.membership_status, practice_city: h.practice_city, auth_user_id: h.auth_user_id, why: [] }
+      if (!s.why.includes(w)) s.why.push(w)
+      found.set(h.id, s)
+    }
+  }
+  const email = me.email?.trim().toLowerCase().replace(/[*,()]/g, '')
+  const mine = new Set(PHONES.map((c) => digits(me[c])).filter((d) => d.length >= 7))
+  const fullName = `${me.first_name ?? ''} ${me.last_name ?? ''}`.trim()
+  const [byEmail, byPhone, byName] = await Promise.all([
+    email ? select<PhoneRow>('people', `select=${cols}&email=ilike.${encodeURIComponent(email)}&limit=10`) : null,
+    // Phones are typed every which way, so match the last seven digits loosely
+    // ("*677*0001*") and confirm on the digits below.
+    mine.size ? select<PhoneRow>('people', `select=${cols}&or=(${[...mine].flatMap((d) => PHONES.map((c) => `${c}.like.*${d.slice(-7, -4)}*${d.slice(-4)}*`)).join(',')})&limit=30`) : null,
+    fullName.length >= 3 ? rpcResult<PhoneRow[]>('search_people', { q: fullName, max_rows: 8 }) : null,
+  ])
+  add(byEmail?.data, () => 'same email')
+  add(byPhone?.data, (h) => (PHONES.some((c) => mine.has(digits(h[c]))) ? 'same phone' : null))
+  add(Array.isArray(byName?.data) ? byName.data : null, () => 'similar name')
+  // Email is the strongest sign. Doctors in one office share its phone, so a
+  // phone alone counts no more than a close name; both together rank higher.
+  const WEIGHT: Record<string, number> = { 'same email': 3, 'same phone': 1, 'similar name': 1 }
+  const score = (s: MergeSuggestion) => s.why.reduce((n, w) => n + (WEIGHT[w] ?? 0), 0)
+  return [...found.values()].sort((a, b) => score(b) - score(a)).slice(0, 8)
 }

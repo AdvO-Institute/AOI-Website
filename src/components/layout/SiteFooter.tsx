@@ -52,13 +52,13 @@ export default function SiteFooter() {
               className="flink"
               onClick={() =>
                 toast(
-                  'The Doctor Directory is coming soon. Call (727) 677-0001 and we will connect you with a certified doctor near you.',
+                  'The Doctor Directory is coming soon. Call (656) 222-1099 and we will connect you with a certified doctor near you.',
                 )
               }
             >
               Doctor Directory
             </button>
-            <a href="tel:+17276770001">(727) 677-0001</a>
+            <a href="tel:+16562221099">(656) 222-1099</a>
             <a href="mailto:Info@AdvancedOrthogonal.com">Info@AdvancedOrthogonal.com</a>
           </div>
         </div>
