@@ -22,10 +22,10 @@ export async function confirmDelete(p: Who): Promise<PeopleOp | null> {
   return deletePerson(p.id)
 }
 
-export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
+export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<MergeHit[]>([])
-  const [other, setOther] = useState<MergeHit | null>(null)
+  const [other, setOther] = useState<Who | null>(start ?? null)
   const [keepThis, setKeepThis] = useState(false)
   const [busy, setBusy] = useState(false)
   const [likely, setLikely] = useState<MergeSuggestion[] | null>(null)
