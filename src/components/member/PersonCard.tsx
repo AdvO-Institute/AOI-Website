@@ -24,7 +24,9 @@ import { personById, topCert, overrideCertification, LEVELS, RANK, type Person, 
 import { INSTRUCTOR_TITLE } from '@/lib/chips'
 import { ResearchSection } from './ResearchPanel'
 import { Chips, chipsFor } from './PersonChips'
-import { SafeLink, askConfirm, askText } from './opsUi'
+import { SafeLink, askConfirm, askText, notice } from './opsUi'
+import { MergeDialog, confirmDelete, opError } from './MergePeople'
+import type { PeopleOp } from '@/lib/queries/contacts'
 
 export const fmtD = (iso?: string | null) => (iso ? new Date(iso + (iso.length === 10 ? 'T12:00:00Z' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 
@@ -171,6 +173,7 @@ export function PersonCard({ p: given, newStatus = 'never', vendorReady = false,
   const [tab, setTab] = useState<CardTab>('profile')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  const [merging, setMerging] = useState(false)
 
   /* ---- edit mode: profile fields for editors, certification fields for the committee */
   const f = useContactForm(given, canRoles, me, meId, newStatus)
@@ -261,6 +264,12 @@ export function PersonCard({ p: given, newStatus = 'never', vendorReady = false,
     const why = await askText('End instructor service', { label: 'Reason (optional)', placeholder: 'e.g. Retired from teaching' }, { ok: 'End service', danger: true })
     if (why === null) return
     if (!fail(await endInstructor(p, why))) { toast('Instructor service ended.'); await onChanged() }
+  }
+  /* Merge or delete: the card closes once the record it shows is gone. */
+  async function finished(r: PeopleOp | null, done: string) {
+    if (!r) return
+    if (!r.ok) { await notice(r.missing ? 'Not switched on yet' : 'That did not work', opError(r)); return }
+    toast(done); await onChanged(); onClose()
   }
   async function endSeat() {
     if (!(await askConfirm('End board service?', { body: 'The seat is vacated and they become a past board member.', ok: 'End service', danger: true }))) return
@@ -393,6 +402,7 @@ export function PersonCard({ p: given, newStatus = 'never', vendorReady = false,
             {activeBoard && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => void endSeat()}>End board service</button></div>}
             <Sec title="Instructor" items={(p.instructor_records ?? []).map((i) => kv(i.level === 'senior_instructor' ? 'Senior instructor' : 'Instructor',`${i.status ?? ''}${i.technique ? ` · ${i.technique}` : ''}${i.instructor_date ? ` · since ${fmtD(i.instructor_date)}` : ''}`))} />
             {instr && canEdit && <div className="act"><button type="button" className="b s-btn on-light xs" onClick={() => void endInstr()}>End instructor service</button></div>}
+            {canRoles && !isNew && !editing && <><div className="sec">Duplicate or removal</div><div className="act merge-act"><button type="button" className="b s-btn on-light xs" onClick={() => setMerging(true)}>Merge with another record…</button><button type="button" className="b s-btn on-light xs" onClick={() => void confirmDelete(p).then((r) => finished(r, 'Deleted.'))}>Delete this person</button></div></>}
           </>)}
 
           {tab === 'certification' && <>
@@ -421,6 +431,7 @@ export function PersonCard({ p: given, newStatus = 'never', vendorReady = false,
           </>}
         </div>
       </div>
+      {merging && <MergeDialog p={p} onClose={() => setMerging(false)} onDone={(r) => { setMerging(false); void finished(r, 'Merged.') }} />}
     </div>
   )
 }

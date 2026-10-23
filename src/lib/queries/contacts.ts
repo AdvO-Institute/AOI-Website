@@ -10,7 +10,7 @@
  * committee chair (is_membership_manager) read and write; everyone else
  * only sees themselves.
  * -------------------------------------------------------------------------- */
-import { select, patch, insert, remove, headers, SB_URL, ensureSession } from '@/lib/supabase'
+import { select, patch, insert, remove, headers, SB_URL, ensureSession, rpcResult, searchSelect } from '@/lib/supabase'
 
 export const TECHNIQUES = ['Advanced Orthogonal', 'Atlas Orthogonal', 'Atlas Orthometrics', 'Orthospinology', 'EPIC', 'NUCCA', 'Blair']
 export const ROLE_LABEL: Record<string, string> = {
@@ -180,4 +180,31 @@ export async function saveRoles(personId: string, seats: Seat[], keepInstructorL
   if (d.error) return d
   const rows = seats.map((s) => ({ person_id: personId, role_key: s.role_key, committee_id: s.committee_id, instructor_level: s.role_key === 'instructor' ? keepInstructorLevel : null }))
   return insert('person_roles', rows)
+}
+
+/* Merging two records for the same person, and deleting a record. Both are
+ * database functions on the Supabase side (merge_people, delete_person) that
+ * check the caller is Board or full admin and do the work in one step: a merge
+ * moves every registration, payment, role, note and the login onto the record
+ * kept, fills its blanks, then removes the other; a delete refuses a record
+ * with history. Until they exist, `missing` says so. */
+export type PeopleOp = { ok: boolean; error?: string; missing?: boolean }
+async function peopleOp(name: string, args: Record<string, unknown>): Promise<PeopleOp> {
+  const r = await rpcResult(name, args)
+  if (!r.error) return { ok: true }
+  const missing = r.status === 404 || /PGRST202|Could not find the function/i.test(r.error)
+  let msg = r.error
+  try { msg = (JSON.parse(r.error) as { message?: string }).message ?? msg } catch { /* plain text */ }
+  return { ok: false, error: msg, missing }
+}
+export const mergePeople = (keep: string, drop: string) => peopleOp('merge_people', { p_keep: keep, p_drop: drop })
+export const deletePerson = (id: string) => peopleOp('delete_person', { p_id: id })
+
+/** Name search for the merge picker, with enough to tell two records apart. */
+export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_city: string | null }
+export async function findPeople(q: string): Promise<MergeHit[]> {
+  const t = q.trim().replace(/[,.*()]/g, '')
+  if (t.length < 2) return []
+  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_city&${f}&order=last_name.asc&limit=${n}`)
+  return r.data ?? []
 }
