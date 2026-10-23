@@ -3340,10 +3340,14 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .cc .act.merge-act { gap: 8px; }
 /* Possible duplicates (DuplicatesDialog.tsx): two records side by side, why, and the choices. */
 .dup-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 14px; padding: 10px 12px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); background: var(--color-surface-base); }
-.dup-pair > div:not(.dup-why):not(.dup-act) { display: grid; gap: 2px; min-width: 0; }
-.dup-pair span { font-size: 13px; color: var(--color-content-muted); overflow-wrap: anywhere; }
-.dup-why { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: var(--color-content-secondary); text-transform: uppercase; letter-spacing: .04em; font-family: var(--font-display); }
-.dup-act { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+.dup-side { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-control); cursor: pointer; }
+.dup-side.on { border-color: var(--color-brand-primary); }
+.dup-side input { margin-top: 3px; }
+.dup-side > span { display: grid; gap: 2px; min-width: 0; }
+.dup-side em { font-style: normal; font-size: 12px; color: var(--color-content-secondary); }
+.dup-side span span { font-size: 13px; color: var(--color-content-muted); overflow-wrap: anywhere; }
+.dup-why { align-self: center; padding-left: 8px; font-size: 12px; font-weight: 700; color: var(--color-content-secondary); text-transform: uppercase; letter-spacing: .04em; font-family: var(--font-display); }
+.dup-act { display: flex; gap: 8px; justify-content: flex-end; }
 @media (max-width: 560px) { .dup-pair { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------------------------------------------------- research library --- */

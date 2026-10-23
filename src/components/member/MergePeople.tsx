@@ -22,6 +22,12 @@ export async function confirmDelete(p: Who): Promise<PeopleOp | null> {
   return deletePerson(p.id)
 }
 
+/** The one confirmation before a merge, also used by Find duplicates. */
+export function confirmMerge(keep: Who, drop: Who): Promise<boolean> {
+  const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
+  return askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed.${keep.auth_user_id && drop.auth_user_id ? ` Both records have a login: the one on ${name(keep)} stays, and the other is switched off.` : ''} This cannot be undone.`, ok: 'Merge', danger: true })
+}
+
 export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<MergeHit[]>([])
@@ -44,8 +50,7 @@ export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who
   const drop = other && (keepThis ? other : p)
   async function go() {
     if (!keep || !drop) return
-    const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
-    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed.${keep.auth_user_id && drop.auth_user_id ? ` Both records have a login: the one on ${name(keep)} stays, and the other is switched off.` : ''} This cannot be undone.`, ok: 'Merge', danger: true }))) return
+    if (!(await confirmMerge(keep, drop))) return
     setBusy(true); const r = await mergePeople(keep.id, drop.id); setBusy(false)
     onDone(r, keep.id)
   }

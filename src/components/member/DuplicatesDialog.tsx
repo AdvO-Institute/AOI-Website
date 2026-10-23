@@ -1,14 +1,15 @@
 /* ----------------------------------------------------------------------------
  * Find duplicates: every pair of records in the Directory that may be one
  * person entered twice, best first, each saying why. Opened from the Directory
- * by Board or full admin; "Review" opens the usual merge window with both
- * records already chosen. Worked out from the rows the Directory has loaded,
+ * by Board or full admin. Tap the record to keep, then Merge and confirm once.
+ * Worked out from the rows the Directory has loaded,
  * so it needs nothing new on the database side.
  * -------------------------------------------------------------------------- */
 import { useMemo, useState } from 'react'
 import type { Contact } from '@/lib/queries/contacts'
 import { Modal } from './opsUi'
-import { MergeDialog } from './MergePeople'
+import { confirmMerge, opError } from './MergePeople'
+import { mergePeople } from '@/lib/queries/contacts'
 import { useToast } from '@/components/ui/Toast'
 
 type Pair = { a: Contact; b: Contact; why: string[]; score: number }
@@ -56,33 +57,43 @@ function readSkipped(): Set<string> {
 }
 
 const name = (p: Contact) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
-const detail = (p: Contact) => [p.email ?? 'no email', p.membership_status, p.practice_city].filter(Boolean).join(' · ')
+const detail = (p: Contact) => [p.email ?? 'no email', p.membership_status === 'active' ? 'member' : 'not a member', p.practice_city].filter(Boolean).join(' · ')
+
+/* Keep the record with a login, then a member, then the first of the pair. */
+const rank = (p: Contact) => (p.auth_user_id ? 2 : 0) + (p.membership_status === 'active' ? 1 : 0)
 
 export function DuplicatesDialog({ rows, onClose, onChanged }: { rows: Contact[]; onClose: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast()
   const [skipped, setSkipped] = useState(readSkipped)
-  const [review, setReview] = useState<Pair | null>(null)
+  const [keepB, setKeepB] = useState<Record<string, boolean>>({})
+  const [busy, setBusy] = useState<string | null>(null)
   const pairs = useMemo(() => findPairs(rows).filter((p) => !skipped.has(pairKey(p))), [rows, skipped])
   function skip(p: Pair) {
     const next = new Set(skipped).add(pairKey(p))
     setSkipped(next)
     try { localStorage.setItem(KEY, JSON.stringify([...next])) } catch { /* private window: forgotten on close */ }
   }
-
-  if (review) return <MergeDialog p={review.a} start={review.b} onClose={() => setReview(null)} onDone={(r) => {
-    setReview(null)
-    if (r.ok) { toast('Merged.'); void onChanged() }
-    else toast(r.error ?? 'That did not work.')
-  }} />
+  const choseB = (p: Pair) => keepB[pairKey(p)] ?? rank(p.b) > rank(p.a)
+  async function merge(p: Pair) {
+    const [keep, drop] = choseB(p) ? [p.b, p.a] : [p.a, p.b]
+    if (!(await confirmMerge(keep, drop))) return
+    setBusy(pairKey(p)); const r = await mergePeople(keep.id, drop.id)
+    if (r.ok) { toast('Merged.'); await onChanged() } else toast(opError(r))
+    setBusy(null)
+  }
+  const side = (p: Pair, x: Contact, isB: boolean) => <label className={`dup-side${choseB(p) === isB ? ' on' : ''}`}>
+    <input type="radio" name={`keep-${pairKey(p)}`} checked={choseB(p) === isB} onChange={() => setKeepB({ ...keepB, [pairKey(p)]: isB })} />
+    <span><b>{name(x)}</b>{x.auth_user_id && <em>has a login</em>}<span>{detail(x)}</span></span>
+  </label>
 
   return <Modal wide onClose={onClose}>
-    <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Review a pair to merge it, or mark it as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+    <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Tap the record to keep, then Merge. Or mark a pair as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
     <div className="mb">
       <div className="merge-hits">{pairs.map((p) => <div key={pairKey(p)} className="dup-pair">
-        <div><b>{name(p.a)}</b><span>{detail(p.a)}</span></div>
-        <div><b>{name(p.b)}</b><span>{detail(p.b)}</span></div>
+        {side(p, p.a, false)}
+        {side(p, p.b, true)}
         <div className="dup-why">{p.why.join(' · ')}</div>
-        <div className="dup-act"><button type="button" className="b s-btn on-light xs" onClick={() => skip(p)}>Not the same person</button><button type="button" className="b p-btn xs" onClick={() => setReview(p)}>Review</button></div>
+        <div className="dup-act"><button type="button" className="b s-btn on-light xs" disabled={!!busy} onClick={() => skip(p)}>Not the same person</button><button type="button" className="b dgr xs" disabled={!!busy} onClick={() => void merge(p)}>{busy === pairKey(p) ? 'Merging…' : 'Merge'}</button></div>
       </div>)}</div>
     </div>
     <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Done</button></div>
