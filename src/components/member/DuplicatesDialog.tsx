@@ -62,7 +62,7 @@ const detail = (p: Contact) => [p.email ?? 'no email', p.membership_status === '
 /* Keep the record with a login, then a member, then the first of the pair. */
 const rank = (p: Contact) => (p.auth_user_id ? 2 : 0) + (p.membership_status === 'active' ? 1 : 0)
 
-export function DuplicatesDialog({ rows, onClose, onChanged }: { rows: Contact[]; onClose: () => void; onChanged: () => Promise<void> }) {
+export function DuplicatesDialog({ rows, onClose, onChanged, onView }: { rows: Contact[]; onClose: () => void; onChanged: () => Promise<void>; onView: (id: string) => void }) {
   const toast = useToast()
   const [skipped, setSkipped] = useState(readSkipped)
   const [keepB, setKeepB] = useState<Record<string, boolean>>({})
@@ -83,10 +83,10 @@ export function DuplicatesDialog({ rows, onClose, onChanged }: { rows: Contact[]
     if (r.ok) { toast('Merged.'); await onChanged() } else toast(opError(r))
     setBusy(null)
   }
-  const side = (p: Pair, x: Contact, isB: boolean) => <label className={`dup-side${choseB(p) === isB ? ' on' : ''}`}>
+  const side = (p: Pair, x: Contact, isB: boolean) => <div className="dup-col"><label className={`dup-side${choseB(p) === isB ? ' on' : ''}`}>
     <input type="radio" name={`keep-${pairKey(p)}`} checked={choseB(p) === isB} onChange={() => setKeepB({ ...keepB, [pairKey(p)]: isB })} />
     <span><b>{name(x)}</b>{x.auth_user_id && <em>has a login</em>}<span>{detail(x)}</span></span>
-  </label>
+  </label><button type="button" className="t-link dup-view" onClick={() => onView(x.id)}>View full record</button></div>
 
   return <Modal wide onClose={onClose}>
     <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Tap the record to keep. A second email or office on the other record is kept unless you untick it. Then merge, or mark the pair as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>

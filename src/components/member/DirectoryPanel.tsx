@@ -168,7 +168,8 @@ export default function DirectoryPanel() {
       {gone.length > 0 && tab !== 'deceased' && <div className="msec">Deceased · {gone.length}</div>}
       {gone.length > 0 && (compact ? table(gone) : gone.map(card))}
 
-      {dupes && <DuplicatesDialog rows={rows} onClose={() => setDupes(false)} onChanged={load} />}
+      {/* A record opened from Find duplicates sits on top; Escape closes only it. */}
+      {dupes && <DuplicatesDialog rows={rows} onClose={() => { if (!open) setDupes(false) }} onChanged={load} onView={(id) => show(id)} />}
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
       {current && <PersonCard key={current.id} startEditing={openEditing} p={current} lastIn={lastIn(current)} {...cardProps} onClose={() => setOpen(null)} />}
       {adding && <PersonCard p={null} {...cardProps} onClose={() => setAdding(false)} />}

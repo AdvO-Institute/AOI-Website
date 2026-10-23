@@ -3340,6 +3340,8 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .cc .act.merge-act { gap: 8px; }
 /* Possible duplicates (DuplicatesDialog.tsx): two records side by side, why, and the choices. */
 .dup-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 14px; padding: 10px 12px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); background: var(--color-surface-base); }
+.dup-col { display: grid; gap: 2px; min-width: 0; align-content: start; }
+.dup-view { justify-self: start; margin-left: 8px; font-size: 13px; }
 .dup-side { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-control); cursor: pointer; }
 .dup-side.on { border-color: var(--color-brand-primary); }
 .dup-side input { margin-top: 3px; }
