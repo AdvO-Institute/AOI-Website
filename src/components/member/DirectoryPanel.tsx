@@ -85,7 +85,7 @@ export default function DirectoryPanel() {
   const exact = useMemo(() => {
     const t = q.trim().toLowerCase()
     return rows.filter((p) => inTab(p, tab) && (!tech || (p.techniques ?? []).includes(tech)) &&
-      (!t || [fullName(p), `${p.first_name} ${p.last_name}`, p.email, p.practice_name, p.practice_city, p.practice_state, p.alma_mater, p.office_phone, p.mobile_phone, p.vendor_company, (p.techniques ?? []).join(' ')].filter(Boolean).some((v) => String(v).toLowerCase().includes(t))))
+      (!t || [fullName(p), `${p.first_name} ${p.last_name}`, p.email, (p.other_emails ?? []).join(' '), p.practice_name, p.practice_city, p.practice_state, p.alma_mater, p.office_phone, p.mobile_phone, p.vendor_company, (p.techniques ?? []).join(' ')].filter(Boolean).some((v) => String(v).toLowerCase().includes(t))))
       .sort((a, b) => (a.first_name ?? '').localeCompare(b.first_name ?? '', undefined, { sensitivity: 'base' }) || (a.last_name ?? '').localeCompare(b.last_name ?? '', undefined, { sensitivity: 'base' }))
   }, [rows, tab, q, tech])
   /* Nothing matches what was typed: show the closest names instead, from the

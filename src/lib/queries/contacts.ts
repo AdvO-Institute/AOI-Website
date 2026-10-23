@@ -30,7 +30,7 @@ export type Office = { id?: number; person_id?: string; name: string | null; add
 export type Committee = { id: number; key: string; name: string }
 
 export type Contact = {
-  id: string; first_name: string; last_name: string; credentials: string | null; title: string | null; email: string | null
+  id: string; first_name: string; last_name: string; credentials: string | null; title: string | null; email: string | null; other_emails: string[] | null
   personal_phone: string | null; mobile_phone: string | null; office_phone: string | null
   practice_name: string | null; practice_address: string | null; practice_city: string | null; practice_state: string | null; practice_zip: string | null
   practice_phone: string | null; practice_website: string | null
@@ -45,7 +45,7 @@ export type Contact = {
 }
 
 const SELECT =
-  'id,first_name,last_name,credentials,title,email,personal_phone,mobile_phone,office_phone,practice_name,practice_address,' +
+  'id,first_name,last_name,credentials,title,email,other_emails,personal_phone,mobile_phone,office_phone,practice_name,practice_address,' +
   'practice_city,practice_state,practice_zip,practice_phone,practice_website,membership_status,member_since,membership_expires,' +
   'contact_type,techniques,cert_level,instructor_status,alma_mater,grad_year,npi,bio,photo_url,notes,deceased_on,profile_completed,auth_user_id,' +
   'person_certifications(id,technique,level,cert_date,certificate_number,grandfathered,certified_by),' +
@@ -134,7 +134,7 @@ export const initials = (p: Pick<Contact, 'first_name' | 'last_name'>) => `${(p.
 /* ----------------------------------------------------------------- writes */
 
 export type Profile = Partial<Pick<Contact,
-  'first_name' | 'last_name' | 'credentials' | 'title' | 'email' | 'personal_phone' | 'mobile_phone' | 'office_phone' |
+  'first_name' | 'last_name' | 'credentials' | 'title' | 'email' | 'other_emails' | 'personal_phone' | 'mobile_phone' | 'office_phone' |
   'practice_name' | 'practice_address' | 'practice_city' | 'practice_state' | 'practice_zip' | 'practice_phone' | 'practice_website' |
   'membership_status' | 'member_since' | 'membership_expires' | 'contact_type' | 'techniques' | 'alma_mater' | 'grad_year' | 'npi' |
   'bio' | 'photo_url' | 'deceased_on'>>
@@ -197,15 +197,19 @@ async function peopleOp(name: string, args: Record<string, unknown>): Promise<Pe
   try { msg = (JSON.parse(r.error) as { message?: string }).message ?? msg } catch { /* plain text */ }
   return { ok: false, error: msg, missing }
 }
-export const mergePeople = (keep: string, drop: string) => peopleOp('merge_people', { p_keep: keep, p_drop: drop })
+/** keepSecond: keep the other record's email as a second email, and add its
+ *  practice as another office, instead of dropping them (#226). */
+export type KeepSecond = { email: boolean; location: boolean }
+export const mergePeople = (keep: string, drop: string, second?: KeepSecond) =>
+  peopleOp('merge_people', second ? { p_keep: keep, p_drop: drop, p_second_email: second.email, p_second_location: second.location } : { p_keep: keep, p_drop: drop })
 export const deletePerson = (id: string) => peopleOp('delete_person', { p_id: id })
 
 /** Name search for the merge picker, with enough to tell two records apart. */
-export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_city: string | null; auth_user_id: string | null }
+export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_name: string | null; practice_address: string | null; practice_city: string | null; auth_user_id: string | null }
 export async function findPeople(q: string): Promise<MergeHit[]> {
   const t = q.trim().replace(/[,.*()]/g, '')
   if (t.length < 2) return []
-  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_city,auth_user_id&${f}&order=last_name.asc&limit=${n}`)
+  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_name,practice_address,practice_city,auth_user_id&${f}&order=last_name.asc&limit=${n}`)
   return r.data ?? []
 }
 
@@ -217,7 +221,7 @@ const PHONES = ['personal_phone', 'mobile_phone', 'office_phone', 'practice_phon
 type PhoneRow = MergeHit & Partial<Record<(typeof PHONES)[number], string | null>>
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-10)
 export async function suggestMerges(id: string): Promise<MergeSuggestion[]> {
-  const base = 'id,first_name,last_name,credentials,email,membership_status,practice_city,auth_user_id'
+  const base = 'id,first_name,last_name,credentials,email,membership_status,practice_name,practice_address,practice_city,auth_user_id'
   const cols = `${base},${PHONES.join(',')}`
   const me = (await select<PhoneRow>('people', `select=${cols}&id=eq.${id}`)).data?.[0]
   if (!me) return []
@@ -226,7 +230,7 @@ export async function suggestMerges(id: string): Promise<MergeSuggestion[]> {
     for (const h of rows ?? []) {
       const w = h.id === id ? null : why(h)
       if (!w) continue
-      const s = found.get(h.id) ?? { id: h.id, first_name: h.first_name, last_name: h.last_name, credentials: h.credentials, email: h.email, membership_status: h.membership_status, practice_city: h.practice_city, auth_user_id: h.auth_user_id, why: [] }
+      const s = found.get(h.id) ?? { id: h.id, first_name: h.first_name, last_name: h.last_name, credentials: h.credentials, email: h.email, membership_status: h.membership_status, practice_name: h.practice_name, practice_address: h.practice_address, practice_city: h.practice_city, auth_user_id: h.auth_user_id, why: [] }
       if (!s.why.includes(w)) s.why.push(w)
       found.set(h.id, s)
     }

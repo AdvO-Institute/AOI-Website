@@ -57,11 +57,13 @@ const VENDOR_KEYS = ['is_vendor', 'vendor_company', 'vendor_services', 'vendor_w
 
 /** The contact form: its fields' state and the save. Shared by the card's in-place editor and the Add contact window. */
 export function useContactForm(p: Contact | null, canRoles: boolean, me: string, meId: string | null, newStatus = 'never') {
+  // Other emails are typed as one line, separated by commas or spaces.
+  const emailList = (x?: string) => { const a = (x ?? '').split(/[\s,;]+/).filter(Boolean); return a.length ? a : null }
   // The record has two phone columns for the office (office and practice); the form shows one and keeps both in step.
   const phone0 = p?.office_phone || p?.practice_phone || ''
   const init = (): V => ({
     first_name: p?.first_name ?? '', last_name: p?.last_name ?? '', credentials: p?.credentials ?? 'DC', title: p?.title ?? '', contact_type: p?.contact_type ?? 'doctor',
-    email: p?.email ?? '', mobile_phone: p?.mobile_phone ?? '', office_phone: phone0, personal_phone: p?.personal_phone ?? '',
+    email: p?.email ?? '', other_emails: (p?.other_emails ?? []).join(', '), mobile_phone: p?.mobile_phone ?? '', office_phone: phone0, personal_phone: p?.personal_phone ?? '',
     practice_name: p?.practice_name ?? '', practice_address: p?.practice_address ?? '', practice_city: p?.practice_city ?? '', practice_state: p?.practice_state ?? '', practice_zip: p?.practice_zip ?? '', practice_website: p?.practice_website ?? '',
     alma_mater: p?.alma_mater ?? '', grad_year: p?.grad_year ? String(p.grad_year) : '', npi: p?.npi ?? '', photo_url: p?.photo_url ?? '', bio: p?.bio ?? '',
     membership_status: p?.deceased_on ? 'deceased' : (p?.membership_status ?? newStatus), deceased_on: p?.deceased_on ?? '', member_since: p?.member_since ?? '', membership_expires: p?.membership_expires ?? '', newNote: '',
@@ -105,7 +107,7 @@ export function useContactForm(p: Contact | null, canRoles: boolean, me: string,
     const dead = v.membership_status === 'deceased'
     const prof: Profile = {
       first_name: v.first_name!.trim(), last_name: v.last_name!.trim(), credentials: v.credentials || null, title: v.title || null, contact_type: v.contact_type || 'doctor',
-      email: v.email || null, mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, personal_phone: v.personal_phone || null,
+      email: v.email || null, other_emails: emailList(v.other_emails), mobile_phone: v.mobile_phone || null, office_phone: v.office_phone || null, personal_phone: v.personal_phone || null,
       practice_name: v.practice_name || null, practice_address: v.practice_address || null, practice_city: v.practice_city || null, practice_state: v.practice_state || null, practice_zip: v.practice_zip || null, practice_phone: v.office_phone !== phone0 ? (v.office_phone || null) : (p?.practice_phone ?? null), practice_website: v.practice_website || null,
       alma_mater: v.alma_mater || null, grad_year: v.grad_year ? Number(v.grad_year) : null, npi: v.npi || null, photo_url: v.photo_url || null, bio: v.bio || null,
       techniques: tq, member_since: v.member_since || null, membership_expires: v.membership_expires || null,
@@ -301,14 +303,14 @@ export function PersonCard({ p: given, newStatus = 'never', vendorReady = false,
               <Row k="Vendor">{chk(v.is_vendor === '1', 'Also a vendor — adds a Vendor tab', (on) => f.setVal('is_vendor', on ? '1' : ''))}</Row>
             </div>
             <div className="sec">Contact</div>
-            <div className="kv"><Row k="Email">{I('email', 'email')}</Row><Row k="Mobile">{I('mobile_phone', 'tel')}</Row><Row k="Personal phone">{I('personal_phone', 'tel')}</Row></div>
+            <div className="kv"><Row k="Email">{I('email', 'email')}</Row><Row k="Other emails">{I('other_emails')}</Row><Row k="Mobile">{I('mobile_phone', 'tel')}</Row><Row k="Personal phone">{I('personal_phone', 'tel')}</Row></div>
             <div className="sec">Headshot &amp; bio</div>
             <div className="kv">
               <Row k="Headshot"><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{I('photo_url', 'url', 'https://…')}<input ref={f.photoRef} type="file" accept="image/*" hidden onChange={(e) => void f.pickPhoto(e.target.files?.[0])} /><button type="button" className="b s-btn on-light xs" disabled={f.photoBusy} onClick={() => f.photoRef.current?.click()}>{f.photoBusy ? 'Uploading…' : isNew && f.pendingPhoto ? 'Change' : 'Upload'}</button></div>{isNew && f.pendingPhoto && <div className="evt-hint">{f.pendingPhoto.name} — uploads when you save.</div>}</Row>
               <Row k="Bio"><textarea className="fi" rows={4} value={v.bio} onChange={set('bio')} placeholder="Shown on the public directory once they are a member." aria-label="Bio" /></Row>
             </div>
           </> : <>
-            <Sec title="Contact" items={[kv('Email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null), kv('Mobile', p.mobile_phone), kv('Personal phone', p.personal_phone)]} />
+            <Sec title="Contact" items={[kv('Email', p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : null), kv('Other emails', p.other_emails?.length ? <>{p.other_emails.map((e, i) => <span key={e}>{i > 0 && ', '}<a href={`mailto:${e}`}>{e}</a></span>)}</> : null), kv('Mobile', p.mobile_phone), kv('Personal phone', p.personal_phone)]} />
             <Sec title="Profile" items={[kv('Type', TYPE_LABEL[p.contact_type ?? ''] ?? p.contact_type), kv('Vendor', p.is_vendor ? (p.vendor_company || 'Yes') : null), kv('Title', p.title), kv('Bio', p.bio)]} />
             {canInvite && !p.deceased_on && <>
               <div className="sec">Members area</div>

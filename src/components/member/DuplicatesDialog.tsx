@@ -8,8 +8,8 @@
 import { useMemo, useState } from 'react'
 import type { Contact } from '@/lib/queries/contacts'
 import { Modal } from './opsUi'
-import { confirmMerge, opError } from './MergePeople'
-import { mergePeople } from '@/lib/queries/contacts'
+import { confirmMerge, opError, KeepSecondChoices, KEEP_BOTH } from './MergePeople'
+import { mergePeople, type KeepSecond } from '@/lib/queries/contacts'
 import { useToast } from '@/components/ui/Toast'
 
 type Pair = { a: Contact; b: Contact; why: string[]; score: number }
@@ -67,6 +67,7 @@ export function DuplicatesDialog({ rows, onClose, onChanged }: { rows: Contact[]
   const [skipped, setSkipped] = useState(readSkipped)
   const [keepB, setKeepB] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState<string | null>(null)
+  const [seconds, setSeconds] = useState<Record<string, KeepSecond>>({})
   const pairs = useMemo(() => findPairs(rows).filter((p) => !skipped.has(pairKey(p))), [rows, skipped])
   function skip(p: Pair) {
     const next = new Set(skipped).add(pairKey(p))
@@ -76,8 +77,9 @@ export function DuplicatesDialog({ rows, onClose, onChanged }: { rows: Contact[]
   const choseB = (p: Pair) => keepB[pairKey(p)] ?? rank(p.b) > rank(p.a)
   async function merge(p: Pair) {
     const [keep, drop] = choseB(p) ? [p.b, p.a] : [p.a, p.b]
-    if (!(await confirmMerge(keep, drop))) return
-    setBusy(pairKey(p)); const r = await mergePeople(keep.id, drop.id)
+    const second = seconds[pairKey(p)] ?? KEEP_BOTH
+    if (!(await confirmMerge(keep, drop, second))) return
+    setBusy(pairKey(p)); const r = await mergePeople(keep.id, drop.id, second)
     if (r.ok) { toast('Merged.'); await onChanged() } else toast(opError(r))
     setBusy(null)
   }
@@ -87,13 +89,14 @@ export function DuplicatesDialog({ rows, onClose, onChanged }: { rows: Contact[]
   </label>
 
   return <Modal wide onClose={onClose}>
-    <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Tap the record to keep, then Merge. Or mark a pair as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+    <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Tap the record to keep. A second email or office on the other record is kept unless you untick it. Then merge, or mark the pair as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
     <div className="mb">
       <div className="merge-hits">{pairs.map((p) => <div key={pairKey(p)} className="dup-pair">
         {side(p, p.a, false)}
         {side(p, p.b, true)}
+        <div className="dup-keep"><KeepSecondChoices keep={choseB(p) ? p.b : p.a} drop={choseB(p) ? p.a : p.b} value={seconds[pairKey(p)] ?? KEEP_BOTH} onChange={(v) => setSeconds({ ...seconds, [pairKey(p)]: v })} /></div>
         <div className="dup-why">{p.why.join(' · ')}</div>
-        <div className="dup-act"><button type="button" className="b s-btn on-light xs" disabled={!!busy} onClick={() => skip(p)}>Not the same person</button><button type="button" className="b dgr xs" disabled={!!busy} onClick={() => void merge(p)}>{busy === pairKey(p) ? 'Merging…' : 'Merge'}</button></div>
+        <div className="dup-act"><button type="button" className="b s-btn on-light xs" disabled={!!busy} onClick={() => skip(p)}>Not the same person</button><button type="button" className="b dgr xs" disabled={!!busy} onClick={() => void merge(p)}>{busy === pairKey(p) ? 'Merging…' : 'Same person: merge'}</button></div>
       </div>)}</div>
     </div>
     <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Done</button></div>
