@@ -38,9 +38,8 @@ begin
   select * into d from public.people where id = p_drop for update;
   if not found then raise exception 'The record to merge in no longer exists.'; end if;
 
-  if k.auth_user_id is not null and d.auth_user_id is not null then
-    raise exception 'Both records have their own login, so they cannot be merged here. Ask the Executive Director which login to keep.';
-  end if;
+  -- If both records have a login, the kept record's login stays and the other is
+  -- switched off: unlinked from every record (step 2b), not deleted.
 
   -- 1. Rows that would clash with a unique key: the kept record's row wins.
   delete from public.person_cert_progress x
@@ -63,6 +62,15 @@ begin
   loop
     execute format('update %s set %I = $1 where %I = $2', r.tbl, r.col, r.col) using p_keep, p_drop;
   end loop;
+
+  -- 2b. Both had a login: registrations made under the switched-off login move to
+  --     the kept login (the member area finds them by login), and its profile no
+  --     longer points at anyone.
+  if k.auth_user_id is not null and d.auth_user_id is not null then
+    update public.event_registrations set auth_user_id = k.auth_user_id where auth_user_id = d.auth_user_id;
+    update public.profiles set person_id = null where id = d.auth_user_id;
+    d.auth_user_id := null;
+  end if;
 
   -- 3. The other record goes now, so nothing unique on it (email, login) can clash
   --    while its details are copied below. Everything that pointed at it already

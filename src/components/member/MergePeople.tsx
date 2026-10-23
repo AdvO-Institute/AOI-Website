@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import { mergePeople, deletePerson, findPeople, type PeopleOp, type MergeHit } from '@/lib/queries/contacts'
 import { Modal, askConfirm } from './opsUi'
 
-type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_city?: string | null }
+type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_city?: string | null; auth_user_id?: string | null }
 /** What tells two same-name records apart: email, membership, city. */
 const detail = (p: Who) => [p.email ?? 'no email', p.membership_status, p.practice_city].filter(Boolean).join(' · ')
 const name = (p: Who) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
@@ -39,7 +39,7 @@ export function MergeDialog({ p, onClose, onDone }: { p: Who; onClose: () => voi
   async function go() {
     if (!keep || !drop) return
     const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
-    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed. This cannot be undone.`, ok: 'Merge', danger: true }))) return
+    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed.${keep.auth_user_id && drop.auth_user_id ? ` Both records have a login: the one on ${name(keep)} stays, and the other is switched off.` : ''} This cannot be undone.`, ok: 'Merge', danger: true }))) return
     setBusy(true); const r = await mergePeople(keep.id, drop.id); setBusy(false)
     onDone(r, keep.id)
   }
