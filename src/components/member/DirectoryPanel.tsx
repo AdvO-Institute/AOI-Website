@@ -20,6 +20,7 @@ import type { Contact, Committee } from '@/lib/queries/contacts'
 import { PersonCard, StatusPill, RoleChips, Pill, fmtD } from './PersonCard'
 import { chipsFor } from './PersonChips'
 import { askConfirm } from './opsUi'
+import { DuplicatesDialog } from './DuplicatesDialog'
 
 type Tab = 'all' | 'lead' | 'current' | 'recent' | 'inactive' | 'vendor' | 'deceased'
 type Where = Exclude<Tab, 'all' | 'vendor'>
@@ -60,6 +61,7 @@ export default function DirectoryPanel() {
   const show = (id: string, editing = false) => { setOpenEditing(editing); setOpen(id) }
   const [adding, setAdding] = useState(false) // + Add person opens the same card, empty
   const [invites, setInvites] = useState(false)
+  const [dupes, setDupes] = useState(false)
   /* Compact (one row per person) or comfortable (cards), remembered on this device; phones always get the cards. */
   const { compact, narrow, setDensity } = useDensity('aoi.directory.density', canEdit ? 'compact' : 'comfortable')
 
@@ -132,7 +134,7 @@ export default function DirectoryPanel() {
     <>
       <div className="cert-head">
         <div><h1>Directory</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>{seeAll ? `Everyone we talk to — ${rows.length} people: leads, members and vendors, one record each.` : `Members, and current or former board members — ${counts.all} people.`} Recently expired = lapsed within six months; Inactive = longer than that.</div></div>
-        <div className="cert-actions">{canRoles && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setAdding(true)}>+ Add person</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
+        <div className="cert-actions">{canRoles && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canRoles && seeAll && <button type="button" className="b s-btn on-light sm" onClick={() => setDupes(true)}>Find duplicates</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setAdding(true)}>+ Add person</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
       </div>
       {error && <div className="cert-err" role="alert">{error}</div>}
       <div className={`cert-tiles${seeAll ? ' seven' : ''}`}>{tabs.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>
@@ -151,6 +153,7 @@ export default function DirectoryPanel() {
       {gone.length > 0 && tab !== 'deceased' && <div className="msec">Deceased · {gone.length}</div>}
       {gone.length > 0 && (compact ? table(gone) : gone.map(card))}
 
+      {dupes && <DuplicatesDialog rows={rows} onClose={() => setDupes(false)} onChanged={load} />}
       {invites && <InviteAllDialog onClose={() => { setInvites(false); void load() }} />}
       {current && <PersonCard key={current.id} startEditing={openEditing} p={current} lastIn={lastIn(current)} {...cardProps} onClose={() => setOpen(null)} />}
       {adding && <PersonCard p={null} {...cardProps} onClose={() => setAdding(false)} />}
