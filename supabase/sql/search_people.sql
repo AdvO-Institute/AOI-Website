@@ -13,10 +13,13 @@ returns setof public.people
 language sql stable
 set search_path = public, extensions
 as $$
+  -- word_similarity scores the query against the best-matching part of the name,
+  -- so one misspelled word still matches. 0.4 was tested on live names: a typo
+  -- finds the right few people, nonsense finds none.
   select * from public.people
   where deceased_on is null
-    and (coalesce(first_name, '') || ' ' || coalesce(last_name, '') || ' ' || coalesce(practice_name, '')) % q
-  order by similarity(coalesce(first_name, '') || ' ' || coalesce(last_name, '') || ' ' || coalesce(practice_name, ''), q) desc
+    and word_similarity(q, coalesce(first_name, '') || ' ' || coalesce(last_name, '') || ' ' || coalesce(practice_name, '')) >= 0.4
+  order by word_similarity(q, coalesce(first_name, '') || ' ' || coalesce(last_name, '') || ' ' || coalesce(practice_name, '')) desc
   limit max_rows
 $$;
 
