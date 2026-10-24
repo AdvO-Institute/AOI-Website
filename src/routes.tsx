@@ -38,6 +38,7 @@ import ArticlesPage from '@/pages/ArticlesPage'
 import ArticlePage from '@/pages/ArticlePage'
 import ProblemPage from '@/pages/ProblemPage'
 import ContactPage from '@/pages/ContactPage'
+import DirectoryPage from '@/pages/DirectoryPage'
 import ResourcesPage from '@/pages/ResourcesPage'
 import ResourcePage from '@/pages/ResourcePage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
@@ -303,6 +304,20 @@ const staticRoutes: RouteEntry[] = [
       changefreq: 'weekly',
       updatedAt: UPDATED,
       breadcrumbs: [{ name: 'Articles', path: '/articles' }],
+    },
+  },
+  {
+    path: '/find-a-doctor',
+    Component: DirectoryPage,
+    prerender: true,
+    meta: {
+      title: 'Find an Advanced Orthogonal Doctor — Advanced Orthogonal Institute',
+      description:
+        'Search clinics led by members of the Advanced Orthogonal Institute by city, state, ZIP, clinic name or doctor, and see which doctors are certified in Advanced Orthogonal care.',
+      priority: 0.8,
+      changefreq: 'weekly',
+      updatedAt: '2026-10-04',
+      breadcrumbs: [{ name: 'Find a Doctor', path: '/find-a-doctor' }],
     },
   },
   {

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
-import { useToast } from '@/components/ui/Toast'
 import { AS_OF } from '@/content/calendar'
 
 export default function SiteFooter() {
-  const toast = useToast()
   /* The copyright year: the build's year in the prerendered HTML (so the first
    * client render matches it), then the visitor's own year once mounted. */
   const [year, setYear] = useState(AS_OF.getFullYear())
@@ -47,17 +45,7 @@ export default function SiteFooter() {
           <div>
             <h5>Connect</h5>
             <Link to="/membership">Membership</Link>
-            <button
-              type="button"
-              className="flink"
-              onClick={() =>
-                toast(
-                  'The Doctor Directory is coming soon. Call (656) 222-1099 and we will connect you with a certified doctor near you.',
-                )
-              }
-            >
-              Doctor Directory
-            </button>
+            <Link to="/find-a-doctor">Doctor Directory</Link>
             <a href="tel:+16562221099">(656) 222-1099</a>
             <a href="mailto:Info@AdvancedOrthogonal.com">Info@AdvancedOrthogonal.com</a>
           </div>

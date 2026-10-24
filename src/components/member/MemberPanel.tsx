@@ -34,9 +34,11 @@ import CalendarPanel from './CalendarPanel'
 import StatsPanel from './StatsPanel'
 import RecordsPanel from './RecordsPanel'
 import ControlPanel from './ControlPanel'
+import MyListingPanel from './MyListingPanel'
+import MyInfoPanel from './MyInfoPanel'
+import MemberDirectoryPanel from './MemberDirectoryPanel'
 import VaultPanel from './VaultPanel'
 import OrgPanel from './OrgPanel'
-import PhotoCard from './PhotoCard'
 import { fmtDate } from '@/lib/dates'
 
 const date = (iso?: string | null) => fmtDate(iso) || '—'
@@ -105,6 +107,7 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   if (tab === 'oversight') return <OperatingSystem />
   if (tab === 'certification') return <CertificationPanel />
   if (tab === 'directory') return <DirectoryPanel />
+  if (tab === 'members') return <MemberDirectoryPanel />
   if (tab === 'events') return <EventsPanel />
   if (tab === 'board') return <BoardPanel />
   if (tab === 'internships') return <InternshipsPanel />
@@ -148,7 +151,6 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
     const p = access.person
     return (
       <Panel title="Membership" lede={TIER_LABEL[access.tier]}>
-        <PhotoCard />
         <Row title="Status" detail={p?.membership_status ? p.membership_status.charAt(0).toUpperCase() + p.membership_status.slice(1) : 'No membership on file'} />
         <Row title="Member since" detail={date(p?.member_since)} />
         <Row title="Renews" detail={date(p?.membership_expires)} />
@@ -218,30 +220,8 @@ export default function MemberPanel({ tab, label }: { tab: string; label: string
   }
 
   /* ----------------------------------------------------------- my listing -- */
-  if (tab === 'mylisting') {
-    const p = access.person
-    return (
-      <Panel
-        title="My Listing"
-        lede="Your entry in the doctor directory. Reserved to certified doctors at Level 1 or above."
-      >
-        <Row title="Practice" detail={p?.practice_name ?? 'Not set'} />
-        <Row
-          title="Location"
-          detail={[p?.practice_city, p?.practice_state].filter(Boolean).join(', ') || 'Not set'}
-        />
-        <Row
-          title="Edit your details"
-          detail="Changes update the Institute database and your listing"
-          right={
-            <Link className="b sm s-btn on-light" to="/contact">
-              Request a change
-            </Link>
-          }
-        />
-      </Panel>
-    )
-  }
+  if (tab === 'mylisting') return <MyListingPanel />
+  if (tab === 'myinfo') return <MyInfoPanel />
 
   /* -------------------------------------------------------------- reports -- */
   /* ---------------------------------------------------------------- board -- */
