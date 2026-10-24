@@ -30,7 +30,7 @@ export type Office = { id?: number; person_id?: string; name: string | null; add
 export type Committee = { id: number; key: string; name: string }
 
 export type Contact = {
-  id: string; first_name: string; last_name: string; credentials: string | null; title: string | null; email: string | null
+  id: string; first_name: string; last_name: string; credentials: string | null; title: string | null; email: string | null; other_emails: string[] | null
   personal_phone: string | null; mobile_phone: string | null; office_phone: string | null
   practice_name: string | null; practice_address: string | null; practice_city: string | null; practice_state: string | null; practice_zip: string | null
   practice_phone: string | null; practice_website: string | null
@@ -45,7 +45,7 @@ export type Contact = {
 }
 
 const SELECT =
-  'id,first_name,last_name,credentials,title,email,personal_phone,mobile_phone,office_phone,practice_name,practice_address,' +
+  'id,first_name,last_name,credentials,title,email,other_emails,personal_phone,mobile_phone,office_phone,practice_name,practice_address,' +
   'practice_city,practice_state,practice_zip,practice_phone,practice_website,membership_status,member_since,membership_expires,' +
   'contact_type,techniques,cert_level,instructor_status,alma_mater,grad_year,npi,bio,photo_url,notes,deceased_on,profile_completed,auth_user_id,' +
   'person_certifications(id,technique,level,cert_date,certificate_number,grandfathered,certified_by),' +
@@ -134,7 +134,7 @@ export const initials = (p: Pick<Contact, 'first_name' | 'last_name'>) => `${(p.
 /* ----------------------------------------------------------------- writes */
 
 export type Profile = Partial<Pick<Contact,
-  'first_name' | 'last_name' | 'credentials' | 'title' | 'email' | 'personal_phone' | 'mobile_phone' | 'office_phone' |
+  'first_name' | 'last_name' | 'credentials' | 'title' | 'email' | 'other_emails' | 'personal_phone' | 'mobile_phone' | 'office_phone' |
   'practice_name' | 'practice_address' | 'practice_city' | 'practice_state' | 'practice_zip' | 'practice_phone' | 'practice_website' |
   'membership_status' | 'member_since' | 'membership_expires' | 'contact_type' | 'techniques' | 'alma_mater' | 'grad_year' | 'npi' |
   'bio' | 'photo_url' | 'deceased_on'>>
@@ -197,56 +197,102 @@ async function peopleOp(name: string, args: Record<string, unknown>): Promise<Pe
   try { msg = (JSON.parse(r.error) as { message?: string }).message ?? msg } catch { /* plain text */ }
   return { ok: false, error: msg, missing }
 }
-export const mergePeople = (keep: string, drop: string) => peopleOp('merge_people', { p_keep: keep, p_drop: drop })
+/** keepSecond: keep the other record's email as a second email, and add its
+ *  practice as another office, instead of dropping them (#226). */
+export type KeepSecond = { email: boolean; location: boolean }
+export const mergePeople = (keep: string, drop: string, second?: KeepSecond) =>
+  peopleOp('merge_people', second ? { p_keep: keep, p_drop: drop, p_second_email: second.email, p_second_location: second.location } : { p_keep: keep, p_drop: drop })
 export const deletePerson = (id: string) => peopleOp('delete_person', { p_id: id })
 
 /** Name search for the merge picker, with enough to tell two records apart. */
-export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_city: string | null; auth_user_id: string | null }
+export type MergeHit = { id: string; first_name: string | null; last_name: string | null; credentials: string | null; email: string | null; membership_status: string | null; practice_name: string | null; practice_address: string | null; practice_city: string | null; auth_user_id: string | null }
 export async function findPeople(q: string): Promise<MergeHit[]> {
   const t = q.trim().replace(/[,.*()]/g, '')
   if (t.length < 2) return []
-  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_city,auth_user_id&${f}&order=last_name.asc&limit=${n}`)
+  const r = await searchSelect<MergeHit>('people', t, ['first_name', 'last_name'], 8, (f, n) => `select=id,first_name,last_name,credentials,email,membership_status,practice_name,practice_address,practice_city,auth_user_id&${f}&order=last_name.asc&limit=${n}`)
   return r.data ?? []
 }
 
-/** Records that may be the same person as `id`, best first, each with why:
- *  the same email, a shared phone number (any of the four, compared by its
- *  last ten digits) or a close name (search_people, which forgives typos). */
+/* Are two names close enough to be one person? Both parts must be: the same,
+ * a short form ("Chris", "Christopher"), or one slip of the keyboard in a name
+ * of five letters or more (a swap counts as one). "Mark" and "Mary" are not.
+ * Office details never count: doctors in one practice share them. */
+const letters = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/[^a-z]/g, '')
+function slips(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)))
+  const at = (i: number, j: number) => d[i]?.[j] ?? 0
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    let v = Math.min(at(i - 1, j) + 1, at(i, j - 1) + 1, at(i - 1, j - 1) + (a[i - 1] === b[j - 1] ? 0 : 1))
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, at(i - 2, j - 2) + 1)
+    d[i]![j] = v
+  }
+  return at(a.length, b.length)
+}
+const partClose = (a: string, b: string, short: boolean) => !!a && !!b && (a === b
+  || (short && Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)))
+  || (Math.min(a.length, b.length) >= 5 && slips(a, b) <= 1))
+type Named = { first_name: string | null; last_name: string | null }
+/** 'same name', 'similar name', or null when the names are not close. */
+export function nameMatch(x: Named, y: Named): 'same name' | 'similar name' | null {
+  const [xf, xl, yf, yl] = [letters(x.first_name), letters(x.last_name), letters(y.first_name), letters(y.last_name)]
+  if (xf && xl && xf === yf && xl === yl) return 'same name'
+  return partClose(xf, yf, true) && partClose(xl, yl, false) ? 'similar name' : null
+}
+
+/** Records that may be the same person as `id`, best first, each with why. The
+ *  name must be close (nameMatch); the same email or the same personal or
+ *  mobile phone moves a record up. */
 export type MergeSuggestion = MergeHit & { why: string[] }
-const PHONES = ['personal_phone', 'mobile_phone', 'office_phone', 'practice_phone'] as const
+const PHONES = ['personal_phone', 'mobile_phone'] as const
 type PhoneRow = MergeHit & Partial<Record<(typeof PHONES)[number], string | null>>
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-10)
 export async function suggestMerges(id: string): Promise<MergeSuggestion[]> {
-  const base = 'id,first_name,last_name,credentials,email,membership_status,practice_city,auth_user_id'
+  const base = 'id,first_name,last_name,credentials,email,membership_status,practice_name,practice_address,practice_city,auth_user_id'
   const cols = `${base},${PHONES.join(',')}`
   const me = (await select<PhoneRow>('people', `select=${cols}&id=eq.${id}`)).data?.[0]
   if (!me) return []
   const found = new Map<string, MergeSuggestion>()
   const add = (rows: PhoneRow[] | null | undefined, why: (h: PhoneRow) => string | null) => {
     for (const h of rows ?? []) {
-      const w = h.id === id ? null : why(h)
-      if (!w) continue
-      const s = found.get(h.id) ?? { id: h.id, first_name: h.first_name, last_name: h.last_name, credentials: h.credentials, email: h.email, membership_status: h.membership_status, practice_city: h.practice_city, auth_user_id: h.auth_user_id, why: [] }
+      const close = h.id === id ? null : nameMatch(me, h)
+      const w = close && why(h)
+      if (!close || !w) continue
+      const s = found.get(h.id) ?? { id: h.id, first_name: h.first_name, last_name: h.last_name, credentials: h.credentials, email: h.email, membership_status: h.membership_status, practice_name: h.practice_name, practice_address: h.practice_address, practice_city: h.practice_city, auth_user_id: h.auth_user_id, why: [close] }
       if (!s.why.includes(w)) s.why.push(w)
       found.set(h.id, s)
     }
   }
   const email = me.email?.trim().toLowerCase().replace(/[*,()]/g, '')
   const mine = new Set(PHONES.map((c) => digits(me[c])).filter((d) => d.length >= 7))
-  const fullName = `${me.first_name ?? ''} ${me.last_name ?? ''}`.trim()
   const [byEmail, byPhone, byName] = await Promise.all([
     email ? select<PhoneRow>('people', `select=${cols}&email=ilike.${encodeURIComponent(email)}&limit=10`) : null,
     // Phones are typed every which way, so match the last seven digits loosely
     // ("*677*0001*") and confirm on the digits below.
     mine.size ? select<PhoneRow>('people', `select=${cols}&or=(${[...mine].flatMap((d) => PHONES.map((c) => `${c}.like.*${d.slice(-7, -4)}*${d.slice(-4)}*`)).join(',')})&limit=30`) : null,
-    fullName.length >= 3 ? rpcResult<PhoneRow[]>('search_people', { q: fullName, max_rows: 8 }) : null,
+    // search_people also looks at practice names, so nameMatch above decides.
+    me.last_name ? rpcResult<PhoneRow[]>('search_people', { q: `${me.first_name ?? ''} ${me.last_name}`.trim(), max_rows: 20 }) : null,
   ])
   add(byEmail?.data, () => 'same email')
   add(byPhone?.data, (h) => (PHONES.some((c) => mine.has(digits(h[c]))) ? 'same phone' : null))
-  add(Array.isArray(byName?.data) ? byName.data : null, () => 'similar name')
-  // Email is the strongest sign. Doctors in one office share its phone, so a
-  // phone alone counts no more than a close name; both together rank higher.
-  const WEIGHT: Record<string, number> = { 'same email': 3, 'same phone': 1, 'similar name': 1 }
+  add(Array.isArray(byName?.data) ? byName.data : null, (h) => nameMatch(me, h))
+  const WEIGHT: Record<string, number> = { 'same email': 3, 'same phone': 2, 'same name': 2, 'similar name': 1 }
   const score = (s: MergeSuggestion) => s.why.reduce((n, w) => n + (WEIGHT[w] ?? 0), 0)
   return [...found.values()].sort((a, b) => score(b) - score(a)).slice(0, 8)
+}
+
+/* Pairs someone said are two different people (not_duplicates), shared by
+ * everyone who can merge. Stored smaller id first. Until the table exists the
+ * list is empty and marking says so. */
+export type NotDuplicate = { person_a: string; person_b: string; marked_by_name: string | null; marked_at: string }
+const ordered = (x: string, y: string) => (x < y ? [x, y] : [y, x]) as [string, string]
+export async function loadNotDuplicates(): Promise<NotDuplicate[]> {
+  return (await select<NotDuplicate>('not_duplicates', 'select=person_a,person_b,marked_by_name,marked_at')).data ?? []
+}
+export async function markNotDuplicate(x: string, y: string, by: string | null) {
+  const [a, b] = ordered(x, y)
+  return insert('not_duplicates', [{ person_a: a, person_b: b, marked_by_name: by }])
+}
+export async function unmarkNotDuplicate(x: string, y: string) {
+  const [a, b] = ordered(x, y)
+  return remove('not_duplicates', `person_a=eq.${a}&person_b=eq.${b}`)
 }

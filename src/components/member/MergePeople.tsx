@@ -5,10 +5,10 @@
  * choosing and the confirming.
  * -------------------------------------------------------------------------- */
 import { useEffect, useState } from 'react'
-import { mergePeople, deletePerson, findPeople, suggestMerges, type PeopleOp, type MergeHit, type MergeSuggestion } from '@/lib/queries/contacts'
+import { mergePeople, deletePerson, findPeople, suggestMerges, type PeopleOp, type MergeHit, type MergeSuggestion, type KeepSecond } from '@/lib/queries/contacts'
 import { Modal, askConfirm } from './opsUi'
 
-type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_city?: string | null; auth_user_id?: string | null }
+type Who = { id: string; first_name: string | null; last_name: string | null; credentials?: string | null; email?: string | null; membership_status?: string | null; practice_name?: string | null; practice_address?: string | null; practice_city?: string | null; auth_user_id?: string | null }
 /** What tells two same-name records apart: email, membership, city. */
 const detail = (p: Who) => [p.email ?? 'no email', p.membership_status, p.practice_city].filter(Boolean).join(' · ')
 const name = (p: Who) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
@@ -22,12 +22,44 @@ export async function confirmDelete(p: Who): Promise<PeopleOp | null> {
   return deletePerson(p.id)
 }
 
+/* What the other record has that the kept one would otherwise lose: a different
+ * email, or a practice somewhere else. Each can be kept as a second one. */
+const t = (x?: string | null) => (x ?? '').trim().toLowerCase()
+const place = (p: Who) => [p.practice_name, p.practice_address, p.practice_city].map((x) => (x ?? '').trim()).filter(Boolean)
+export function secondsOf(keep: Who, drop: Who): { email: string | null; location: string | null } {
+  const email = t(drop.email) && t(keep.email) && t(drop.email) !== t(keep.email) ? drop.email!.trim() : null
+  const at = (p: Who) => `${t(p.practice_address)}|${t(p.practice_city)}`
+  const location = place(drop).length && place(keep).length && at(drop) !== at(keep) ? place(drop).join(', ') : null
+  return { email, location }
+}
+
+/** The two tick boxes: keep the other email, add the other office. Both start ticked. */
+export function KeepSecondChoices({ keep, drop, value, onChange }: { keep: Who; drop: Who; value: KeepSecond; onChange: (v: KeepSecond) => void }) {
+  const s = secondsOf(keep, drop)
+  if (!s.email && !s.location) return null
+  return <div className="merge-keep">
+    <div className="merge-keep-h">Also keep from the other record</div>
+    {s.email && <label><input type="checkbox" checked={value.email} onChange={(e) => onChange({ ...value, email: e.target.checked })} /> Keep <b>{s.email}</b> as a second email</label>}
+    {s.location && <label><input type="checkbox" checked={value.location} onChange={(e) => onChange({ ...value, location: e.target.checked })} /> Add <b>{s.location}</b> as another office</label>}
+  </div>
+}
+export const KEEP_BOTH: KeepSecond = { email: true, location: true }
+
+/** The one confirmation before a merge, also used by Find duplicates. */
+export function confirmMerge(keep: Who, drop: Who, second: KeepSecond = KEEP_BOTH): Promise<boolean> {
+  const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
+  const s = secondsOf(keep, drop)
+  const kept = [s.email && second.email ? `${s.email} stays as a second email` : null, s.location && second.location ? `${s.location} is added as another office` : null].filter(Boolean).join(', and ')
+  return askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in${kept ? `, ${kept}` : ''}, and the duplicate is removed.${keep.auth_user_id && drop.auth_user_id ? ` Both records have a login: the one on ${name(keep)} stays, and the other is switched off.` : ''} This cannot be undone.`, ok: 'Merge', danger: true })
+}
+
 export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who; onClose: () => void; onDone: (r: PeopleOp, kept: string) => void }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<MergeHit[]>([])
   const [other, setOther] = useState<Who | null>(start ?? null)
   const [keepThis, setKeepThis] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [second, setSecond] = useState<KeepSecond>(KEEP_BOTH)
   const [likely, setLikely] = useState<MergeSuggestion[] | null>(null)
   useEffect(() => {
     let off = false
@@ -44,9 +76,8 @@ export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who
   const drop = other && (keepThis ? other : p)
   async function go() {
     if (!keep || !drop) return
-    const tag = (x: Who) => `${name(x)}${x.email ? ` (${x.email})` : ''}`
-    if (!(await askConfirm(`Merge into ${tag(keep)}?`, { body: `Everything on ${tag(drop)}, including registrations, payments, certifications, roles, notes and the login, moves to the record you keep. Its blanks are filled in, and the duplicate is removed.${keep.auth_user_id && drop.auth_user_id ? ` Both records have a login: the one on ${name(keep)} stays, and the other is switched off.` : ''} This cannot be undone.`, ok: 'Merge', danger: true }))) return
-    setBusy(true); const r = await mergePeople(keep.id, drop.id); setBusy(false)
+    if (!(await confirmMerge(keep, drop, second))) return
+    setBusy(true); const r = await mergePeople(keep.id, drop.id, second); setBusy(false)
     onDone(r, keep.id)
   }
 
@@ -68,6 +99,7 @@ export function MergeDialog({ p, start, onClose, onDone }: { p: Who; start?: Who
         <div className="flabel">Keep which record?</div>
         <label className="merge-pick"><input type="radio" name="keep" checked={!keepThis} onChange={() => setKeepThis(false)} /> <span><b>{name(other)}</b> <span className="muted">the one you found · {detail(other)}</span></span></label>
         <label className="merge-pick"><input type="radio" name="keep" checked={keepThis} onChange={() => setKeepThis(true)} /> <span><b>{name(p)}</b> <span className="muted">this card · {detail(p)}</span></span></label>
+        {keep && drop && <KeepSecondChoices keep={keep} drop={drop} value={second} onChange={setSecond} />}
         <button type="button" className="b s-btn on-light xs" style={{ marginTop: 10 }} onClick={() => setOther(null)}>Pick a different record</button>
       </>}
     </div>
