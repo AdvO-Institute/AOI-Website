@@ -3338,24 +3338,47 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .merge-pick .muted { color: var(--color-content-muted); font-size: 13px; }
 .merge-hit span { font-size: 13px; color: var(--color-content-muted); }
 .cc .act.merge-act { gap: 8px; }
-/* Possible duplicates (DuplicatesDialog.tsx): two records side by side, why, and the choices. */
-.dup-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 14px; padding: 10px 12px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); background: var(--color-surface-base); }
-.dup-col { display: grid; gap: 2px; min-width: 0; align-content: start; }
-.dup-view { justify-self: start; margin-left: 8px; font-size: 13px; }
-.dup-side { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-control); cursor: pointer; }
-.dup-side.on { border-color: var(--color-brand-primary); }
-.dup-side input { margin-top: 3px; }
-.dup-side > span { display: grid; gap: 2px; min-width: 0; }
-.dup-side em { font-style: normal; font-size: 12px; color: var(--color-content-secondary); }
-.dup-side span span { font-size: 13px; color: var(--color-content-muted); overflow-wrap: anywhere; }
-.dup-why { align-self: center; padding-left: 8px; font-size: 12px; font-weight: 700; color: var(--color-content-secondary); text-transform: uppercase; letter-spacing: .04em; font-family: var(--font-display); }
-.dup-keep { grid-column: 1 / -1; }
-.dup-keep:empty { display: none; }
-.merge-keep { display: grid; gap: 4px; margin-top: 8px; font-size: 13px; color: var(--color-content-secondary); }
+/* Possible duplicates (DuplicatesDialog.tsx): the pairs on the left, one pair
+ * compared side by side on the right; on a phone the pair opens under its row. */
+.cert-modal.dup-modal { max-width: 1060px; }
+.dup-split { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 520px; max-height: min(78vh, 820px); }
+.dup-list { overflow-y: auto; border-right: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
+.dup-right { overflow-y: auto; padding: 18px 22px 22px; }
+.dup-item { display: grid; gap: 2px; width: 100%; text-align: left; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--color-border-subtle); border-left: 3px solid transparent; background: none; font: inherit; color: var(--color-content-primary); cursor: pointer; }
+.dup-item b { font-size: 14px; }
+.dup-item span { font-size: 12px; color: var(--color-content-muted); }
+.dup-item:hover { background: var(--color-surface-base); }
+.dup-item.sel { background: var(--color-surface-base); border-left-color: var(--color-brand-primary); }
+.dup-item.marked b { color: var(--color-content-muted); }
+.dup-more { padding: 12px 14px; }
+.dup-link { background: none; border: 0; padding: 0; font: inherit; font-size: 13px; color: var(--color-brand-primary); text-decoration: underline; cursor: pointer; text-align: left; }
+.dup-q { font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-content-tertiary); margin-bottom: 10px; }
+.dup-q span { margin-left: 6px; letter-spacing: .04em; color: var(--color-content-muted); font-weight: 600; }
+.dup-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.dup-keepcard { display: flex; gap: 10px; align-items: center; padding: 12px; border: 2px solid var(--color-border-subtle); border-radius: 6px; cursor: pointer; min-width: 0; }
+.dup-keepcard.on { border-color: var(--color-brand-primary); background: var(--color-status-info-surface); }
+.dup-keepcard > span { display: grid; gap: 2px; min-width: 0; }
+.dup-keepcard small { font-family: var(--font-display); font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-content-tertiary); }
+.dup-keepcard.on small { color: var(--color-brand-primary); }
+.dup-keepcard b { font-size: 16px; overflow-wrap: anywhere; }
+.dup-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+.dup-table th, .dup-table td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--color-border-subtle); overflow-wrap: anywhere; }
+.dup-table th { width: 110px; font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-content-tertiary); }
+.dup-table tr.diff td { background: var(--color-status-pending-surface); }
+.dup-table tr.same td { color: var(--color-content-muted); }
+.dup-table td i { font-style: normal; color: var(--color-content-tertiary); }
+.dup-table .muted { color: var(--color-content-muted); font-size: 12.5px; }
+.dup-table tr.links td, .dup-table tr.links th { border-bottom: 0; padding-top: 8px; }
+.dup-answer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; }
+.dup-marked { margin-right: auto; font-size: 13px; color: var(--color-content-muted); }
+.dup-acc { padding: 0; }
+.dup-acc > div.open { border: 1px solid var(--color-brand-primary); }
+.dup-acc > div.open .dup-item { background: var(--color-status-info-surface); }
+.dup-acc .dup-cmp { padding: 14px 16px 16px; }
+@media (max-width: 560px) { .dup-cards { grid-template-columns: 1fr; } .dup-table th { width: 78px; } .dup-answer { flex-wrap: wrap; } }
+.merge-keep { display: grid; gap: 6px; margin-top: 14px; padding: 12px 14px; border-radius: 6px; background: var(--color-surface-raised); font-size: 13px; color: var(--color-content-secondary); }
 .merge-keep label { display: flex; gap: 8px; align-items: baseline; overflow-wrap: anywhere; }
-.dup-marked { margin-right: auto; align-self: center; font-size: 13px; color: var(--color-content-muted); }
-.dup-act { display: flex; gap: 8px; justify-content: flex-end; }
-@media (max-width: 560px) { .dup-pair { grid-template-columns: minmax(0, 1fr); } }
+.merge-keep-h { font-weight: 700; font-size: 13px; color: var(--color-content-primary); }
 
 /* ---------------------------------------------------- research library --- */
 .rlib-note { margin: 0 0 18px; padding: 10px 14px; border-left: 3px solid var(--color-brand-accent); border-radius: 0 4px 4px 0; background: var(--color-status-pending-surface); color: var(--color-status-pending-content); font-size: 13px; line-height: 1.5; }

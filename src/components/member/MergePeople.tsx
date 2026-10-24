@@ -38,6 +38,7 @@ export function KeepSecondChoices({ keep, drop, value, onChange }: { keep: Who; 
   const s = secondsOf(keep, drop)
   if (!s.email && !s.location) return null
   return <div className="merge-keep">
+    <div className="merge-keep-h">Also keep from the other record</div>
     {s.email && <label><input type="checkbox" checked={value.email} onChange={(e) => onChange({ ...value, email: e.target.checked })} /> Keep <b>{s.email}</b> as a second email</label>}
     {s.location && <label><input type="checkbox" checked={value.location} onChange={(e) => onChange({ ...value, location: e.target.checked })} /> Add <b>{s.location}</b> as another office</label>}
   </div>
