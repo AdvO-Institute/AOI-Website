@@ -166,7 +166,7 @@ function inviteEmail(p: Person, link: string, email: string, code = ""): { subje
       ],
       rows,
       cta: { label: "Choose your password", href: link },
-      note: `This link and code are good for 24 hours.${codeNote(code)} If both have expired, go to advancedorthogonal.com, click Member Login, then “Forgot your password?” and we will send a new one.`,
+      note: `This link and code are good for 4 hours.${codeNote(code)} If both have expired, go to advancedorthogonal.com, click Member Login, then “Forgot your password?” and we will send a new one.`,
     }),
   };
 }
@@ -193,7 +193,7 @@ function resetEmail(name: string, link: string, email: string, code = ""): { sub
       paragraphs: [`Hi ${name}, here is your link to set a new password for the members area.`, "If you did not ask for this, you can ignore this email — nothing changes until a new password is saved."],
       rows: [["Your login", email], ["Code", code]],
       cta: { label: "Set a new password", href: link },
-      note: `This link and code are good for 24 hours.${codeNote(code)}`,
+      note: `This link and code are good for 4 hours.${codeNote(code)}`,
     }),
   };
 }
