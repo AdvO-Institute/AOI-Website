@@ -3353,6 +3353,7 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 .dup-keep:empty { display: none; }
 .merge-keep { display: grid; gap: 4px; margin-top: 8px; font-size: 13px; color: var(--color-content-secondary); }
 .merge-keep label { display: flex; gap: 8px; align-items: baseline; overflow-wrap: anywhere; }
+.dup-marked { margin-right: auto; align-self: center; font-size: 13px; color: var(--color-content-muted); }
 .dup-act { display: flex; gap: 8px; justify-content: flex-end; }
 @media (max-width: 560px) { .dup-pair { grid-template-columns: minmax(0, 1fr); } }
 

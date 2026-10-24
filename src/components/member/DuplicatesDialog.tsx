@@ -1,60 +1,40 @@
 /* ----------------------------------------------------------------------------
  * Find duplicates: every pair of records in the Directory that may be one
  * person entered twice, best first, each saying why. Opened from the Directory
- * by Board or full admin. Tap the record to keep, then Merge and confirm once.
- * Worked out from the rows the Directory has loaded,
- * so it needs nothing new on the database side.
+ * by Board or full admin. Tap the record to keep, then merge and confirm once.
+ * The names must be close; the same email or personal phone moves a pair up.
+ * "Not the same person" is saved for everyone (not_duplicates); "Search all
+ * potential duplicates" shows those pairs too, and one can be put back.
  * -------------------------------------------------------------------------- */
-import { useMemo, useState } from 'react'
-import type { Contact } from '@/lib/queries/contacts'
+import { useEffect, useMemo, useState } from 'react'
+import type { Contact, NotDuplicate } from '@/lib/queries/contacts'
 import { Modal } from './opsUi'
 import { confirmMerge, opError, KeepSecondChoices, KEEP_BOTH } from './MergePeople'
-import { mergePeople, type KeepSecond } from '@/lib/queries/contacts'
+import { mergePeople, nameMatch, loadNotDuplicates, markNotDuplicate, unmarkNotDuplicate, type KeepSecond } from '@/lib/queries/contacts'
 import { useToast } from '@/components/ui/Toast'
+import { fmtD } from './PersonCard'
 
 type Pair = { a: Contact; b: Contact; why: string[]; score: number }
 
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-10)
-const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/[^a-z]/g, '')
-function edits(a: string, b: string): number {
-  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [i]
-    for (let j = 1; j <= b.length; j++) cur[j] = Math.min((prev[j] ?? 0) + 1, (cur[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1))
-    prev = cur
-  }
-  return prev[b.length] ?? 0
-}
 
-/* Same email, or a shared personal or mobile phone, or a close name, is enough
- * to list a pair. An office phone only adds weight to one of those: doctors in
- * one practice share it. */
 function findPairs(rows: Contact[]): Pair[] {
   const own = (p: Contact) => [p.personal_phone, p.mobile_phone].map(digits).filter((d) => d.length >= 7)
-  const any = (p: Contact) => [p.personal_phone, p.mobile_phone, p.office_phone, p.practice_phone].map(digits).filter((d) => d.length >= 7)
-  const live = rows.filter((p) => !p.deceased_on).map((p) => ({ p, email: (p.email ?? '').trim().toLowerCase(), first: norm(p.first_name), last: norm(p.last_name), own: own(p), any: any(p) }))
+  const live = rows.filter((p) => !p.deceased_on).map((p) => ({ p, email: (p.email ?? '').trim().toLowerCase(), own: own(p) }))
   const out: Pair[] = []
   live.forEach((x, i) => live.slice(i + 1).forEach((y) => {
-    const why: string[] = []
-    let score = 0
+    const close = nameMatch(x.p, y.p)
+    if (!close) return
+    const why: string[] = [close]
+    let score = close === 'same name' ? 2 : 1
     if (x.email && x.email === y.email) { why.push('same email'); score += 3 }
-    if (x.own.some((d) => y.any.includes(d)) || y.own.some((d) => x.any.includes(d))) { why.push('same phone'); score += 2 }
-    const xn = x.first + x.last, yn = y.first + y.last
-    if (xn.length >= 4 && xn === yn) { why.push('same name'); score += 2 }
-    else if (x.last && y.last && edits(x.last, y.last) <= 1 && (edits(x.first, y.first) <= 2 || (Math.min(x.first.length, y.first.length) >= 3 && (x.first.startsWith(y.first) || y.first.startsWith(x.first))))) { why.push('similar name'); score += 1 }
-    if (!why.length) return
-    if (!why.includes('same phone') && x.any.some((d) => y.any.includes(d))) { why.push('same office phone'); score += 1 }
+    if (x.own.some((d) => y.own.includes(d))) { why.push('same phone'); score += 2 }
     out.push({ a: x.p, b: y.p, why, score })
   }))
   return out.sort((m, n) => n.score - m.score || (m.a.last_name ?? '').localeCompare(n.a.last_name ?? ''))
 }
 
-/* "Not the same person" is remembered on this device. */
-const KEY = 'aoi.directory.notDuplicates'
 const pairKey = (p: Pair) => [p.a.id, p.b.id].sort().join('|')
-function readSkipped(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[]) } catch { return new Set() }
-}
 
 const name = (p: Contact) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
 const detail = (p: Contact) => [p.email ?? 'no email', p.membership_status === 'active' ? 'member' : 'not a member', p.practice_city].filter(Boolean).join(' · ')
@@ -62,17 +42,26 @@ const detail = (p: Contact) => [p.email ?? 'no email', p.membership_status === '
 /* Keep the record with a login, then a member, then the first of the pair. */
 const rank = (p: Contact) => (p.auth_user_id ? 2 : 0) + (p.membership_status === 'active' ? 1 : 0)
 
-export function DuplicatesDialog({ rows, onClose, onChanged, onView }: { rows: Contact[]; onClose: () => void; onChanged: () => Promise<void>; onView: (id: string) => void }) {
+export function DuplicatesDialog({ rows, me, onClose, onChanged, onView }: { rows: Contact[]; me: string | null; onClose: () => void; onChanged: () => Promise<void>; onView: (id: string) => void }) {
   const toast = useToast()
-  const [skipped, setSkipped] = useState(readSkipped)
+  const [marked, setMarked] = useState<Map<string, NotDuplicate>>(new Map())
+  const [all, setAll] = useState(false)
+  useEffect(() => { void loadNotDuplicates().then((r) => setMarked(new Map(r.map((m) => [`${m.person_a}|${m.person_b}`, m])))) }, [])
   const [keepB, setKeepB] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState<string | null>(null)
   const [seconds, setSeconds] = useState<Record<string, KeepSecond>>({})
-  const pairs = useMemo(() => findPairs(rows).filter((p) => !skipped.has(pairKey(p))), [rows, skipped])
-  function skip(p: Pair) {
-    const next = new Set(skipped).add(pairKey(p))
-    setSkipped(next)
-    try { localStorage.setItem(KEY, JSON.stringify([...next])) } catch { /* private window: forgotten on close */ }
+  const found = useMemo(() => findPairs(rows), [rows])
+  const hidden = found.filter((p) => marked.has(pairKey(p))).length
+  const pairs = all ? found : found.filter((p) => !marked.has(pairKey(p)))
+  async function skip(p: Pair) {
+    setBusy(pairKey(p)); const r = await markNotDuplicate(p.a.id, p.b.id, me); setBusy(null)
+    if (r.error) { toast(/not_duplicates|PGRST205/.test(r.error) ? 'Saving this is not switched on yet.' : 'That did not save. Please try again.'); return }
+    setMarked(new Map(marked).set(pairKey(p), { person_a: '', person_b: '', marked_by_name: me, marked_at: new Date().toISOString() }))
+  }
+  async function unskip(p: Pair) {
+    setBusy(pairKey(p)); const r = await unmarkNotDuplicate(p.a.id, p.b.id); setBusy(null)
+    if (r.error) { toast('That did not save. Please try again.'); return }
+    const next = new Map(marked); next.delete(pairKey(p)); setMarked(next)
   }
   const choseB = (p: Pair) => keepB[pairKey(p)] ?? rank(p.b) > rank(p.a)
   async function merge(p: Pair) {
@@ -89,16 +78,19 @@ export function DuplicatesDialog({ rows, onClose, onChanged, onView }: { rows: C
   </label><button type="button" className="t-link dup-view" onClick={() => onView(x.id)}>View full record</button></div>
 
   return <Modal wide onClose={onClose}>
-    <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Tap the record to keep. A second email or office on the other record is kept unless you untick it. Then merge, or mark the pair as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+    <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pairs of records with close names that may be one person entered twice, most likely first.` : 'No likely duplicates left.'} Tap the record to keep. A second email or office on the other record is kept unless you untick it. Then merge, or mark the pair as two different people.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
     <div className="mb">
       <div className="merge-hits">{pairs.map((p) => <div key={pairKey(p)} className="dup-pair">
         {side(p, p.a, false)}
         {side(p, p.b, true)}
         <div className="dup-keep"><KeepSecondChoices keep={choseB(p) ? p.b : p.a} drop={choseB(p) ? p.a : p.b} value={seconds[pairKey(p)] ?? KEEP_BOTH} onChange={(v) => setSeconds({ ...seconds, [pairKey(p)]: v })} /></div>
         <div className="dup-why">{p.why.join(' · ')}</div>
-        <div className="dup-act"><button type="button" className="b s-btn on-light xs" disabled={!!busy} onClick={() => skip(p)}>Not the same person</button><button type="button" className="b dgr xs" disabled={!!busy} onClick={() => void merge(p)}>{busy === pairKey(p) ? 'Merging…' : 'Same person: merge'}</button></div>
+        {marked.has(pairKey(p)) ? <div className="dup-act"><span className="dup-marked">Marked not the same person{marked.get(pairKey(p))?.marked_by_name ? ` by ${marked.get(pairKey(p))?.marked_by_name}` : ''}, {fmtD(marked.get(pairKey(p))?.marked_at?.slice(0, 10) ?? null)}</span><button type="button" className="b s-btn on-light xs" disabled={!!busy} onClick={() => void unskip(p)}>Put back on the list</button></div>
+        : <div className="dup-act"><button type="button" className="b s-btn on-light xs" disabled={!!busy} onClick={() => void skip(p)}>Not the same person</button><button type="button" className="b dgr xs" disabled={!!busy} onClick={() => void merge(p)}>{busy === pairKey(p) ? 'Working…' : 'Same person: merge'}</button></div>}
       </div>)}</div>
     </div>
-    <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Done</button></div>
+    <div className="mf">{all ? <button type="button" className="b s-btn on-light sm" onClick={() => setAll(false)}>Hide pairs marked not the same</button>
+      : hidden > 0 && <button type="button" className="b s-btn on-light sm" onClick={() => setAll(true)}>Search all potential duplicates ({hidden} marked not the same)</button>}
+      <button type="button" className="b s-btn on-light sm" onClick={onClose}>Done</button></div>
   </Modal>
 }
