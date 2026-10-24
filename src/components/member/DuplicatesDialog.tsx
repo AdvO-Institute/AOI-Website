@@ -90,7 +90,7 @@ export function DuplicatesDialog({ rows, me, onClose, onChanged, onView }: { row
       </div>)}</div>
     </div>
     <div className="mf">{all ? <button type="button" className="b s-btn on-light sm" onClick={() => setAll(false)}>Hide pairs marked not the same</button>
-      : hidden > 0 && <button type="button" className="b s-btn on-light sm" onClick={() => setAll(true)}>Search all potential duplicates ({hidden} marked not the same)</button>}
+      : <button type="button" className="b s-btn on-light sm" onClick={() => setAll(true)}>Search all potential duplicates{hidden ? ` (${hidden} marked not the same)` : ''}</button>}
       <button type="button" className="b s-btn on-light sm" onClick={onClose}>Done</button></div>
   </Modal>
 }
