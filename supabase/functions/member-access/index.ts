@@ -56,6 +56,41 @@ const isCurrentMember = (p: Person) => {
 };
 const greeting = (p: Person) => (/\bDC\b|\bDO\b|\bMD\b|DCCJP/i.test(String(p.credentials ?? "")) ? `Dr. ${p.last_name}` : p.first_name);
 
+/* ---------------------------------------------------------- gmail spelling
+ * Gmail ignores dots and anything after a "+", so a member may type
+ * j.smith@gmail.com for a login stored as jsmith@gmail.com: same inbox, no
+ * match. These find the spelling on file when exactly one record matches. */
+function gmailKey(email: string): string | null {
+  const [local, domain] = email.trim().toLowerCase().split("@");
+  if (!local || !["gmail.com", "googlemail.com"].includes(domain)) return null;
+  return `${local.split("+")[0].replace(/\./g, "")}@gmail.com`;
+}
+function onlyMatch(email: string, candidates: (string | null | undefined)[]): string | null {
+  const key = gmailKey(email);
+  if (!key) return null;
+  const hits = [...new Set(candidates.filter((c): c is string => !!c && gmailKey(c) === key).map((c) => c.toLowerCase()))];
+  return hits.length === 1 && hits[0] !== email.trim().toLowerCase() ? hits[0] : null;
+}
+/** The login's own spelling of a Gmail address typed with different dots. */
+async function gmailLogin(email: string): Promise<string | null> {
+  if (!gmailKey(email)) return null;
+  const all: string[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const r = await sb(`/auth/v1/admin/users?page=${page}&per_page=1000`);
+    const users: { email?: string }[] = r.ok ? ((await r.json()).users ?? []) : [];
+    for (const u of users) if (u.email) all.push(u.email);
+    if (users.length < 1000) break;
+  }
+  return onlyMatch(email, all);
+}
+/** The contact record's spelling, for a member who has no login yet. */
+async function gmailContact(email: string): Promise<string | null> {
+  if (!gmailKey(email)) return null;
+  const r = await sb(`/rest/v1/people?or=(email.ilike.*%40gmail.com,email.ilike.*%40googlemail.com)&select=email&limit=10000`);
+  const rows: { email: string | null }[] = r.ok ? await r.json() : [];
+  return onlyMatch(email, rows.map((x) => x.email));
+}
+
 /* ------------------------------------------------------------------ auth */
 /** A password-setting link for this email. Creates the account only when asked;
  *  the public reset path never creates one, so an unknown address stays unknown. */
@@ -293,17 +328,25 @@ Deno.serve(async (req: Request) => {
   }
 
   /* ------- public: same answer either way, so nothing can be fished out ---- */
-  const email = String(body?.email ?? "").trim();
+  let email = String(body?.email ?? "").trim();
   const generic = { ok: true, message: "If that address belongs to a current member, a link is on its way. It can take a few minutes." };
 
   if (action === "activate") {
     if (!EMAIL_RE.test(email)) return json(400, { error: "invalid_email" });
-    let p = await personBy(`email=ilike.${encodeURIComponent(likeEscape(email))}`);
+    const find = async (addr: string) => {
+      let p = await personBy(`email=ilike.${encodeURIComponent(likeEscape(addr))}`);
+      if (!p) {
+        const pr = await sb(`/rest/v1/profiles?email=ilike.${encodeURIComponent(likeEscape(addr))}&select=person_id&limit=1`);
+        const rows = pr.ok ? await pr.json() : [];
+        const pid = Array.isArray(rows) ? rows[0]?.person_id : null;
+        if (pid) p = await personBy(`id=eq.${pid}`);
+      }
+      return p;
+    };
+    let p = await find(email);
     if (!p) {
-      const pr = await sb(`/rest/v1/profiles?email=ilike.${encodeURIComponent(likeEscape(email))}&select=person_id&limit=1`);
-      const rows = pr.ok ? await pr.json() : [];
-      const pid = Array.isArray(rows) ? rows[0]?.person_id : null;
-      if (pid) p = await personBy(`id=eq.${pid}`);
+      const alt = (await gmailLogin(email)) ?? (await gmailContact(email));
+      if (alt) { email = alt; p = await find(alt); }
     }
     if (p && isCurrentMember(p)) {
       // Already has a login at this address: the email says so and the link
@@ -322,7 +365,11 @@ Deno.serve(async (req: Request) => {
 
   if (action === "reset") {
     if (!EMAIL_RE.test(email)) return json(400, { error: "invalid_email" });
-    const l = await linkFor(email); // never creates an account
+    let l = await linkFor(email); // never creates an account
+    if ("error" in l) {
+      const alt = await gmailLogin(email);
+      if (alt) { email = alt; l = await linkFor(alt); }
+    }
     if (!("error" in l)) {
       const p = await personBy(`auth_user_id=eq.${l.userId}`);
       const m = resetEmail(p ? greeting(p) : "there", l.link, email, l.code);
