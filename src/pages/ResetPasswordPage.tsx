@@ -2,14 +2,13 @@
  * Password reset — its own page, two states.
  *
  * Arriving cold: an email field and one button. Arriving from the link in the
- * email: a new-password form, because the link's token already proves who they
- * are. Which state shows is decided by the recovery flag initSession() raised
- * when it adopted that token, not by anything typed on the login card.
+ * email: a new-password form, because the link's token proves who they are.
  *
  * The Institute's own emails link here with the token in the address and a
  * one-time code printed beside it. Neither is used until the member presses a
- * button: email scanners open every link, and a link that signed in on arrival
- * was spent by the scanner before the member clicked.
+ * button (Save for the link, Continue for the code): email scanners open every
+ * link, and a link that signed in on arrival was spent by the scanner before
+ * the member clicked.
  *
  * Client-only and noindex, like /account.
  * -------------------------------------------------------------------------- */
@@ -134,6 +133,24 @@ export default function ResetPasswordPage() {
       return
     }
     setBusy(true)
+    // From the email's button: the token is spent here, on Save, so a scanner
+    // that opened the link has not used it up.
+    if (tokenHash && !recovering) {
+      try {
+        await verifyRecovery({ token_hash: tokenHash })
+        window.history.replaceState({}, '', window.location.pathname)
+        setTokenHash(null)
+        setRecovering(true)
+      } catch (err) {
+        window.history.replaceState({}, '', window.location.pathname)
+        setTokenHash(null)
+        setPw1('')
+        setPw2('')
+        setNotice((err as Error).message)
+        setBusy(false)
+        return
+      }
+    }
     try {
       await updatePassword(pw1)
       setPw1('')
@@ -147,8 +164,8 @@ export default function ResetPasswordPage() {
     }
   }
 
-  /* ---------------------------------------------------- from the email link */
-  if (recovering) {
+  /* ------------------------------ from the email link, or after the code */
+  if (recovering || tokenHash) {
     return (
       <Card
         title="Choose a New Password"
@@ -209,34 +226,6 @@ export default function ResetPasswordPage() {
             </button>
           </div>
         </form>
-      </Card>
-    )
-  }
-
-  /* --------------------------------------- from the email's button, not yet used */
-  if (tokenHash) {
-    return (
-      <Card
-        title="Choose a New Password"
-        lede="One more click and you can set a new password for your member account."
-      >
-        <h3>
-          Almost there<span className="gr" />
-        </h3>
-        <div style={{ marginTop: '4px', display: 'grid', gap: '10px' }}>
-          <button
-            type="button"
-            className="b p-btn"
-            style={{ justifyContent: 'center' }}
-            disabled={busy}
-            onClick={() => void redeem({ token_hash: tokenHash })}
-          >
-            {busy ? 'One moment…' : 'Continue'}
-          </button>
-          <Link className="t-link" style={{ textAlign: 'center', fontSize: '12px' }} to="/account">
-            Back to sign in
-          </Link>
-        </div>
       </Card>
     )
   }

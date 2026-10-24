@@ -150,7 +150,7 @@ async function logoBase64(): Promise<string | null> {
   return LOGO;
 }
 
-const codeNote = (code: string) => code ? ` If the button says the link has expired, go to ${SITE_ORIGIN.replace(/^https?:\/\//, "")}/reset-password, choose “Already have a code from the email?” and enter the code above.` : "";
+const codeNote = (code: string) => code ? ` You only need the code if the button does not work: go to ${SITE_ORIGIN.replace(/^https?:\/\//, "")}/reset-password, choose “Already have a code from the email?” and enter it there.` : "";
 
 function inviteEmail(p: Person, link: string, email: string, code = ""): { subject: string; html: string } {
   const rows: EmailRow[] = [["Your login", email], ["Code", code], ["Membership", p.membership_expires ? `Current through ${new Date(p.membership_expires + "T12:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}` : "Current"]];

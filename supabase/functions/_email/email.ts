@@ -1,5 +1,5 @@
 // CCI Website — email layout ("Obsidian").
-// One template for every email the site sends: black ground, the AOI logo,
+// One template for every email the site sends: dark teal ground, the AOI logo,
 // a gold hairline, a light display headline, a ruled list of details, one
 // gold button. Built with tables and inline styles so Gmail, Outlook and
 // Apple Mail all show the same thing. Copied into each function folder that
@@ -38,7 +38,7 @@ export const REPLY_TO_DEFAULT = "info@advancedorthogonal.com";
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 const nl = (s: string) => esc(s).replace(/\n/g, "<br>");
 
-const C = { ground: "#000000", text: "#E9EEF0", soft: "#B7C6CB", label: "#7B9199", rule: "#1D2529", teal: "#4D9AA6", gold: "#ECB971", ink: "#000000", foot: "#6F858D" };
+const C = { ground: "#0F2A38", text: "#E9EEF0", soft: "#C3D4DC", label: "#8FAAB6", rule: "#244150", teal: "#6FB3C0", gold: "#ECB971", ink: "#071A26", foot: "#8AA2AD" };
 const SANS = "Figtree,'Helvetica Neue',Helvetica,Arial,sans-serif";
 const DISPLAY = "Outfit,'Helvetica Neue',Helvetica,Arial,sans-serif";
 
@@ -77,7 +77,7 @@ export function renderEmail(o: EmailInput): string {
 <title>${esc(o.titleAccent ? `${o.title} ${o.titleAccent}` : o.title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;600;700&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  body{margin:0;padding:0;background:#000000;}
+  body{margin:0;padding:0;background:${C.ground};}
   a{color:${C.gold};}
   @media only screen and (max-width:620px){
     .shell{width:100% !important;}
@@ -89,11 +89,11 @@ export function renderEmail(o: EmailInput): string {
   }
 </style>
 </head>
-<body style="margin:0;padding:0;background:#000000;" bgcolor="#000000">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#000000;">${esc(o.preheader)}&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background:#000000;">
+<body style="margin:0;padding:0;background:${C.ground};" bgcolor="${C.ground}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:${C.ground};">${esc(o.preheader)}&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.ground}" style="background:${C.ground};">
   <tr><td align="center" style="padding:0;">
-    <table role="presentation" class="shell" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#000000;">
+    <table role="presentation" class="shell" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:${C.ground};">
       <tr><td align="center" class="px" style="padding:40px 48px 30px;">
         <a href="${origin}" target="_blank" style="text-decoration:none;"><img class="logo" src="${esc(logo)}" width="300" alt="Advanced Orthogonal Institute" style="display:block;width:300px;max-width:100%;height:auto;border:0;outline:none;color:${C.text};font:600 18px/1.3 ${DISPLAY};letter-spacing:1px;text-decoration:none;"></a>
       </td></tr>
