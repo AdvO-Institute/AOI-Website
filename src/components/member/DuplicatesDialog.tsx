@@ -150,6 +150,6 @@ export function DuplicatesDialog({ rows, me, lastIn, roles, onClose, onChanged, 
     <div className="mh"><div><h3>Possible duplicates</h3><p>{pairs.length ? `${pairs.length} pair${pairs.length === 1 ? '' : 's'} with close names, most likely first.` : 'No likely duplicates left.'}</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
     {narrow
       ? <div className="mb dup-acc">{pairs.map((p) => <div key={pairKey(p)} className={cur === p ? 'open' : ''}>{item(p)}{cur === p && compare(p)}</div>)}<div className="dup-more">{showAll}</div></div>
-      : <div className="dup-split"><div className="dup-list">{pairs.map((p) => <div key={pairKey(p)}>{item(p)}</div>)}<div className="dup-more">{showAll}</div></div><div className="dup-right">{cur ? compare(cur) : <p className="muted">Pick a pair on the left.</p>}</div></div>}
+      : <div className="dup-split"><div className="dup-list"><div className="dup-scroll">{pairs.map((p) => <div key={pairKey(p)}>{item(p)}</div>)}<div className="dup-more">{showAll}</div></div></div><div className="dup-right">{cur ? compare(cur) : <p className="muted">Pick a pair on the left.</p>}</div></div>}
   </Modal>
 }
