@@ -183,14 +183,19 @@ function signInEmail(name: string, link: string): { subject: string; html: strin
     }),
   };
 }
-function resetEmail(name: string, link: string, email: string, code = ""): { subject: string; html: string } {
+function resetEmail(name: string, link: string, email: string, code = "", alreadySetUp = false): { subject: string; html: string } {
   return {
     subject: "Reset your Advanced Orthogonal Institute password",
     html: renderEmail({
       origin: SITE_ORIGIN, logoSrc: "cid:aoilogo",
       preheader: "Choose a new password for your member account.",
       eyebrow: "Members area", title: "Choose a new", titleAccent: "password.",
-      paragraphs: [`Hi ${name}, here is your link to set a new password for the members area.`, "If you did not ask for this, you can ignore this email — nothing changes until a new password is saved."],
+      paragraphs: [
+        alreadySetUp
+          ? `Hi ${name}, you already have a member account with this address, so there is nothing to set up. Use this link to choose a new password and sign in.`
+          : `Hi ${name}, here is your link to set a new password for the members area.`,
+        "If you did not ask for this, you can ignore this email — nothing changes until a new password is saved.",
+      ],
       rows: [["Your login", email], ["Code", code]],
       cta: { label: "Set a new password", href: link },
       note: `This link and code are good for 4 hours.${codeNote(code)}`,
@@ -300,7 +305,18 @@ Deno.serve(async (req: Request) => {
       const pid = Array.isArray(rows) ? rows[0]?.person_id : null;
       if (pid) p = await personBy(`id=eq.${pid}`);
     }
-    if (p && isCurrentMember(p)) await invitePerson(p, email);
+    if (p && isCurrentMember(p)) {
+      // Already has a login at this address: the email says so and the link
+      // sets a new password, rather than a "your account is ready" welcome.
+      // The screen answers the same either way.
+      const l = p.auth_user_id ? await linkFor(email) : null;
+      if (l && !("error" in l) && l.userId === p.auth_user_id) {
+        const m = resetEmail(greeting(p), l.link, email, l.code, true);
+        await send(email, m.subject, m.html);
+      } else {
+        await invitePerson(p, email);
+      }
+    }
     return json(200, generic);
   }
 
