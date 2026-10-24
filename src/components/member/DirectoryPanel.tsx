@@ -21,7 +21,8 @@ import type { Contact, Committee } from '@/lib/queries/contacts'
 import { PersonCard, StatusPill, RoleChips, Pill, fmtD } from './PersonCard'
 import { chipsFor } from './PersonChips'
 import { askConfirm } from './opsUi'
-import { DuplicatesDialog } from './DuplicatesDialog'
+import { DuplicatesDialog, findPairs, pairKey } from './DuplicatesDialog'
+import { loadNotDuplicates } from '@/lib/queries/contacts'
 
 type Tab = 'all' | 'lead' | 'current' | 'recent' | 'inactive' | 'vendor' | 'deceased'
 type Where = Exclude<Tab, 'all' | 'vendor'>
@@ -63,6 +64,10 @@ export default function DirectoryPanel() {
   const [adding, setAdding] = useState(false) // + Add person opens the same card, empty
   const [invites, setInvites] = useState(false)
   const [dupes, setDupes] = useState(false)
+  // The number on Find duplicates: pairs not marked two different people. Read again when the window closes.
+  const [notDup, setNotDup] = useState<Set<string> | null>(null)
+  useEffect(() => { if (canRoles && seeAll && !dupes) void loadNotDuplicates().then((r) => setNotDup(new Set(r.map((m) => `${m.person_a}|${m.person_b}`)))) }, [canRoles, seeAll, dupes])
+  const dupCount = useMemo(() => (notDup ? findPairs(rows).filter((p) => !notDup.has(pairKey(p))).length : 0), [rows, notDup])
   /* Compact (one row per person) or comfortable (cards), remembered on this device; phones always get the cards. */
   const { compact, narrow, setDensity } = useDensity('aoi.directory.density', canEdit ? 'compact' : 'comfortable')
 
@@ -149,7 +154,7 @@ export default function DirectoryPanel() {
     <>
       <div className="cert-head">
         <div><h1>Directory</h1><div className="ma-sub" style={{ marginBottom: 0, maxWidth: '80ch' }}>{seeAll ? `Everyone we talk to — ${rows.length} people: leads, members and vendors, one record each.` : `Members, and current or former board members — ${counts.all} people.`} Recently expired = lapsed within six months; Inactive = longer than that.</div></div>
-        <div className="cert-actions">{canRoles && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canRoles && seeAll && <button type="button" className="b s-btn on-light sm" onClick={() => setDupes(true)}>Find duplicates</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setAdding(true)}>+ Add person</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
+        <div className="cert-actions">{canRoles && <button type="button" className="b s-btn on-light sm" onClick={() => setInvites(true)}>Invite members without a login</button>}{canRoles && seeAll && <button type="button" className={`b s-btn on-light sm${dupCount > 0 ? ' has-count' : ''}`} onClick={() => setDupes(true)}>Find duplicates{dupCount > 0 && <span className="dup-count" aria-label={`${dupCount} possible`}>{dupCount}</span>}</button>}{canEdit && <button type="button" className="b p-btn sm" onClick={() => setAdding(true)}>+ Add person</button>}<button type="button" className="b s-btn on-light sm" onClick={exportCsv}>↓ Export {tab === 'all' ? 'all' : tabLabel.toLowerCase()}</button></div>
       </div>
       {error && <div className="cert-err" role="alert">{error}</div>}
       <div className={`cert-tiles${seeAll ? ' seven' : ''}`}>{tabs.map(([k, l]) => <button type="button" key={k} className={`cert-tile${tab === k ? ' on' : ''}`} onClick={() => setTab(k)} aria-pressed={tab === k}><span>{l}</span><b>{counts[k]}</b></button>)}</div>

@@ -20,7 +20,7 @@ type Pair = { a: Contact; b: Contact; why: string[]; score: number }
 
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-10)
 
-function findPairs(rows: Contact[]): Pair[] {
+export function findPairs(rows: Contact[]): Pair[] {
   const own = (p: Contact) => [p.personal_phone, p.mobile_phone].map(digits).filter((d) => d.length >= 7)
   const live = rows.filter((p) => !p.deceased_on).map((p) => ({ p, email: (p.email ?? '').trim().toLowerCase(), own: own(p) }))
   const out: Pair[] = []
@@ -36,7 +36,7 @@ function findPairs(rows: Contact[]): Pair[] {
   return out.sort((m, n) => n.score - m.score || (m.a.last_name ?? '').localeCompare(n.a.last_name ?? ''))
 }
 
-const pairKey = (p: Pair) => [p.a.id, p.b.id].sort().join('|')
+export const pairKey = (p: Pair) => [p.a.id, p.b.id].sort().join('|')
 
 const name = (p: Contact) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() + (p.credentials ? `, ${p.credentials}` : '')
 const plain = (p: Contact) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()

@@ -3341,6 +3341,9 @@ section.ov-sec { margin-top: 28px; padding: 0; }
 /* Possible duplicates (DuplicatesDialog.tsx): the pairs on the left, one pair
  * compared side by side on the right; on a phone the pair opens under its row. */
 .cert-modal.dup-modal { max-width: 1060px; }
+/* The count of possible duplicates on the Directory's Find duplicates button. */
+.b.has-count { overflow: visible; }
+.dup-count { position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--color-status-danger); color: var(--color-content-on-inverse); font-family: var(--font-sans); font-size: 11px; font-weight: 800; line-height: 20px; letter-spacing: 0; text-align: center; }
 /* The list takes the comparison's height and scrolls inside it. */
 .dup-split { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 360px; }
 .dup-list { position: relative; border-right: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
