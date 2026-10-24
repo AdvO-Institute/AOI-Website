@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
 import { useAccess } from '@/lib/queries/AccessProvider'
-import { select, ensureSession, headers, session, SB_URL } from '@/lib/supabase'
+import { select, ensureSession, headers, SB_URL } from '@/lib/supabase'
 import { CERT_LABEL } from '@/lib/chips'
 
 type Own = {
@@ -28,12 +28,12 @@ function streetOnly(address: string | null, city: string | null, state: string |
   return a.replace(tail, '').trim()
 }
 
-async function saveListing(v: Form): Promise<{ ok?: true; missing?: true; error?: string }> {
+async function saveListing(v: Form, shareClinic: boolean): Promise<{ ok?: true; missing?: true; error?: string }> {
   await ensureSession()
   const res = await fetch(`${SB_URL}/rest/v1/rpc/update_my_listing`, {
     method: 'POST',
     headers: headers(true),
-    body: JSON.stringify({ p_name: v.name, p_address: v.address, p_city: v.city, p_state: v.state.toUpperCase(), p_zip: v.zip, p_phone: v.phone, p_email: v.email.trim().toLowerCase(), p_website: v.website }),
+    body: JSON.stringify({ p_name: v.name, p_address: v.address, p_city: v.city, p_state: v.state.toUpperCase(), p_zip: v.zip, p_phone: v.phone, p_email: v.email.trim().toLowerCase(), p_website: v.website, p_share_clinic: shareClinic }),
   })
   if (res.ok) return { ok: true }
   const text = await res.text()
@@ -46,6 +46,8 @@ export default function MyListingPanel() {
   const id = access.person?.id
   const [v, setV] = useState<Form>(EMPTY)
   const [level, setLevel] = useState<string | null>(null)
+  // Clinic details start shared with other members (James, 2026-10-24).
+  const [shareClinic, setShareClinic] = useState(true)
   const [state, setState] = useState<'loading' | 'ready' | 'saving' | 'saved' | 'missing' | 'error'>('loading')
   const [err, setErr] = useState('')
 
@@ -55,13 +57,14 @@ export default function MyListingPanel() {
       await ensureSession()
       const [r, m] = await Promise.all([
         select<Own>('people', `select=practice_name,practice_address,practice_city,practice_state,practice_zip,practice_phone,office_phone,practice_website,cert_level&id=eq.${id}`),
-        // practice_email is new; until it exists this just leaves the box empty.
-        select<{ practice_email: string | null }>('people', `select=practice_email&id=eq.${id}`),
+        // practice_email and share_clinic are new; until they exist this leaves the defaults.
+        select<{ practice_email: string | null; share_clinic: boolean }>('people', `select=practice_email,share_clinic&id=eq.${id}`),
       ])
       const p = r.data?.[0]
       if (p) {
         setV({ name: p.practice_name ?? '', address: streetOnly(p.practice_address, p.practice_city, p.practice_state), city: p.practice_city ?? '', state: p.practice_state ?? '', zip: p.practice_zip ?? '', phone: p.practice_phone ?? p.office_phone ?? '', email: m.data?.[0]?.practice_email ?? '', website: p.practice_website ?? '' })
         setLevel(p.cert_level)
+        if (m.data?.[0]) setShareClinic(m.data[0].share_clinic)
       } else {
         // Fall back to what the members area already knows.
         const a = access.person
@@ -84,7 +87,7 @@ export default function MyListingPanel() {
     if (v.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) { setErr('The clinic email does not look like an email address.'); setState('error'); return }
     if (!v.name.trim() || !v.address.trim() || !v.city.trim() || !v.state.trim()) { setErr('Clinic name, street, city and state are needed for the directory.'); setState('error'); return }
     setState('saving'); setErr('')
-    const r = await saveListing(v)
+    const r = await saveListing(v, shareClinic)
     if (r.ok) setState('saved')
     else if (r.missing) setState('missing')
     else { setErr(r.error ?? 'Could not save.'); setState('error') }
@@ -114,6 +117,10 @@ export default function MyListingPanel() {
           {field('phone', 'Clinic phone', { type: 'tel' })}
           {field('email', 'Clinic email', { type: 'email', placeholder: 'Shown to patients' })}
         </div>
+        <label className="mi-share">
+          <input type="checkbox" checked={shareClinic} onChange={(e) => { setShareClinic(e.target.checked); if (state !== 'loading') setState('ready') }} disabled={state === 'loading' || state === 'saving'} />{' '}
+          Show my clinic details to other members in the Member Directory
+        </label>
         <div className="ml-actions">
           <button type="button" className="b sm p-btn" onClick={() => void save()} disabled={state === 'loading' || state === 'saving'}>
             {state === 'saving' ? 'Saving…' : 'Save business information'}
