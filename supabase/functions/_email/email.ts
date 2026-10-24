@@ -1,7 +1,7 @@
 // CCI Website — email layout ("Obsidian").
-// One template for every email the site sends: dark teal ground, the AOI logo,
-// a gold hairline, a light display headline, a ruled list of details, one
-// gold button. Built with tables and inline styles so Gmail, Outlook and
+// One template for every email the site sends: the AOI logo on a dark teal
+// band with a gold hairline, then a white body with a light display headline,
+// a ruled list of details and one gold button. Built with tables and inline styles so Gmail, Outlook and
 // Apple Mail all show the same thing. Copied into each function folder that
 // sends mail (stripe-webhook, confirm-checkout, pay-link) — keep the copies
 // identical; the source of truth is supabase/functions/_email/email.ts.
@@ -38,7 +38,7 @@ export const REPLY_TO_DEFAULT = "info@advancedorthogonal.com";
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 const nl = (s: string) => esc(s).replace(/\n/g, "<br>");
 
-const C = { ground: "#0F2A38", text: "#E9EEF0", soft: "#C3D4DC", label: "#8FAAB6", rule: "#244150", teal: "#6FB3C0", gold: "#ECB971", ink: "#071A26", foot: "#8AA2AD" };
+const C = { band: "#0F2A38", ground: "#FFFFFF", text: "#0E2530", soft: "#3C5461", label: "#54707E", rule: "#E3EAEE", teal: "#14607A", gold: "#ECB971", accent: "#A87F35", ink: "#0E2530", foot: "#7B909B" };
 const SANS = "Figtree,'Helvetica Neue',Helvetica,Arial,sans-serif";
 const DISPLAY = "Outfit,'Helvetica Neue',Helvetica,Arial,sans-serif";
 
@@ -60,29 +60,28 @@ export function renderEmail(o: EmailInput): string {
               </td></tr></table>
           </td></tr>` : "";
   const amount = o.amount ? `
-          <tr><td class="px" style="padding:26px 48px 0;font:300 44px/1 ${DISPLAY};color:#FFFFFF;letter-spacing:-0.5px;">${esc(o.amount)}</td></tr>` : "";
+          <tr><td class="px" style="padding:26px 48px 0;font:300 44px/1 ${DISPLAY};color:${C.text};letter-spacing:-0.5px;">${esc(o.amount)}</td></tr>` : "";
   const note = o.note ? `
           <tr><td class="px" style="padding:22px 48px 0;font:400 14px/1.6 ${SANS};color:${C.soft};">${nl(o.note)}</td></tr>` : "";
   const footer = o.internal
-    ? `Sent by the Advanced Orthogonal Institute website.<br><a href="${origin}/account" style="color:${C.gold};text-decoration:none;">Open the members area</a>`
-    : `Questions? Just reply — it reaches <a href="mailto:${REPLY_TO_DEFAULT}" style="color:${C.gold};text-decoration:none;">${REPLY_TO_DEFAULT}</a><br>Advanced Orthogonal Institute · <a href="${origin}" style="color:${C.foot};text-decoration:none;">advancedorthogonal.com</a>`;
+    ? `Sent by the Advanced Orthogonal Institute website.<br><a href="${origin}/account" style="color:${C.accent};text-decoration:none;">Open the members area</a>`
+    : `Questions? Just reply — it reaches <a href="mailto:${REPLY_TO_DEFAULT}" style="color:${C.accent};text-decoration:none;">${REPLY_TO_DEFAULT}</a><br>Advanced Orthogonal Institute · <a href="${origin}" style="color:${C.foot};text-decoration:none;">advancedorthogonal.com</a>`;
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
-<meta name="supported-color-schemes" content="dark">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
 <title>${esc(o.titleAccent ? `${o.title} ${o.titleAccent}` : o.title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;600;700&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
 <style>
   body{margin:0;padding:0;background:${C.ground};}
-  a{color:${C.gold};}
+  a{color:${C.accent};}
   @media only screen and (max-width:620px){
     .shell{width:100% !important;}
     .px{padding-left:24px !important;padding-right:24px !important;}
-    .rule{margin:0 24px !important;}
     .logo{width:240px !important;height:auto !important;}
     .h1{font-size:32px !important;}
     .k{width:84px !important;}
@@ -94,13 +93,13 @@ export function renderEmail(o: EmailInput): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.ground}" style="background:${C.ground};">
   <tr><td align="center" style="padding:0;">
     <table role="presentation" class="shell" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:${C.ground};">
-      <tr><td align="center" class="px" style="padding:40px 48px 30px;">
+      <tr><td align="center" class="px" bgcolor="${C.band}" style="padding:40px 48px 30px;background:${C.band};">
         <a href="${origin}" target="_blank" style="text-decoration:none;"><img class="logo" src="${esc(logo)}" width="300" alt="Advanced Orthogonal Institute" style="display:block;width:300px;max-width:100%;height:auto;border:0;outline:none;color:${C.text};font:600 18px/1.3 ${DISPLAY};letter-spacing:1px;text-decoration:none;"></a>
       </td></tr>
-      <tr><td class="px" style="padding:0 48px;"><div class="rule" style="height:1px;line-height:1px;font-size:1px;background:${C.gold};">&nbsp;</div></td></tr>
+      <tr><td style="height:2px;line-height:2px;font-size:2px;background:${C.gold};" bgcolor="${C.gold}">&nbsp;</td></tr>
       <tr><td class="px" style="padding:38px 48px 0;">
         ${o.eyebrow ? `<div style="font:600 11px/1.5 ${DISPLAY};letter-spacing:3px;text-transform:uppercase;color:${C.teal};">${esc(o.eyebrow)}</div>` : ""}
-        <h1 class="h1" style="margin:12px 0 18px;font:300 40px/1.12 ${DISPLAY};color:#FFFFFF;letter-spacing:-0.4px;">${esc(o.title)}${o.titleAccent ? ` <span style="color:${C.gold};font-weight:500;">${esc(o.titleAccent)}</span>` : ""}</h1>
+        <h1 class="h1" style="margin:12px 0 18px;font:300 40px/1.12 ${DISPLAY};color:${C.text};letter-spacing:-0.4px;">${esc(o.title)}${o.titleAccent ? ` <span style="color:${C.accent};font-weight:500;">${esc(o.titleAccent)}</span>` : ""}</h1>
         ${paras}
         ${rowHtml ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:6px;">${rowHtml}
         </table>` : ""}
