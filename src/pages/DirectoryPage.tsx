@@ -124,7 +124,7 @@ export default function DirectoryPage() {
           {data && data.clinics.length === 0 && (
             <div className="dir-empty">
               <h3>The directory is being updated</h3>
-              <p>Call <a href="tel:+17276770001">(727) 677-0001</a> and we will connect you with a doctor near you.</p>
+              <p>Call <a href="tel:+16562221099">(656) 222-1099</a> and we will connect you with a doctor near you.</p>
             </div>
           )}
 
@@ -138,7 +138,7 @@ export default function DirectoryPage() {
               {searching && hits.length === 0 && (
                 <div className="dir-empty">
                   <h3>No clinics match that search</h3>
-                  <p>Try a nearby city or just the state, or call <a href="tel:+17276770001">(727) 677-0001</a> and we will help you find a doctor.</p>
+                  <p>Try a nearby city or just the state, or call <a href="tel:+16562221099">(656) 222-1099</a> and we will help you find a doctor.</p>
                 </div>
               )}
               {groups.map((g) => (
@@ -165,8 +165,8 @@ export default function DirectoryPage() {
             <h3>Don't see a doctor near you?</h3>
             <p>Call the Institute and we will help you find the closest Advanced Orthogonal doctor.</p>
           </div>
-          <a className="b lg p-btn" href="tel:+17276770001">
-            Call (727) 677-0001
+          <a className="b lg p-btn" href="tel:+16562221099">
+            Call (656) 222-1099
           </a>
         </div>
       </section>

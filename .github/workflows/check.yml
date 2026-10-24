@@ -1,0 +1,25 @@
+# Build and type check on every pull request and every push to main.
+# Cloudflare Pages deploys main on its own; this is the gate before it.
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx tsc --noEmit -p tsconfig.json
+      # Does the site's event catalog agree with what is published in the
+      # database? Warns in the log and never fails the check (`--strict` would),
+      # so a database hiccup cannot block a deploy.
+      - run: npm run check:catalog

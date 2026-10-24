@@ -9,6 +9,23 @@
 
 export const ORIGIN = 'https://www.advancedorthogonal.com'
 
+/** The day the site was built, injected by `scripts/build.mjs` (esbuild
+ *  `define`). It drives `dateModified` and the sitemap's `lastmod`. Where
+ *  nothing injects it (the type check), it falls back to today. */
+declare const __BUILD_DATE__: string | undefined
+export const BUILD_DATE: string =
+  typeof __BUILD_DATE__ === 'string' ? __BUILD_DATE__ : new Date().toISOString().slice(0, 10)
+
+const BRAND_SUFFIX = ' — Advanced Orthogonal Institute'
+/** The longest title a search result shows without cutting it off. */
+const TITLE_MAX = 60
+
+/** Appends the Institute's name to a page title when the result still fits a
+ *  search result. A long title stands alone; `og:site_name` carries the brand. */
+export function pageTitle(title: string): string {
+  return title.length + BRAND_SUFFIX.length <= TITLE_MAX ? `${title}${BRAND_SUFFIX}` : title
+}
+
 export const ORG = {
   name: 'Advanced Orthogonal Institute',
   legalName: 'Advanced Orthogonal Institute',
@@ -36,6 +53,10 @@ export type PageMeta = {
   noindex?: boolean
   /** ISO date surfaced as `dateModified` and in the sitemap. */
   updatedAt?: string
+  /** Open Graph object type. Articles say so; everything else is a `website`. */
+  type?: 'website' | 'article'
+  /** ISO date an article first appeared, surfaced as `article:published_time`. */
+  publishedAt?: string
   changefreq?: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never'
   priority?: number
   /** Extra JSON-LD nodes merged into the page `@graph`. */
@@ -129,7 +150,17 @@ export function renderHead(meta: PageMeta, path: string): string {
     meta.noindex
       ? '<meta name="robots" content="noindex,nofollow">'
       : '<meta name="robots" content="index,follow,max-image-preview:large">',
-    `<meta property="og:type" content="website">`,
+    `<meta property="og:type" content="${meta.type ?? 'website'}">`,
+    ...(meta.type === 'article'
+      ? [
+          ...(meta.publishedAt
+            ? [`<meta property="article:published_time" content="${meta.publishedAt}">`]
+            : []),
+          ...(meta.updatedAt
+            ? [`<meta property="article:modified_time" content="${meta.updatedAt}">`]
+            : []),
+        ]
+      : []),
     `<meta property="og:site_name" content="${escapeAttr(ORG.name)}">`,
     `<meta property="og:title" content="${escapeAttr(meta.title)}">`,
     `<meta property="og:description" content="${escapeAttr(meta.description)}">`,

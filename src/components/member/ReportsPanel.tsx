@@ -7,19 +7,20 @@
  * Records. Board members see every submitted report; a chair sees their own
  * committees; the reporting-status strip is what Oversight reads.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
 import { displayName } from '@/lib/access'
 import {
   committees as loadCommittees, reports as loadReports, reportDocs, autofill, saveReport, discardDraft, unlockReport, uploadReportDoc, docUrl, removeDoc,
-  TEMPLATES, AUTO_SOURCE, isMoney, num, isLocked, money, fmtTs, statusFor,
+  TEMPLATES, AUTO_SOURCE, isMoney, num, netOf, isLocked, money, fmtTs, statusFor,
 } from '@/lib/queries/reports'
-import type { Committee, Report, ReportDoc, ReportInput, Who, CommitteeStatus } from '@/lib/queries/reports'
+import type { Committee, Report, ReportDoc, ReportInput, Who, CommitteeStatus, Template } from '@/lib/queries/reports'
 import { boardMeetings, currentCycle, previousCycle, cycleForMonth, monthLabel, fmtD, daysUntil, dayET } from '@/lib/queries/meetings'
 import type { Meeting, Cycle } from '@/lib/queries/meetings'
 import { logActivity } from '@/lib/queries/attention'
-import { Pill, Modal, Head, Sec, friendly } from './opsUi'
+import { Pill, Modal, Head, Sec, friendly, askConfirm } from './opsUi'
 import { isCommittee } from '@/lib/nav'
 
 export default function ReportsPanel({ committee }: { committee?: string } = {}) {
@@ -31,13 +32,14 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
   const canSubmit = useCallback((cid: number) => can('full_admin') || leads.has(cid), [can, leads])
   const [coms, setComs] = useState<Committee[]>([]); const [rows, setRows] = useState<Report[]>([]); const [meetings, setMeetings] = useState<Meeting[]>([]); const [docs, setDocs] = useState<ReportDoc[]>([])
   const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null)
+  const [earlier, setEarlier] = useState(false)
   const [com, setCom] = useState<number | 'all'>('all'); const [q, setQ] = useState(''); const [openIds, setOpenIds] = useState<Set<number>>(new Set())
   const [form, setForm] = useState<{ report: Report | null; committee: Committee; ym: string } | null>(null)
   const [view, setView] = useState<Report | null>(null)
 
   const load = useCallback(async () => {
     const [c, r, m, d] = await Promise.all([loadCommittees(), loadReports(), boardMeetings(), reportDocs()])
-    setError(r.error ? `The reports could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The reports could not be read. ${friendlyError(r.error)}` : null)
     setComs(c); setRows(r.rows); setMeetings(m); setDocs(d); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
@@ -54,7 +56,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
   if (loading) return <><h1>Reports</h1><div className="ma-sub">Reading the committee reports…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
 
   // opened from a committee the database does not have yet: say so rather than show every committee
-  if (committee && !coms.some((x) => isCommittee(x, committee))) return <><h1>Reports</h1><div className="ma-sub">This committee is not set up in the database yet.</div><div className="ma-panel"><p className="ma-empty">Once the Executive Director adds it, its monthly reports will appear here.</p></div></>
+  if (committee && !coms.some((x) => isCommittee(x, committee))) return <><h1>Reports</h1><div className="ma-sub">This committee hasn’t been set up yet.</div><div className="ma-panel"><p className="ma-empty">Once the Executive Director adds it, its monthly reports will appear here.</p></div></>
 
   const inView = com === 'all' ? visible : visible.filter((c) => c.id === com)
   const status = statusFor(coms, rows, cycle.reportMonth)
@@ -73,6 +75,8 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
   const filed = rows.filter((r) => inView.some((c) => c.id === r.committee_id) && isLocked(r)).length
 
   const openForm = (c: Committee, ym: string, report: Report | null) => setForm({ report, committee: c, ym })
+  // Any earlier month: opens the report if one was filed, or a blank one to file late.
+  const openMonth = (c: Committee, ym: string) => { setEarlier(false); const r = rows.find((x) => x.committee_id === c.id && x.period_ym === ym) ?? null; if (r?.status === 'submitted') setView(r); else openForm(c, ym, r) }
   const onStatus = (s: CommitteeStatus) => { if (s.report) { if (s.report.status === 'submitted') setView(s.report); else if (canSubmit(s.c.id)) openForm(s.c, cycle.reportMonth, s.report) } else if (canSubmit(s.c.id)) openForm(s.c, cycle.reportMonth, null); else setCom(s.c.id) }
 
   const card = (r: Report) => {
@@ -92,7 +96,7 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
 
   return <>
     <Head title="Reports" lede={<>Each chair files their committee’s monthly report here — numbers as of the end of the month, names pulled from the live tabs, and the narrative. The Board meets the third Tuesday; the report on <b>{monthLabel(cycle.reportMonth)}</b> is due <b>{fmtD(cycle.dueDate)}</b> for the <b>{fmtD(cycle.meetingDate)}</b> meeting.</>}
-      right={<a className="b s-btn on-light sm" href="#records">Records archive{filed ? ` · ${filed}` : ''}</a>} />
+      right={<>{coms.some((c) => canSubmit(c.id)) && <button type="button" className="b s-btn on-light sm" onClick={() => setEarlier(true)}>+ Earlier month</button>}<a className="b s-btn on-light sm" href="#records">Records archive{filed ? ` · ${filed}` : ''}</a></>} />
     {error && <div className="cert-err" role="alert">{error}</div>}
     {oversight && <>
       <Sec r="missing first · click a card to open the report">Reporting status · {monthLabel(cycle.reportMonth)}</Sec>
@@ -112,15 +116,31 @@ export default function ReportsPanel({ committee }: { committee?: string } = {})
 
     {form && <ReportForm key={`${form.committee.id}-${form.ym}-${form.report?.id ?? 'new'}`} committee={form.committee} ym={form.ym} report={form.report} meetings={meetings} docs={docs.filter((d) => d.report_id === form.report?.id)} who={who} oversight={oversight} onClose={() => setForm(null)}
       onSaved={async (m) => { setForm(null); await load(); toast(m); void logActivity('write', 'reports', { action: m, committee: form.committee.key, ym: form.ym }) }} onReload={load} />}
+    {earlier && <EarlierDialog coms={coms.filter((c) => canSubmit(c.id))} max={cycle.reportMonth} onPick={openMonth} onClose={() => setEarlier(false)} />}
     {view && <ReportView r={view} committee={coms.find((c) => c.id === view.committee_id)} docs={docs.filter((d) => d.report_id === view.id)} oversight={oversight} canEdit={canSubmit(view.committee_id) && !isLocked(view)} onEdit={() => { const c = coms.find((x) => x.id === view.committee_id); setView(null); if (c) openForm(c, view.period_ym ?? cycle.reportMonth, view) }} onUnlock={async () => { const r = await unlockReport(view.id); if (r.error) return toast(friendly(r.error)); setView(null); await load(); toast('Report unlocked — it is editable until you lock it again or the next daily lock runs') }} onClose={() => setView(null)} />}
   </>
 }
 
 /* --------------------------------------------------------------- read view */
-export function ReportBody({ r, t, docs, onDoc }: { r: Report; t: { nums?: [string, string][]; lists?: [string, string][]; texts: [string, string][]; docs?: [string, string][] }; docs: ReportDoc[]; onDoc?: (d: ReportDoc) => void }) {
+export function ReportBody({ r, t, docs, onDoc }: { r: Report; t: Template; docs: ReportDoc[]; onDoc?: (d: ReportDoc) => void }) {
   const open = async (d: ReportDoc) => { if (onDoc) return onDoc(d); if (!d.storage_path) return; const u = await docUrl(d.storage_path); if (u) window.open(u, '_blank', 'noopener') }
   return <>
-    {t.nums && <div className="rnum">{t.nums.map(([k, l]) => { const v = num(r, k); return <div key={k}><b>{v == null ? '—' : isMoney(l) ? money(v) : v}</b><span>{l.replace(' ($)', '')}</span></div> })}</div>}
+    {t.nums && (() => {
+      const vals = Object.fromEntries(t.nums.map(([k]) => [k, num(r, k)]))
+      const lab = (k: string) => (t.nums!.find(([x]) => x === k)?.[1] ?? k).replace(' ($)', '')
+      const fig = (k: string) => { const v = vals[k] ?? null; return v == null ? '—' : isMoney(t.nums!.find(([x]) => x === k)?.[1] ?? '') ? money(v) : String(v) }
+      const plain = (keys: string[]) => keys.map((k) => <div key={k}><b>{fig(k)}</b><span>{lab(k)}</span></div>)
+      if (!t.net) return <div className="rnum">{plain(t.nums.map(([k]) => k))}</div>
+      // A worked-out figure reads as a sum: each line added or taken away, a rule, the result. Optional lines left blank are not shown.
+      const [label, terms] = t.net; const n = netOf(vals, t.net)
+      return <div className="ledger-wrap">
+        <div className="ledger">
+          {terms.filter(([k], i) => i < 2 || vals[k] != null).map(([k, sign], i) => <div key={k} className={`lrow ${sign > 0 ? 'in' : 'out'}`}><span>{sign < 0 ? '− ' : i > 0 ? '+ ' : ''}{lab(k)}</span><b>{fig(k)}</b></div>)}
+          <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : money(n)}</b></div>
+          {t.nums.map(([k]) => k).filter((k) => !terms.some(([x]) => x === k)).map((k) => <div key={k} className="lrow extra"><span>{lab(k)}</span><b>{fig(k)}</b></div>)}
+        </div>
+      </div>
+    })()}
     {t.lists?.map(([k, l]) => <div key={k} className="rtx"><label className="flabel">{l}</label>{(r.data?.lists?.[k] ?? []).length ? <ul className="rlist">{r.data!.lists![k]!.map((n, i) => <li key={i}>{n}</li>)}</ul> : <p><i>none</i></p>}</div>)}
     {t.texts.map(([k, l]) => r.data?.texts?.[k] ? <div key={k} className="rtx"><label className="flabel">{l}</label><p>{r.data.texts[k]}</p></div> : null)}
     {!t.texts.some(([k]) => r.data?.texts?.[k]) && r.narrative && <div className="rtx"><label className="flabel">Narrative</label><p>{r.narrative}</p></div>}
@@ -176,25 +196,54 @@ function ReportForm({ committee, ym, report, meetings, docs, who, oversight, onC
     }
     const u = await uploadReportDoc(rep, committee, kind, title, file, who)
     setUploading(null)
-    if (u.error) return toast('Upload failed: ' + u.error.slice(0, 160))
+    if (u.error) return toast('The upload failed. ' + friendlyError(u.error))
     await onReload(); toast(`${title} attached`)
   }
   const cyc = meetings.length ? cycleForMonth(ym, meetings).meetingDate : null
   return <Modal onClose={onClose} wide>
     <div className="mh"><div><h3>{committee.name} · {monthLabel(ym)}</h3><p>{locked ? 'This report is locked — the Board meeting has passed. Ask the Executive Director to unlock it.' : report?.status === 'submitted' ? 'Editing a submitted report — the edit is stamped with your name and time.' : `Numbers reflect the end of ${monthLabel(ym)}${cyc ? ` · for the ${fmtD(cyc)} Board meeting` : ''}. Fields marked auto are filled from the live tabs; change them if you need to.`}</p></div><button type="button" className="x" onClick={onClose} aria-label="Close">×</button></div>
     <div className="mb rform">
-      {t.nums && <><div className="fsec">Numbers <span className="r">as of month end{auto && Object.keys(auto.nums).length ? <> · <button type="button" className="link" onClick={() => void fill(true)}>refresh from the tabs</button></> : null}</span></div>
-        <div className="fnum">{t.nums.map(([k, l]) => <div key={k}><label className="flabel">{l}</label><input className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · {AUTO_SOURCE[committee.key] ?? 'live'} tab says {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]}</div>}</div>)}</div></>}
+      {t.nums && <><div className="fsec">Numbers <span className="r">as of month end{auto && t.nums.some(([k]) => auto.nums[k] != null) ? <> · <button type="button" className="link" onClick={() => void fill(true)}>refresh from the tabs</button></> : null}</span></div>
+        {(() => {
+          const input = (k: string) => { const l = t.nums!.find(([x]) => x === k)?.[1] ?? k; return <><input id={`rn-${k}`} className="fi" type="number" step="any" value={v.nums[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, nums: { ...v.nums, [k]: e.target.value === '' ? null : Number(e.target.value) } })} />{auto?.nums[k] != null && <div className="auto"><b>auto</b> · the {AUTO_SOURCE[committee.key] ?? 'live'} tab shows {isMoney(l) ? money(auto.nums[k]) : auto.nums[k]} for this month</div>}</> }
+          const field = (k: string) => <div key={k}><label className="flabel" htmlFor={`rn-${k}`}>{t.nums!.find(([x]) => x === k)?.[1] ?? k}</label>{input(k)}</div>
+          if (!t.net) return <div className="fnum">{t.nums!.map(([k]) => field(k))}</div>
+          // Gross on top, then each line added or taken away, a rule, then the worked-out net.
+          const [label, terms] = t.net; const n = netOf(v.nums, t.net)
+          const lab = (k: string) => (t.nums!.find(([x]) => x === k)?.[1] ?? k).replace(' ($)', '')
+          return <div className="fledger-wrap">
+            <div className="fledger">
+              {terms.map(([k, sign], i) => <label key={k} className={`lrow ${sign > 0 ? 'in' : 'out'}`} htmlFor={`rn-${k}`}><span>{sign < 0 ? '− ' : i > 0 ? '+ ' : ''}{lab(k)}</span><div>{input(k)}</div></label>)}
+              <div className={`lrow net ${n == null ? '' : n < 0 ? 'neg' : 'pos'}`}><span>{label.replace(' ($)', '')}</span><b>{n == null ? '—' : `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</b></div>
+              {t.nums!.map(([k]) => k).filter((k) => !terms.some(([x]) => x === k)).map((k) => <label key={k} className="lrow extra" htmlFor={`rn-${k}`}><span>{lab(k)}</span><div>{input(k)}</div></label>)}
+            </div>
+          </div>
+        })()}</>}
       {t.lists && <><div className="fsec">Names <span className="r">pre-filled from the {AUTO_SOURCE[committee.key] ?? 'live'} tab · one per line</span></div>
         <div className="cert-grid mform evt-grid">{t.lists.map(([k, l]) => <div key={k}><label className="flabel">{l}{auto?.lists[k] ? <span className="ok-txt"> · auto</span> : null}</label><textarea className="fi" value={(v.lists[k] ?? []).join('\n')} disabled={locked} onChange={(e) => setV({ ...v, lists: { ...v.lists, [k]: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) } })} /></div>)}</div></>}
       <div className="fsec">Narrative</div>
       <div className="cert-grid mform" style={{ gridTemplateColumns: '1fr' }}>{t.texts.map(([k, l]) => <div key={k}><label className="flabel">{l}</label><textarea className="fi" value={v.texts[k] ?? ''} disabled={locked} onChange={(e) => setV({ ...v, texts: { ...v.texts, [k]: e.target.value } })} /></div>)}</div>
       {t.docs && <><div className="fsec">Documents <span className="r">PDF from QuickBooks · stored in Records → Financials</span></div>
-        <div className="rdocs">{t.docs.map(([k, l]) => { const have = docs.filter((d) => d.kind === k); return <div key={k} className="rdocslot"><b>{l}</b>{have.map((d) => <div key={d.id} className="rdocrow"><button type="button" className="link" onClick={async () => { if (!d.storage_path) return; const u = await docUrl(d.storage_path); if (u) window.open(u, '_blank', 'noopener') }}>📄 {d.file_name}</button>{!locked && <button type="button" className="x" aria-label="Remove" onClick={async () => { if (!confirm('Remove this document?')) return; const r = await removeDoc(d); if (r.error) return toast(friendly(r.error)); await onReload() }}>×</button>}</div>)}{!locked && <label className="b s-btn on-light xs" style={{ cursor: 'pointer' }}>{uploading === k ? 'Uploading…' : have.length ? '+ Replace / add' : '+ Upload PDF'}<input type="file" accept="application/pdf,image/*" hidden disabled={!!uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(k, l.replace(/\s*\(.*\)$/, ''), f); e.target.value = '' }} /></label>}</div> })}</div></>}
+        <div className="rdocs">{t.docs.map(([k, l]) => { const have = docs.filter((d) => d.kind === k); return <div key={k} className="rdocslot"><b>{l}</b>{have.map((d) => <div key={d.id} className="rdocrow"><button type="button" className="link" onClick={async () => { if (!d.storage_path) return; const u = await docUrl(d.storage_path); if (u) window.open(u, '_blank', 'noopener') }}>📄 {d.file_name}</button>{!locked && <button type="button" className="x" aria-label="Remove" onClick={async () => { if (!(await askConfirm('Remove this document?', { ok: 'Remove', danger: true }))) return; const r = await removeDoc(d); if (r.error) return toast(friendly(r.error)); await onReload() }}>×</button>}</div>)}{!locked && <label className="b s-btn on-light xs" style={{ cursor: 'pointer' }}>{uploading === k ? 'Uploading…' : have.length ? '+ Replace / add' : '+ Upload PDF'}<input type="file" accept="application/pdf,image/*" hidden disabled={!!uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(k, l.replace(/\s*\(.*\)$/, ''), f); e.target.value = '' }} /></label>}</div> })}</div></>}
     </div>
-    <div className="mf evt-foot"><span>{savedReport?.status === 'draft' && !locked && <button type="button" className="b d-btn sm" onClick={async () => { if (!confirm('Discard this draft?')) return; const r = await discardDraft(savedReport.id); if (r.error) return toast(friendly(r.error)); onSaved('Draft discarded') }}>Discard draft</button>}</span>
+    <div className="mf evt-foot"><span>{savedReport?.status === 'draft' && !locked && <button type="button" className="b d-btn sm" onClick={async () => { if (!(await askConfirm('Discard this draft?', { body: 'This cannot be undone.', ok: 'Discard', danger: true }))) return; const r = await discardDraft(savedReport.id); if (r.error) return toast(friendly(r.error)); onSaved('Draft discarded') }}>Discard draft</button>}</span>
       <span style={{ display: 'flex', gap: 8 }}><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button>
         {!locked && savedReport?.status !== 'submitted' && <button type="button" className="b s-btn on-light sm" disabled={!!saving} onClick={() => void save('draft')}>{saving === 'draft' ? 'Saving…' : 'Save progress'}</button>}
         {!locked && <button type="button" className="b p-btn sm" disabled={!!saving} onClick={() => void save('submitted')}>{saving === 'submitted' ? 'Submitting…' : savedReport?.status === 'submitted' ? 'Save changes' : 'Submit report'}</button>}</span></div>
+  </Modal>
+}
+
+/** Pick a committee and any month up to the current report month. */
+function EarlierDialog({ coms, max, onPick, onClose }: { coms: Committee[]; max: string; onPick: (c: Committee, ym: string) => void; onClose: () => void }) {
+  const [cid, setCid] = useState<number>(coms[0]?.id ?? 0)
+  const [ym, setYm] = useState('')
+  const c = coms.find((x) => x.id === cid)
+  return <Modal onClose={onClose}>
+    <div className="mh"><div><h3>Open an earlier month</h3><p>See a report that was filed, or file one late. Late reports still feed Stats.</p></div><button type="button" className="x" aria-label="Close" onClick={onClose}>×</button></div>
+    <div className="mb"><div className="cert-grid mform">
+      <div><label className="flabel" htmlFor="er-c">Committee</label><select id="er-c" className="fi" value={cid} onChange={(e) => setCid(Number(e.target.value))}>{coms.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
+      <div><label className="flabel" htmlFor="er-m">Month</label><input id="er-m" className="fi" type="month" value={ym} max={max} onChange={(e) => setYm(e.target.value)} /></div>
+    </div></div>
+    <div className="mf"><button type="button" className="b s-btn on-light sm" onClick={onClose}>Cancel</button><button type="button" className="b p-btn sm" disabled={!c || !ym || ym > max} onClick={() => c && onPick(c, ym)}>Open</button></div>
   </Modal>
 }

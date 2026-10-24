@@ -6,6 +6,7 @@
  * -------------------------------------------------------------------------- */
 import { select, insert, patch, remove } from '@/lib/supabase'
 import { dayET } from './meetings'
+import { shownZone, isOnline, zoneAbbr as abbr } from '@/lib/dates'
 
 export type CalEvent = {
   id: number; title: string; subtitle: string | null; event_type: string | null; category: string | null; starts_at: string; ends_at: string | null; timezone: string | null
@@ -27,21 +28,25 @@ export async function myRegisteredEventIds(uid: string | null): Promise<Set<numb
 }
 
 /* ---- derive ------------------------------------------------------------------ */
-const tz = (e: CalEvent) => e.timezone || 'America/New_York'
+/** Online meetings show in the viewer's own zone; in-person ones in the event's. */
+const tz = (e: CalEvent) => shownZone(e)
 export const startDay = (e: CalEvent) => dayET(e.starts_at)
 export const endDay = (e: CalEvent) => dayET(e.ends_at ?? e.starts_at)
 export const isPast = (e: CalEvent, today = dayET()) => endDay(e) < today
 export const isOngoing = (e: CalEvent) => !e.ends_at && (e.category === 'free' || e.category === 'internship')
 export const timeOf = (iso: string, e: CalEvent) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz(e) })
 export const dayLabel = (ymd: string, opts: Intl.DateTimeFormatOptions) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' })
-/** "10:00 AM – 6:00 PM ET", "All day", or "Oct 17 – Oct 18, 2026" for multi-day. */
+/** "10:00 AM – 6:00 PM ET", "All day", or "Oct 17 – Oct 18, 2026" for multi-day.
+ *  An online meeting outside Eastern time adds the Institute's: "6:00 PM PT (9:00 PM ET)". */
 export function whenLine(e: CalEvent): string {
   const s = startDay(e), l = endDay(e)
   if (s !== l) return `${dayLabel(s, { month: 'short', day: 'numeric' })} – ${dayLabel(l, { month: 'short', day: 'numeric', year: 'numeric' })}`
-  if (!e.ends_at) return isOngoing(e) ? 'Ongoing' : timeOf(e.starts_at, e) + ' ' + zoneAbbr(e)
-  return `${timeOf(e.starts_at, e)} – ${timeOf(e.ends_at, e)} ${zoneAbbr(e)}`
+  if (!e.ends_at && isOngoing(e)) return 'Ongoing'
+  const at = new Date(e.starts_at), home = e.timezone || 'America/New_York'
+  const z = abbr(tz(e), at)
+  const h = isOnline(e) && z !== abbr(home, at) ? ` (${new Date(e.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: home })} ${abbr(home, at)})` : ''
+  return `${timeOf(e.starts_at, e)}${e.ends_at ? ` – ${timeOf(e.ends_at, e)}` : ''} ${z}${h}`
 }
-const zoneAbbr = (e: CalEvent) => ({ 'America/New_York': 'ET', 'America/Chicago': 'CT', 'America/Denver': 'MT', 'America/Los_Angeles': 'PT', 'America/Phoenix': 'MST' } as Record<string, string>)[tz(e)] ?? ''
 
 /* ---- writes (meetings; seminars and conferences are managed from Events) -------- */
 export type MeetingInput = { title: string; event_type: string; committee_id: number | null; starts_at: string; ends_at: string | null; location: string; zoom_url: string; agenda: string; is_keystone: boolean; visibility: 'members' | 'leadership' | 'board' }

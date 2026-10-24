@@ -29,7 +29,7 @@ export async function tasks(): Promise<{ rows: Task[]; error?: string }> {
 export async function assignable(): Promise<Assignee[]> {
   const out = new Map<string, Assignee>()
   const add = (id: string | null | undefined, name: string, why: string) => { if (id && !out.has(id)) out.set(id, { id, name, why }) }
-  const ROLE: Record<string, string> = { executive_director: 'Executive Director', board_member: 'Board', committee_chair: 'Committee chair', committee_cochair: 'Committee co-chair', research_director: 'Research Director', treasurer: 'Treasurer', instructor: 'Instructor', past_board_member: 'Past Board', past_executive_director: 'Past ED', committee_member: 'Committee member' }
+  const ROLE: Record<string, string> = { executive_director: 'Executive Director', board_member: 'Board', board_chair: 'Chair of the Board', vice_chair: 'Vice Chair', secretary: 'Secretary', committee_chair: 'Committee chair', committee_cochair: 'Committee co-chair', research_director: 'Research Director', treasurer: 'Treasurer', instructor: 'Instructor', past_board_member: 'Past Board', past_executive_director: 'Past ED', committee_member: 'Committee member' }
   const roles = await select<{ person_id: string; role_key: string; people: { first_name: string; last_name: string; credentials: string | null } | null }>('person_roles', 'select=person_id,role_key,people!person_roles_person_id_fkey(first_name,last_name,credentials)&limit=500')
   for (const r of roles.data ?? []) if (r.people) add(r.person_id, `${r.people.first_name} ${r.people.last_name}`, ROLE[r.role_key] ?? r.role_key)
   const noms = await select<{ person_id: string | null; person_name: string }>('board_service', 'select=person_id,person_name&status=eq.nominee&limit=50')

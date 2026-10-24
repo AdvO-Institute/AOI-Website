@@ -43,7 +43,7 @@ export default function MembershipPage() {
                   ✓ Doctor Directory listing (Level 1 certified)<br />
                   ✓ Exclusive partner discounts
                 </div>
-                <div style={{"marginTop": "26px"}}><Link to="/membership/join" className="b lg p-btn" style={{"width": "100%", "justifyContent": "center"}}>Become a Member</Link></div>
+                <div style={{"marginTop": "26px"}}><Link to="/membership/join" className="b lg p-btn" style={{"width": "100%", "justifyContent": "center"}}>Join the Institute</Link></div>
                 <p style={{"fontSize": "11.5px", "color": "var(--color-content-muted)", "marginTop": "14px", "textAlign": "center"}}>Membership renews annually and automatically.</p>
               </div>
             </div>
@@ -104,7 +104,7 @@ export default function MembershipPage() {
               <h3>Invest in your practice, your profession, and the future.</h3>
               <p>With conference registration included and deep seminar discounts, membership often pays for itself in the first year.</p>
             </div>
-            <Link to="/membership/join" className="b lg p-btn">Secure Your Membership</Link>
+            <Link to="/membership/join" className="b lg p-btn">Join the Institute</Link>
           </div>
         </section>
     </>

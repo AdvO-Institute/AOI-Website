@@ -13,7 +13,8 @@ import { cycleForMonth, monthLabel } from './meetings'
 
 export type Who = { name: string; id: string | null }
 export type Committee = { id: number; key: string; name: string }
-export type Template = { nums?: [string, string][]; lists?: [string, string][]; texts: [string, string][]; docs?: [string, string][] }
+/** `net` is a figure worked out from others (each added or taken away), shown as a sum, never typed. The first two terms are required; the rest count as zero when blank. */
+export type Template = { nums?: [string, string][]; net?: [label: string, terms: [key: string, sign: 1 | -1][]]; lists?: [string, string][]; texts: [string, string][]; docs?: [string, string][] }
 
 /** One template per committee, as CCI OS defined them, plus the Treasurer. `($)` in a label marks a dollar figure. */
 export const TEMPLATES: Record<string, Template> = {
@@ -26,7 +27,7 @@ export const TEMPLATES: Record<string, Template> = {
   research: { nums: [['active_projects', 'Active research projects'], ['funds_raised', 'Funds raised ($)'], ['profit', 'Profit to the Institute ($)'], ['overhead', 'Institutional overhead ($)']], texts: [['active_detail', 'Active projects — detail'], ['completed', 'Completed projects'], ['starting', 'Projects to start'], ['narrative', 'Narrative']] },
   marketing: { nums: [['spend', 'Marketing spend ($)'], ['leads', 'Leads generated'], ['committed', 'Committed from those leads']], texts: [['campaigns', 'Active campaigns'], ['narrative', 'Narrative']] },
   nominations: { nums: [['forms_sent', 'Election forms sent'], ['forms_collected', 'Forms collected'], ['nominated', 'People nominated'], ['accepted', 'Nominations accepted']], texts: [['stage', 'Current stage'], ['results', 'Results (if applicable)'], ['narrative', 'Narrative']] },
-  treasury: { nums: [['revenue', 'Revenue since last month ($)'], ['event_revenue', 'of which event registrations ($)'], ['cash', 'Cash in the accounts ($)'], ['income', 'Income ($)'], ['expenditures', 'Expenditures ($)']], texts: [['notes', 'Notes for the Board']], docs: [['profit_loss', 'Profit & loss statement (QuickBooks PDF)'], ['balance_sheet', 'Balance sheet (QuickBooks PDF)']] },
+  treasury: { nums: [['revenue', 'Gross income ($)'],['expenditures', 'Expenses ($)'], ['other_income', 'Other income ($)'], ['other_expenses', 'Other expenses ($)'], ['cash', 'Balance ($)']], net: ['Net income ($)', [['revenue', 1], ['expenditures', -1], ['other_income', 1], ['other_expenses', -1]]], texts: [['notes', 'Notes for the Board']], docs: [['profit_loss', 'Profit & loss statement (QuickBooks PDF)'], ['balance_sheet', 'Balance sheet (QuickBooks PDF)']] },
 }
 export const isMoney = (label: string) => /\(\$\)/.test(label)
 export const AUTO_SOURCE: Record<string, string> = { instructor: 'Instructors', certification: 'Certifications', college_outreach: 'Colleges', research: 'Research', internship: 'Internships', nominations: 'Board', seminar: 'Events', marketing: 'Contacts', treasury: 'Events' }
@@ -62,8 +63,14 @@ export async function autofill(key: string, ym: string): Promise<{ nums: Record<
 
 /* ---- derive ------------------------------------------------------------------ */
 export const num = (r: Report, k: string) => r.committee_report_metrics.find((m) => m.metric_key === k)?.value ?? null
+/** The sum of the terms, once the first two are filled in; later blank terms count as zero. */
+export const netOf = (vals: Record<string, number | null | undefined>, net: NonNullable<Template['net']>) => {
+  const terms = net[1]
+  if (terms.slice(0, 2).some(([k]) => vals[k] == null)) return null
+  return terms.reduce((s, [k, sign]) => s + sign * Number(vals[k] ?? 0), 0)
+}
 export const isLocked = (r: Report) => !!r.locked_at
-export const money = (n: number | null | undefined) => n == null ? '—' : '$' + Math.round(Number(n)).toLocaleString('en-US')
+export const money = (n: number | null | undefined) => { if (n == null) return '—'; const r = Math.round(Number(n)); return (r < 0 ? '−$' : '$') + Math.abs(r).toLocaleString('en-US') }
 export const fmtTs = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 export type CommitteeStatus = { c: Committee; state: 'ok' | 'draft' | 'miss'; report: Report | null; latest: Report | null }

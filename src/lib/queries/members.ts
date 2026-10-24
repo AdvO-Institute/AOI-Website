@@ -24,17 +24,17 @@ export type Member = {
   id: string; first_name: string; last_name: string; credentials: string | null; email: string | null
   mobile_phone: string | null; office_phone: string | null; practice_phone: string | null
   practice_name: string | null; practice_address: string | null; practice_city: string | null; practice_state: string | null
-  practice_zip: string | null; practice_website: string | null
+  practice_zip: string | null; practice_website: string | null; photo_url: string | null
   membership_status: string | null; member_since: string | null; membership_expires: string | null
-  contact_type: string | null; techniques: string[] | null; deceased_on: string | null; notes: string | null
+  contact_type: string | null; techniques: string[] | null; deceased_on: string | null; notes: string | null; auth_user_id: string | null
   person_certifications: Cert[]; instructor_records: Instr[]; board_service: Board[]
   person_roles: Role[]; contact_notes: Note[]; practice_locations: Location[]
 }
 
 const SELECT =
-  'id,first_name,last_name,credentials,email,mobile_phone,office_phone,practice_phone,practice_name,practice_address,' +
+  'id,first_name,last_name,credentials,email,mobile_phone,office_phone,practice_phone,practice_name,practice_address,photo_url,' +
   'practice_city,practice_state,practice_zip,practice_website,membership_status,member_since,membership_expires,' +
-  'contact_type,techniques,deceased_on,notes,' +
+  'contact_type,techniques,deceased_on,notes,auth_user_id,' +
   'person_certifications(id,technique,level,cert_date,certificate_number,grandfathered,certified_by),' +
   'instructor_records!instructor_records_person_id_fkey(id,level,status,technique),' +
   'board_service!board_service_person_id_fkey(id,term_label,status,term_start,term_end),' +
@@ -70,7 +70,7 @@ export type State = 'current' | 'recent' | 'inactive' | 'deceased'
 const today = () => new Date().toISOString().slice(0, 10)
 export const fullName = (p: Member) => `${p.first_name} ${p.last_name}${p.credentials ? ', ' + p.credentials : ''}`
 export const activeBoard = (p: Member) => (p.board_service ?? []).some((b) => b.status === 'active')
-export const currentInstructor = (p: Member) => (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
+export const currentInstructor = (p: Pick<Member, 'instructor_records'>) => (p.instructor_records ?? []).find((i) => i.status === 'current') ?? null
 export function state(p: Member): State {
   if (p.deceased_on) return 'deceased'
   if (activeBoard(p)) return 'current'
@@ -84,7 +84,7 @@ export function state(p: Member): State {
   return 'inactive'
 }
 /** The tile a person counts under: the deceased sit inside Inactive. */
-export const tabOf = (p: Member) => (state(p) === 'deceased' ? 'inactive' : state(p))
+export const tabOf = (p: Member) => state(p)
 const RANK: Record<string, number> = { student: 1, level_1: 2, level_2: 3 }
 export const advoLevel = (p: Member) => (p.person_certifications ?? []).filter((c) => c.technique === 'Advanced Orthogonal').reduce((b, c) => (RANK[c.level] ?? 0) > (RANK[b] ?? 0) ? c.level : b, '')
 export const otherCerts = (p: Member) => (p.person_certifications ?? []).filter((c) => c.technique !== 'Advanced Orthogonal')
@@ -92,7 +92,7 @@ export const otherCerts = (p: Member) => (p.person_certifications ?? []).filter(
 /* ------------------------------------------------------------------ writes */
 export type Profile = Partial<Pick<Member,
   'first_name' | 'last_name' | 'credentials' | 'email' | 'mobile_phone' | 'office_phone' | 'practice_name' | 'practice_address' |
-  'practice_website' | 'membership_status' | 'member_since' | 'membership_expires' | 'contact_type' | 'techniques' | 'deceased_on'>>
+  'practice_website' | 'membership_status' | 'member_since' | 'membership_expires' | 'contact_type' | 'techniques' | 'deceased_on' | 'photo_url'>>
 
 export const saveProfile = (id: string, v: Profile) => patch('people', `id=eq.${id}`, v)
 export const createMember = (v: Profile) => insert('people', [{ ...v, membership_status: v.membership_status ?? 'active' }])
@@ -102,13 +102,13 @@ export const addLocation = (personId: string, name: string, address: string, web
   insert('practice_locations', [{ person_id: personId, name, address, website, is_primary: false }])
 
 /** Ends teaching: the record is kept with a reason; the role that grants the tools is removed. */
-export async function endInstructor(p: Member, reason: string) {
+export async function endInstructor(p: Pick<Member, 'id' | 'instructor_records'>, reason: string) {
   const rec = currentInstructor(p)
   if (rec) { const r = await patch('instructor_records', `id=eq.${rec.id}`, { status: 'ended', end_reason: reason, end_date: today() }); if (r.error) return r }
   return remove('person_roles', `person_id=eq.${p.id}&role_key=eq.instructor`)
 }
 /** Ends board service: the term closes today, the seat role becomes past. */
-export async function endBoard(p: Member) {
+export async function endBoard(p: Pick<Member, 'id' | 'board_service' | 'person_roles'>) {
   for (const b of (p.board_service ?? []).filter((x) => x.status === 'active')) {
     const r = await patch('board_service', `id=eq.${b.id}`, { status: 'past', term_end: today() }); if (r.error) return r
   }

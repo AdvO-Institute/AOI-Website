@@ -10,6 +10,7 @@
  * link. Door walk-ups: a member is seated free, anyone else is registered and
  * emailed the ticket link. Every write goes through a gated RPC.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -82,7 +83,7 @@ export default function CheckinRoom({ eventId, onClose }: { eventId: number; onC
     setBusy(r.key)
     const x = await setCheckin(ev.id, r, day, on)
     setBusy(null)
-    if (x.error) { toast('Could not update: ' + x.error.slice(0, 140)); return }
+    if (x.error) { toast(friendlyError(x.error)); return }
     toast(on ? `${first(r.name)} checked in` : `${first(r.name)} — check-in undone`)
     await load()
     if (r.key.startsWith('p:') && x.data) setSel((s) => (s === r.key ? `r:${x.data}` : s))
@@ -109,7 +110,7 @@ export default function CheckinRoom({ eventId, onClose }: { eventId: number; onC
     setAsk(null); setBusy(r.key)
     const x = await setCheckin(ev.id, r, day, true)
     setBusy(null)
-    if (x.error || !x.data) { toast('Could not check in: ' + (x.error ?? '').slice(0, 140)); return }
+    if (x.error || !x.data) { toast('The check-in did not go through. ' + friendlyError(x.error)); return }
     await link(r, 'ce', x.data)
     setSel(`r:${x.data}`)
   }

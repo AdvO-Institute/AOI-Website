@@ -31,6 +31,31 @@ const STORAGE_KEY = 'aoi.session'
  * unreliable. We keep the refresh token and renew before expiry. */
 const RENEW_MARGIN_MS = 60_000
 
+/* Every call to Supabase goes through `sbFetch`, which gives up after this long.
+ * Without a deadline a slow or unreachable server left every button that waits
+ * on it ("Register", the sign-in card, the member rail) hanging with no message
+ * at all. A clear failure can be shown and retried; a hang cannot. */
+export const REQUEST_TIMEOUT_MS = 12_000
+
+/** `fetch` with a deadline. Rejects with a plain-English Error when the server
+ *  has not answered in `timeoutMs`; every other failure passes through as-is. */
+export async function sbFetch(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  // A caller's own signal still cancels the request.
+  init.signal?.addEventListener('abort', () => ctrl.abort(), { once: true })
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal })
+  } catch (err) {
+    if (ctrl.signal.aborted && !init.signal?.aborted) {
+      throw new Error('The server took too long to answer. Please try again.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /* Password recovery.
  *
  * Supabase sends the recovery link to `email_redirect_to` only when that URL is
@@ -187,20 +212,22 @@ export async function ensureSession(): Promise<void> {
 
   renewing = (async () => {
     try {
-      const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+      const res = await sbFetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
         method: 'POST',
         headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: session.refresh }),
       })
       if (!res.ok) {
-        // The refresh token is spent or revoked. Clearing is correct: it sends
-        // the visitor to a sign-in card rather than an endlessly failing page.
-        signOut()
+        // A 4xx means the refresh token is spent or revoked. Clearing is
+        // correct: it sends the visitor to a sign-in card rather than an
+        // endlessly failing page. A 5xx is the server's problem, not the
+        // session's — keep what we have and try again on the next call.
+        if (res.status < 500) void signOut()
         return
       }
       adopt(await res.json())
     } catch {
-      /* offline — keep what we have and try again on the next call */
+      /* offline or timed out — keep what we have and try again on the next call */
     } finally {
       renewing = null
     }
@@ -219,7 +246,7 @@ export function headers(json = false): Record<string, string> {
 }
 
 export async function signIn(email: string, password: string): Promise<SupabaseUser> {
-  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+  const res = await sbFetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -233,7 +260,7 @@ export async function signIn(email: string, password: string): Promise<SupabaseU
 }
 
 export async function sendMagicLink(email: string, redirect: string): Promise<void> {
-  const res = await fetch(`${SB_URL}/auth/v1/otp`, {
+  const res = await sbFetch(`${SB_URL}/auth/v1/otp`, {
     method: 'POST',
     headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -252,7 +279,7 @@ export async function sendMagicLink(email: string, redirect: string): Promise<vo
  *  is chosen on our own page and sent straight to Supabase. Nothing about a
  *  password is ever stored or logged by this site. */
 export async function requestPasswordReset(email: string, redirect: string): Promise<void> {
-  const res = await fetch(`${SB_URL}/auth/v1/recover`, {
+  const res = await sbFetch(`${SB_URL}/auth/v1/recover`, {
     method: 'POST',
     headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, options: { email_redirect_to: redirect } }),
@@ -263,11 +290,35 @@ export async function requestPasswordReset(email: string, redirect: string): Pro
   }
 }
 
+/** Redeems a reset token on purpose, after the member presses a button — either
+ *  the token carried in the email's link, or the code printed in the email.
+ *  Email scanners open every link to check it; a link that signed in on arrival
+ *  was used up by the scanner before the member ever clicked. */
+export async function verifyRecovery(
+  proof: { token_hash: string } | { email: string; token: string },
+): Promise<void> {
+  const res = await sbFetch(`${SB_URL}/auth/v1/verify`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'recovery', ...proof }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || !data.access_token) {
+    throw new Error('That link or code has expired or was already used. Request a new one below.')
+  }
+  adopt(data)
+  try {
+    window.sessionStorage.setItem(RECOVERY_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Sets a new password for whoever the current token belongs to — either a
  *  signed-in member changing it, or someone arriving from a recovery link. */
 export async function updatePassword(password: string): Promise<void> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/auth/v1/user`, {
+  const res = await sbFetch(`${SB_URL}/auth/v1/user`, {
     method: 'PUT',
     headers: headers(true),
     body: JSON.stringify({ password }),
@@ -279,7 +330,12 @@ export async function updatePassword(password: string): Promise<void> {
   clearRecovery()
 }
 
-export function signOut(): void {
+/** Signs out here and at Supabase. The browser's copy of the session is
+ *  cleared first and synchronously, so the page reads as signed out at once;
+ *  the server call that revokes the refresh token follows, and its failure
+ *  (offline, token already expired) changes nothing locally. */
+export function signOut(): Promise<void> {
+  const token = session.token
   session.token = null
   session.refresh = null
   session.expires = 0
@@ -290,6 +346,14 @@ export function signOut(): void {
   } catch {
     /* ignore */
   }
+  if (!token) return Promise.resolve()
+  return sbFetch(`${SB_URL}/auth/v1/logout`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` },
+  }, 5_000).then(
+    () => undefined,
+    () => undefined,
+  )
 }
 
 const searchWords = (term: string) => term.replace(/[,.*()"]/g, ' ').trim().split(/\s+/).filter(Boolean)
@@ -300,7 +364,8 @@ const searchWords = (term: string) => term.replace(/[,.*()"]/g, ' ').trim().spli
 export function wordsFilter(term: string, fields: string[], prefix?: number): string {
   const words = searchWords(term).map((w) => (prefix ? w.slice(0, prefix) : w))
   if (!words.length) return ''
-  const one = (w: string) => `or(${fields.map((f) => `${f}.ilike.*${encodeURIComponent(w)}*`).join(',')})`
+  // An apostrophe matches any apostrophe or none, so D'Amico finds D’Amico and DAmico too.
+  const one = (w: string) => `or(${fields.map((f) => `${f}.ilike.*${encodeURIComponent(w).replace(/'|%E2%80%99|%E2%80%98|%60/gi, '*')}*`).join(',')})`
   return `and=(${words.map(one).join(',')})`
 }
 
@@ -330,10 +395,21 @@ function closeness(term: string, row: Record<string, unknown>, fields: string[])
   return words.reduce((sum, w) => sum + best(w), 0) / words.length
 }
 
+/** The people whose names are closest to what was typed, best first, from the
+ *  database's typo-proof search (`search_people`, #61). Living people only;
+ *  row security still decides who can be seen. Empty when nothing is close or
+ *  the search can't be reached, so callers fall back to their own search. */
+export async function similarPeopleIds(term: string, max = 30): Promise<string[]> {
+  if (term.trim().length < 3) return []
+  const r = await rpcResult<{ id: string }[]>('search_people', { q: term.trim(), max_rows: max })
+  return Array.isArray(r.data) ? r.data.map((p) => p.id) : []
+}
+
 /** A people search that forgives typos. It runs the exact search first; if
- *  that finds nobody, it searches again on the first three letters of each
- *  word and keeps the closest names. `build` turns a filter and a row limit
- *  into the query string. */
+ *  that finds nobody, people searches ask the database for the closest names,
+ *  and otherwise (or if that finds nobody) it searches again on the first three
+ *  letters of each word and keeps the closest names. `build` turns a filter and
+ *  a row limit into the query string. */
 export async function searchSelect<T>(
   table: string,
   term: string,
@@ -344,6 +420,17 @@ export async function searchSelect<T>(
   const exact = wordsFilter(term, fields)
   const first = await select<T>(table, build(exact, limit))
   if (first.error || (first.data ?? []).length) return first
+  if (table === 'people') {
+    const ids = await similarPeopleIds(term)
+    if (ids.length) {
+      const near = await select<T>(table, build(`id=in.(${ids.join(',')})`, ids.length))
+      const rank = (row: T) => ids.indexOf(String((row as Record<string, unknown>).id))
+      // Callers that don't select the id can't be put in order, so they use the fallback below.
+      if (near.data?.length && near.data.every((row) => rank(row) >= 0)) {
+        return { data: [...near.data].sort((a, b) => rank(a) - rank(b)).slice(0, limit) }
+      }
+    }
+  }
   const loose = wordsFilter(term, fields, 3)
   if (!loose || loose === exact) return first
   const wide = await select<T>(table, build(loose, 100))
@@ -360,7 +447,7 @@ export async function select<T = unknown>(
   params: string,
 ): Promise<{ data: T[] | null; error?: string }> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: headers() })
+  const res = await sbFetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: headers() })
   if (!res.ok) return { data: null, error: await res.text() }
   return { data: (await res.json()) as T[] }
 }
@@ -371,7 +458,7 @@ export async function patch(
   body: Record<string, unknown>,
 ): Promise<{ ok?: true; error?: string }> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
+  const res = await sbFetch(`${SB_URL}/rest/v1/${table}?${params}`, {
     method: 'PATCH',
     headers: headers(true),
     body: JSON.stringify(body),
@@ -385,7 +472,7 @@ export async function insert(
 ): Promise<{ ok?: true; error?: string }> {
   await ensureSession()
   if (rows.length === 0) return { ok: true }
-  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+  const res = await sbFetch(`${SB_URL}/rest/v1/${table}`, {
     method: 'POST',
     headers: { ...headers(true), Prefer: 'return=minimal' },
     body: JSON.stringify(rows),
@@ -398,29 +485,56 @@ export async function remove(
   params: string,
 ): Promise<{ ok?: true; error?: string }> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
+  const res = await sbFetch(`${SB_URL}/rest/v1/${table}?${params}`, {
     method: 'DELETE',
     headers: headers(),
   })
   return res.ok ? { ok: true } : { error: await res.text() }
 }
 
-export async function rpc<T = unknown>(name: string, args: Record<string, unknown> = {}): Promise<T | null> {
+export type RpcResult<T> = {
+  data: T | null
+  /** What went wrong, when `data` is null. */
+  error?: string
+  /** The HTTP status; 0 when the request never got an answer (offline, timed out). */
+  status: number
+}
+
+/** A database function call that says *why* it failed. A 401 or 403 means the
+ *  caller is not allowed; a 5xx or a status of 0 means the server could not be
+ *  reached just now and the call is worth retrying. `rpc()` below is the
+ *  simpler form for callers that only need the value. */
+export async function rpcResult<T = unknown>(name: string, args: Record<string, unknown> = {}): Promise<RpcResult<T>> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/rest/v1/rpc/${name}`, {
-    method: 'POST',
-    headers: headers(true),
-    body: JSON.stringify(args),
-  })
-  if (!res.ok) return null
-  return (await res.json()) as T
+  let res: Response
+  try {
+    res = await sbFetch(`${SB_URL}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(args),
+    })
+  } catch (err) {
+    return { data: null, error: (err as Error).message || 'Could not reach the server.', status: 0 }
+  }
+  if (!res.ok) return { data: null, error: await res.text().catch(() => `${res.status}`), status: res.status }
+  // A function that returns nothing (merge_people) answers with an empty body.
+  const text = await res.text()
+  return { data: (text ? JSON.parse(text) : null) as T, status: res.status }
+}
+
+export async function rpc<T = unknown>(name: string, args: Record<string, unknown> = {}): Promise<T | null> {
+  const r = await rpcResult<T>(name, args)
+  // Unchanged contract: null when the server refused, a thrown error when it
+  // could not be reached at all.
+  if (r.status === 0) throw new Error(r.error)
+  return r.data
 }
 
 export async function getUser(): Promise<SupabaseUser | null> {
   await ensureSession()
   if (!session.token) return null
   if (session.user) return session.user
-  const res = await fetch(`${SB_URL}/auth/v1/user`, { headers: headers() })
+  const res = await sbFetch(`${SB_URL}/auth/v1/user`, { headers: headers() })
   if (!res.ok) return null
   session.user = await res.json()
   persist()
@@ -433,18 +547,27 @@ export async function invoke<T = unknown>(
   body: Record<string, unknown>,
 ): Promise<T> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/functions/v1/${name}`, {
+  const res = await sbFetch(`${SB_URL}/functions/v1/${name}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers() },
     body: JSON.stringify(body),
   })
-  return (await res.json()) as T
+  const text = await res.text()
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    // A gateway error page is HTML, not JSON. Every caller already reads an
+    // `error` field from the function's own replies, so hand them one rather
+    // than a SyntaxError.
+    if (!res.ok) return { error: `The server answered ${res.status}. Please try again in a moment.` } as T
+    throw new Error('The server sent an answer this page could not read.')
+  }
 }
 
 /** Row count without transferring rows. Uses PostgREST's Content-Range header. */
 export async function count(table: string, params = ''): Promise<number> {
   await ensureSession()
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?select=*&limit=1${params ? `&${params}` : ''}`, {
+  const res = await sbFetch(`${SB_URL}/rest/v1/${table}?select=*&limit=1${params ? `&${params}` : ''}`, {
     headers: { ...headers(), Prefer: 'count=exact' },
   })
   if (!res.ok) return 0

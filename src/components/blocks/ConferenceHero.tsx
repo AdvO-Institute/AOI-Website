@@ -64,12 +64,18 @@ export default function ConferenceHero() {
               This year&rsquo;s theme: <b>Inflection Point.</b>
             </p>
 
+            {/* Phones only (CSS): the card and its button are a long scroll below. */}
+            <div className="cfh-lead-cta">
+              <Link to={REGISTER} className="b p-btn cfh-reg">Register for the Conference</Link>
+            </div>
+
             <p className="sub">
               Two days of advanced clinical training, imaging, research, and case studies with the
-              doctors moving this work forward. Cone-beam CT and three-dimensional reference frames,
-              the updated terminology and corrective positioning, vestibular-ocular rehabilitation,
-              and the question of why a correction doesn&rsquo;t hold &mdash; plus the Institute&rsquo;s
-              practice-based research project and what comes in 2027.
+              doctors moving this work forward: cone-beam CT and three-dimensional analysis of
+              anatomical position and spatial relationships; updated terminology and corrective
+              positioning; Sonus: Blueprint; vestibular-ocular rehabilitation; and why a correction
+              doesn&rsquo;t hold. Plus the Institute&rsquo;s practice-based research project and what
+              comes in 2027.
             </p>
 
             <div className="cfh-line">
@@ -93,16 +99,16 @@ export default function ConferenceHero() {
             </div>
 
             <ul className="cfh-tiers">
+              <li className="hi"><span>AOI member</span><b>Included</b></li>
               <li><span>Doctor</span><b>{money(C.fullPrice)}</b></li>
               <li><span>Student</span><b>{money(C.studentPrice)}</b></li>
-              <li className="hi"><span>AOI member</span><b>Free</b></li>
               {C.facultyFree && <li><span>Chiropractic college faculty</span><b>Free</b></li>}
             </ul>
 
             <div className="cfh-act">
               <Link to={REGISTER} className="b p-btn cfh-reg">Register for the Conference</Link>
               <p className="cfh-note">
-                Members and faculty still register &mdash; the fee comes off at checkout. Members:
+                Members and faculty still register; the fee comes off at checkout. Members:
                 sign in first so we can see your membership. {CE_HOURS} CE hours through {CE_SPONSOR}.
               </p>
             </div>

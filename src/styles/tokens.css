@@ -126,6 +126,16 @@
   --shadow-raised: 0 12px 30px oklch(20.85% 0.0346 238.78 / 12%);
   --shadow-accent: 0 12px 26px oklch(70.76% 0.1082 82.41 / 42%);
   --shadow-header: 0 2px 20px oklch(20.85% 0.0346 238.78 / 35%);
+  --shadow-hover: 0 6px 18px oklch(20.85% 0.0346 238.78 / 8%);
+  --shadow-panel: 0 10px 30px oklch(20% 0.03 238 / 8%);
+  --shadow-menu: 0 14px 38px oklch(20.85% 0.0346 238.78 / 16%);
+  --shadow-float: 0 10px 30px oklch(20.85% 0.0346 238.78 / 30%);
+  --shadow-toast: 0 14px 38px oklch(20.85% 0.0346 238.78 / 30%);
+  --shadow-drawer: 0 14px 30px oklch(20.85% 0.0346 238.78 / 35%);
+  --shadow-focus-accent: 0 0 0 3px oklch(70.76% 0.1082 82.41 / 18%);
+  --shadow-dropdown: 0 18px 40px oklch(0% 0 0 / 40%);
+  --shadow-embed: 0 24px 60px oklch(0% 0 0 / 40%);
+  --shadow-modal: 0 40px 100px oklch(0% 0 0 / 50%);
 
   /* -------------------------------------------------------------- motion */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);

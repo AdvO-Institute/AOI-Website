@@ -6,7 +6,8 @@ JavaScript `go(page, id)` call, so the whole site shared a single URL. Nothing
 could be linked to, Google indexed one page, and AI crawlers had one document
 to cite.
 
-This build produces **30 real URLs**, each a complete static HTML file.
+This build produces **29 prerendered public URLs**, each a complete static HTML
+file, plus 11 client-only shells for per-visitor pages (see below).
 
 ---
 
@@ -26,8 +27,27 @@ breaking prerendering is silent: the site still looks perfect in a browser.
 **When checking by hand: View Source, not Inspect Element.** Inspect Element
 shows the DOM after JavaScript ran, which is not what a crawler receives.
 
-`/account` and `/registration-confirmed` are deliberately client-only and
-`noindex`. They are per-visitor and should never be crawled.
+Eleven routes are deliberately client-only and `noindex`: `/account`,
+`/reset-password`, `/registration-confirmed`, `/membership/welcome` and the
+seven `/seminars/<slug>/pay` pages. They are per-visitor and should never be
+crawled; the build writes each an empty shell so a direct hit does not 404.
+
+### URLs and trailing slashes
+
+Every page is written as `<route>.html` (`about.html`; `/` alone is
+`index.html`). Cloudflare Pages serves `about.html` at `/about` and redirects
+`/about/` back to it, so the URL that is served is the canonical one, and the
+canonical, the sitemap and every link agree (#100, fixed in #121). The old
+`<route>/index.html` layout did the opposite: every canonical was a 308 to the
+slash form. `public/_redirects` explains why it must never carry a rule that
+rewrites a page to or from its slash form: Pages already normalizes those, and
+a rule pointing the other way loops. `src/App.tsx` still strips a trailing slash
+before looking up a route's metadata, so a stray slash never shows the 404
+title.
+
+Structured data comes from each route's `meta` (`src/lib/seo.ts`): every page
+carries a WebPage graph, seminar pages a `Course`, and the Annual Conference an
+`Event` with its dates, venue and offers.
 
 ## The route manifest
 
@@ -42,22 +62,41 @@ without a title, description or canonical.
 
 ## Content
 
-Content lives in `src/content/` as typed modules, outside components. The same
-object feeds the page, its metadata and its structured data, so what a human
-reads and what a machine reads cannot drift apart.
+Content lives in `src/content/`, outside components: typed modules, plus the
+seminar pages' marketing copy as plain Markdown documents. The same object
+feeds the page, its metadata and its structured data, so what a human reads and
+what a machine reads cannot drift apart.
 
-Every string was lifted verbatim from the v4.8 build. The rebuild was verified
-phrase by phrase against it: 303 content phrases, zero dropped.
+At launch every string was lifted verbatim from the v4.8 build and verified
+phrase by phrase against it (303 content phrases, zero dropped). That was a
+one-time check; the copy has been edited since and v4.8 is no longer the
+reference.
 
-- `seminars.ts` — the catalog. `DB_SLUG` maps each site key to its
-  `public.events.slug`, and that same slug is the public URL, so the page, the
-  sitemap and the event record always agree.
+- `seminars.ts` — the catalog. `DB_SLUG` maps each site key to a
+  `public.events.slug`, and that slug is also the page's public URL
+  (`SEMINAR_SLUG`). The event a page *registers for* can differ, and `REG_SLUG`
+  names it where it does: the three Fundamentals pages share the Monthly Huddle
+  event, each Intensive weekend is its own event, and the Bootcamp registers
+  through a permanent `advo-bootcamp` event. The browser overlay looks up
+  `REG_SLUG` first, then `DB_SLUG`. `npm run check:catalog`
+  (`scripts/check-catalog.mjs`, run in CI as a warning) reports any slug the
+  site names that the database does not publish, and any published event the
+  site does not know.
+- `calendar.ts` — the standing calendar. Recurring events are rules ("third
+  Friday of October"), so their dates and event slugs are computed, reckoned
+  from `AS_OF`: the build date in Eastern time, stamped into both bundles as
+  `__BUILD_DATE__` by `scripts/build.mjs` so the browser's first render matches
+  the prerendered HTML.
+- `seminar-copy/*.md` — one document per seminar page holding its marketing
+  text, parsed at build time by `seminarCopy.ts`. A file that breaks the layout
+  stops the build with the file and line. Dates, prices, the agenda and the
+  instructors stay in `seminars.ts`.
 - `people.ts` — speakers, instructors and the seated Board.
 - `articles.ts`, `problems.ts`, `faq.ts`, `testimonials.ts`, `access.ts`.
 
 ## Tokens
 
-`src/styles/tokens.css` is the single source for every design decision. Colours
+`src/styles/tokens.css` is the single source for every design decision. Colors
 are authored in OKLCH, converted from the palette the Board approved on v4.8,
 and named by role — `content-secondary`, never `gray-400`. Roles survive a
 rebrand; appearances do not. **No raw hex, `rgb()` or `rgba()` appears anywhere
@@ -67,7 +106,7 @@ When the Institute becomes the CranioCervical Institute, the rebrand is a
 change to these values, not to any component.
 
 `src/styles/components.css` is the v4.8 visual design, ported so the rebuild is
-pixel-identical to what the Board signed off on, with every colour resolved to
+pixel-identical to what the Board signed off on, with every color resolved to
 a token.
 
 ## Navigation
@@ -82,14 +121,23 @@ anchor still works, because every route is a real file on disk.
 The browser only ever holds the Supabase publishable key. Anything needing
 `service_role` runs in an Edge Function.
 
-`create-checkout` is unchanged. That function has already taken and refunded
-real money, so the request body sent to it is byte-for-byte what v4.8 sent —
-same fields, same `reg_type`, same headers. The only change is the return URL,
-which now lands on `/registration-confirmed`; the function allowlists by
-**origin**, not path, so this needed no server change.
+At launch `create-checkout` was left unchanged: that function had already taken
+and refunded real money, so the request body sent to it was byte-for-byte what
+v4.8 sent, and only the return URL moved, to `/registration-confirmed`; the
+function allowlists by **origin**, not path, so that needed no server change.
+It has since been extended deliberately (the repo copy is v7, which adds
+member RSVP and the CE certificate purchase). Prices are still resolved on the
+server, never taken from the browser.
 
-`src/lib/queries/` holds the data layer. Components never call Supabase
-directly. The prerendered HTML carries the content-module values so a crawler
+`src/lib/queries/` holds the data layer, on top of the small client in
+`src/lib/supabase.ts`. Most components go through it, but not all: thirteen
+files outside `src/lib/` import `src/lib/supabase.ts` directly. Most only touch
+the session or sign-in (`entry-client.tsx`, `AccountPage`, `ResetPasswordPage`,
+`AccountMenu`, `MemberShell`, `Overview`, `CalendarPanel`); the rest read or
+write data or call an edge function themselves: `RegistrationDialog`,
+`PayPage`, `JoinPage`, `ConfirmPage`, `RolesPanel`, and `ContactPage`, which
+posts to the `contact-submit` function with a plain `fetch`. New data access
+belongs in `src/lib/queries/`. The prerendered HTML carries the content-module values so a crawler
 sees real dates and prices; in the browser, `CatalogProvider` overlays whatever
 `v_public_events` currently says, because the database — not this repo — is the
 source of truth for what is charged and whether registration is open.
@@ -162,24 +210,38 @@ that the build actually exercises:
 
 What this costs: no HMR dev server, and the router has no data loaders or
 nested layouts. What it preserves: every one of the five non-negotiables.
-TypeScript is strict and `npm run typecheck` is wired up; it could not be run
-here because `@types/react` is also on the registry.
+TypeScript is strict. The type check (`npx tsc --noEmit -p tsconfig.json`, also
+`npm run typecheck`) now runs and is clean, with zero errors, and the GitHub
+Action runs it on every pull request.
 
 Swapping any of these back is a contained change — the components, content and
 routes are untouched by it.
 
 ## Known follow-ups
 
-- **Route-level code splitting.** The client bundle is 116 kB gzipped, inside
-  the 150 kB budget, but every page's component ships on every page. Splitting
-  needs `React.lazy` plus care around hydrating prerendered markup.
+- **Route-level code splitting.** The members area is already split out: `/account`
+  loads `MemberShell` with `React.lazy`, so public pages ship about 161 kB of
+  gzipped JavaScript (two files, 57 kB + 104 kB) plus 29 kB of gzipped CSS, and
+  the members-area chunk (137 kB gzipped) is fetched only on `/account`
+  (measured 2026-10-08 with `gzip`; 298 kB of JavaScript in all). No size budget
+  is enforced. The old "116 kB, inside a 150 kB budget" figure predates the
+  members area and no longer holds: the public pages alone are over it.
+  Splitting the public pages themselves is still open; it needs care around
+  hydrating prerendered markup.
 - **`text-wrap: balance`** on headings was removed so line breaks match the
   approved design exactly. It is a real improvement and can be turned on as a
   deliberate change.
-- **AVIF.** Images ship as WebP (811 kB total, down from 1.32 MB of base64 in
+- **AVIF.** Images ship as WebP (about 1.1 MB across 30 files, against 1.32 MB of base64 in
   v4.8, and now loaded per page instead of all at once). AVIF encodes a further
   19% smaller; adding it means `image-set()` for the CSS backgrounds and
   `<picture>` for the headshots.
 - **Rebuild on content change.** Events edited in CCI OS appear immediately via
   the live overlay, but the prerendered HTML only updates on the next deploy. A
   Supabase webhook hitting a Cloudflare deploy hook would close that gap.
+- **One email layout in practice.** `supabase/functions/_email/email.ts`
+  ("Obsidian") is meant to be the one template every email renders through,
+  copied into each function folder that sends mail. Today the repo holds only
+  that source file, with no copies, and the repo copies of `stripe-webhook`,
+  `confirm-checkout` and `pay-link` still build their own plain HTML. Whether the
+  deployed functions match is Chris's to confirm; bringing the repo record and
+  the deployed functions together is his deploy step.

@@ -63,7 +63,7 @@ export default function MembershipWelcomePage() {
             </p>
             <div style={{ marginTop: '18px' }}>
               <Link to="/seminars/annual-conference-2026" className="b lg p-btn">
-                Register for the Conference
+                RSVP for the Conference
               </Link>
             </div>
           </div>

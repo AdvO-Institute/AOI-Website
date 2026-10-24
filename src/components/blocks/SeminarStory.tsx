@@ -192,6 +192,29 @@ export function StoryVoices({ story, video }: Props & { video?: ReactNode }) {
 export function StoryFit({ story }: Props) {
   const f = story.fit
   if (!f) return null
+  // "Who it's for" beside "What to expect": two welcoming lists, no fit check.
+  if (f.expect) return (
+    <section>
+      <div className="wrap">
+        <div className="sfit">
+          <div>
+            <h2 className="t">{f.h}</h2>
+            <div className="goldrule" />
+            <div className="quallist one">
+              {f.yes.map((x) => <div className="qi" key={x}><span className="sck">&#10003;</span><span>{x}</span></div>)}
+            </div>
+          </div>
+          <div>
+            <h2 className="t">What to expect</h2>
+            <div className="goldrule" />
+            <div className="quallist one">
+              {f.expect.map((x) => <div className="qi" key={x}><span className="sck">&#10003;</span><span>{x}</span></div>)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
   return (
     <section>
       <div className="wrap">

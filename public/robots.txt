@@ -56,7 +56,6 @@ Allow: /
 
 # Authenticated areas — never indexed.
 User-agent: *
-Disallow: /app/
-Disallow: /account/
+Disallow: /account
 
 Sitemap: https://vitalid.example/sitemap.xml

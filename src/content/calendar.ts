@@ -7,12 +7,32 @@
  * holds one event per weekend (price, seats, attendees); each event's slug is
  * built from its rule and year so the site finds it without being edited.
  *
- * Dates are worked out when the page is built and again in the browser, so the
- * calendar rolls forward on its own.
+ * Dates are worked out from `AS_OF`, the day the site was built, so the
+ * calendar rolls forward with each deploy and the browser's first render
+ * agrees with the prerendered HTML. A component that must show today's answer
+ * recomputes after mount with the built value as its fallback.
  *
  * supabase/functions/roll-calendar creates the matching events from the same
  * rules; keep the two in step.
  * -------------------------------------------------------------------------- */
+
+/** Stamped in by `scripts/build.mjs` (`define`); absent in the type check,
+ *  the preview harnesses and any other bundle that does not set it. */
+declare const __BUILD_DATE__: string | undefined
+
+/** The day the site's computed dates are reckoned from.
+ *
+ *  The build stamps its own date (Eastern, `YYYY-MM-DD`) into both bundles, so a
+ *  browser works out the same dates the build box did. Without this each
+ *  browser used its own clock: the morning after any date passed, the
+ *  prerendered HTML said one thing and the first client render another, and
+ *  React 19 threw the page away and drew it again (a hydration mismatch).
+ *
+ *  Noon, local time, so the calendar's day-of-month math lands on the same
+ *  day in every time zone. Where nothing is stamped, it is today. */
+export const AS_OF: Date = typeof __BUILD_DATE__ === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(__BUILD_DATE__)
+  ? new Date(`${__BUILD_DATE__}T12:00:00`)
+  : new Date()
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const SHORT = MONTHS.map((m) => m.slice(0, 3))
@@ -96,6 +116,21 @@ export const CONFERENCE_RULE: Rule = { id: 'conference', event: 'Annual Conferen
 /** Every weekend event, in calendar order. */
 export const WEEKEND_RULES: Rule[] = [INTENSIVE_RULES[0]!, INTENSIVE_RULES[1]!, BOOTCAMP_RULE, INTENSIVE_RULES[2]!, CONFERENCE_RULE]
 
+/** The 2026 conference, which kept its November date ahead of the rules. */
+export const CONFERENCE_2026: Occurrence = { start: new Date(2026, 10, 6), end: new Date(2026, 10, 7), year: 2026 }
+
+export type NextEvent = { page: string; o: Occurrence; where: string }
+
+/** The soonest in-person weekend event (Intensive, Bootcamp or Conference)
+ *  that has not finished yet. Reckoned from the build date by default, so the
+ *  seminars page hydrates cleanly; it recomputes from today after mount. */
+export function nextInPerson(today = AS_OF): NextEvent {
+  const day = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const list: NextEvent[] = WEEKEND_RULES.map((r) => ({ page: r.page!, o: nextOccurrence(r, today), where: r.where }))
+  if (CONFERENCE_2026.end >= day) list.push({ page: 'conference', o: CONFERENCE_2026, where: 'St. Petersburg, FL' })
+  return list.sort((a, b) => a.o.start.getTime() - b.o.start.getTime())[0]!
+}
+
 /* -------------------------------------------------------- member Zoom call */
 
 /** The second Tuesday of the month. The Fundamentals year runs October to
@@ -135,8 +170,9 @@ export function listDates(dates: Date[]): string {
 
 export type CalendarRow = { event: string; rule: string; years: string[]; where: string; page?: string }
 
-/** The first year worth showing: the year of the next weekend event. */
-export function firstCalendarYear(today = new Date()): number {
+/** The first year worth showing: the year of the next weekend event. Reckoned
+ *  from the build date by default, so the seminars page hydrates cleanly. */
+export function firstCalendarYear(today = AS_OF): number {
   return Math.min(...WEEKEND_RULES.map((r) => nextOccurrence(r, today).year))
 }
 

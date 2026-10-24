@@ -61,7 +61,7 @@ export const PREC_APPROVAL: { key: string; label: string }[] = [
   { key: 'board_approved', label: 'Approved by the Board · added to the preceptor registry' },
 ]
 export const INT_CRITERIA: { key: string; label: string; sync?: 'exam' }[] = [
-  { key: 'int_training', label: 'Completed internship training (all AO procedure components)' },
+  { key: 'int_training', label: 'Completed internship training (all AdvO procedure components)' },
   { key: 'int_exam', label: 'Passed the Advanced Orthogonal Basic Examination', sync: 'exam' },
   { key: 'int_letter', label: 'Preceptor summary letter filed with Certification Committee' },
 ]

@@ -94,7 +94,7 @@ export default function BoardPage() {
             <p>Three of nine seats open every year. Your voice, your vote, your Institute.</p>
           </div>
           <Link className="b lg p-btn" to="/membership">
-            Become a Member
+            Join the Institute
           </Link>
         </div>
       </section>

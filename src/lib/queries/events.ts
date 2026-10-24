@@ -9,8 +9,8 @@
  *
  * Ported from `dbSync()` in the v4.8 build with the same precedence rules.
  * -------------------------------------------------------------------------- */
-import { SB_URL, SB_KEY } from '@/lib/supabase'
-import { DB_SLUG, DB_ID, REG_SLUG, SEMINARS } from '@/content/seminars'
+import { SB_URL, SB_KEY, sbFetch } from '@/lib/supabase'
+import { DB_SLUG, REG_SLUG, SEMINARS } from '@/content/seminars'
 import { HUDDLE_SLUG } from '@/content/calendar'
 
 export type PublicEvent = {
@@ -32,7 +32,14 @@ export type PublicEvent = {
   ce_school?: string | null
   seats_remaining?: number | string | null
   reg_closes?: string | null
+  /** The event's speakers and timed sessions, as entered in the members area.
+   *  Absent until the public view carries them; pages then keep their own list. */
+  speakers?: PublicSpeaker[] | null
+  sessions?: PublicSession[] | null
 }
+
+export type PublicSpeaker = { name: string; speaker_title?: string | null; is_keynote?: boolean | null; sort?: number | null }
+export type PublicSession = { title?: string | null; starts_at?: string | null; speaker?: string | null; sort?: number | null }
 
 export type EventOverlay = {
   event?: PublicEvent
@@ -130,7 +137,7 @@ export async function fetchCatalog(): Promise<EventCatalog> {
   const byKey: Record<string, EventOverlay> = {}
 
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/v_public_events?select=*`, {
+    const res = await sbFetch(`${SB_URL}/rest/v1/v_public_events?select=*`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
     })
     if (!res.ok) throw new Error(`sync ${res.status}`)
@@ -147,7 +154,7 @@ export async function fetchCatalog(): Promise<EventCatalog> {
 
       // Not published in CCI OS means not sellable from the public site.
       if (!row) {
-        byKey[key] = { id: slug ? null : (DB_ID[key] ?? null), open: false }
+        byKey[key] = { id: null, open: false }
         continue
       }
 

@@ -28,9 +28,9 @@ const FILES: Record<string, [string, string]> = {
   conference: ['annual-conference.md', conference],
 }
 
-const LABELS = ['Heading', 'Intro', 'Closing', 'Photo', 'Note', 'Label', 'Subtitle', 'Button', 'Good fit', 'Not the best fit']
+const LABELS = ['Heading', 'Intro', 'Closing', 'Photo', 'Note', 'Label', 'Subtitle', 'Button', 'Good fit', 'Not the best fit', 'What to expect']
 
-type Block = { name: string; line: number; labels: Record<string, string>; items: string[]; paras: string[]; fitYes: string[]; fitNo: string[]; faq: { q: string; a: string }[] }
+type Block = { name: string; line: number; labels: Record<string, string>; items: string[]; paras: string[]; fitYes: string[]; fitNo: string[]; fitExpect: string[]; faq: { q: string; a: string }[] }
 
 function parse(file: string, text: string): SeminarStory {
   const fail = (line: number, msg: string): never => {
@@ -38,7 +38,7 @@ function parse(file: string, text: string): SeminarStory {
   }
   const blocks: Block[] = []
   let cur: Block | null = null
-  let fitList: 'yes' | 'no' | null = null
+  let fitList: 'yes' | 'no' | 'expect' | null = null
   let para: string[] = []
   const endPara = () => {
     if (!cur || !para.length) { para = []; return }
@@ -54,7 +54,7 @@ function parse(file: string, text: string): SeminarStory {
     const line = raw.trim()
     if (line.startsWith('## ')) {
       endPara()
-      cur = { name: line.slice(3).trim().toLowerCase(), line: n, labels: {}, items: [], paras: [], fitYes: [], fitNo: [], faq: [] }
+      cur = { name: line.slice(3).trim().toLowerCase(), line: n, labels: {}, items: [], paras: [], fitYes: [], fitNo: [], fitExpect: [], faq: [] }
       fitList = null
       blocks.push(cur)
       return
@@ -73,6 +73,7 @@ function parse(file: string, text: string): SeminarStory {
       const item = line.slice(2).trim()
       if (fitList === 'yes') c.fitYes.push(item)
       else if (fitList === 'no') c.fitNo.push(item)
+      else if (fitList === 'expect') c.fitExpect.push(item)
       else c.items.push(item)
       return
     }
@@ -82,6 +83,7 @@ function parse(file: string, text: string): SeminarStory {
       const value = line.slice(label.length + 1).trim()
       if (label === 'Good fit') fitList = 'yes'
       else if (label === 'Not the best fit') fitList = 'no'
+      else if (label === 'What to expect') fitList = 'expect'
       else c.labels[label] = value
       return
     }
@@ -118,7 +120,7 @@ function parse(file: string, text: string): SeminarStory {
     ...(benefits && { benefits: { h: need(benefits, 'Heading'), items: benefits.items.map((s) => { const x = pair(benefits, s); return { h: x.h, p: x.rest } }) } }),
     ...(research && { data: { h: need(research, 'Heading'), ...(research.labels.Intro && { lede: research.labels.Intro }), items: research.items.map((s) => { const x = pair(research, s); const [k, n] = x.h.includes(' | ') ? x.h.split(' | ', 2) as [string, string] : ['', x.h]; return { n: n.trim(), t: x.rest, ...(k.trim() && { k: k.trim() }) } }), note: need(research, 'Note') } }),
     ...(steps && { steps: { h: need(steps, 'Heading'), items: steps.items.map((s) => { const x = pair(steps, s); return { h: x.h, p: x.rest } }) } }),
-    ...(fit && { fit: { h: need(fit, 'Heading'), yes: fit.fitYes, no: fit.fitNo } }),
+    ...(fit && { fit: { h: need(fit, 'Heading'), yes: fit.fitYes, no: fit.fitNo, ...(fit.fitExpect.length ? { expect: fit.fitExpect } : {}) } }),
     ...(questions && { faq: questions.faq.map((x) => (x.a ? x : fail(questions.line, `the question "${x.q}" has no answer under it.`))) }),
   }
 }

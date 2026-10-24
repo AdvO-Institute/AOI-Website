@@ -3,7 +3,8 @@ import { Link } from '@/lib/router'
 import ProblemGrid from '@/components/blocks/ProblemGrid'
 import TestimonialReel from '@/components/blocks/TestimonialReel'
 import HeroVideo from '@/components/blocks/HeroVideo'
-import { SEMINARS } from '@/content/seminars'
+import { SEMINARS, datesAsOf } from '@/content/seminars'
+import { AS_OF } from '@/content/calendar'
 import ConferenceHero from '@/components/blocks/ConferenceHero'
 
 /* The morning after the conference's last day, Eastern. Until then the hero
@@ -12,14 +13,21 @@ import ConferenceHero from '@/components/blocks/ConferenceHero'
 const CONFERENCE_ENDS = new Date('2026-11-08T00:00:00-05:00')
 
 export default function HomePage() {
-  /* Prerendered HTML carries the conference hero (true at build time). A
-   * browser opening the page after the conference swaps it back on mount. */
-  const [over, setOver] = useState(Date.now() >= CONFERENCE_ENDS.getTime())
+  /* Everything here that depends on the date starts from the build's date
+   * (`AS_OF`), which is what the prerendered HTML was drawn from, so the first
+   * client render matches it and hydrates cleanly. On mount each is worked out
+   * again from the visitor's clock: a browser opening the page after the
+   * conference swaps the standing hero back in, and the morning after a
+   * weekend passes the cards already show the next one. */
+  const [over, setOver] = useState(AS_OF.getTime() >= CONFERENCE_ENDS.getTime())
   useEffect(() => setOver(Date.now() >= CONFERENCE_ENDS.getTime()), [])
   /* "Explore 2026–2027 Seminars": this year and next, moving on by itself
    * each January, the same way. */
-  const [year, setYear] = useState(new Date().getFullYear())
+  const [year, setYear] = useState(AS_OF.getFullYear())
   useEffect(() => setYear(new Date().getFullYear()), [])
+  /* The Intensive and Bootcamp date chips on the cards. */
+  const [dates, setDates] = useState({ intensive: SEMINARS.intensive!.dates, bootcamp: SEMINARS.bootcamp!.dates })
+  useEffect(() => setDates(datesAsOf(new Date())), [])
 
   return (
     <div className="page-home">
@@ -164,7 +172,7 @@ export default function HomePage() {
             <div className="goldrule"></div>
             <div className="grid3">
               <Link to="/seminars/advo-intensive" className="card">
-                <div className="imgwrap"><div className="img ph-b"><div className="duo"></div><div className="duo2"></div></div><div className="scrim"></div><span className="datechip">{SEMINARS.intensive!.dates.toUpperCase()}</span><span className="loc">ST. PETERSBURG <span>&middot; FL</span> &amp; OREM <span>&middot; UT</span></span></div>
+                <div className="imgwrap"><div className="img ph-b"><div className="duo"></div><div className="duo2"></div></div><div className="scrim"></div><span className="datechip">{dates.intensive.toUpperCase()}</span><span className="loc">ST. PETERSBURG <span>&middot; FL</span> &amp; OREM <span>&middot; UT</span></span></div>
                 <div className="bd">
                   <h3>AdvO Intensive</h3>
                   <div className="meta">2 DAYS &middot; <b>HANDS-ON</b></div>
@@ -173,7 +181,7 @@ export default function HomePage() {
                 </div>
               </Link>
               <Link to="/seminars/advo-bootcamp-2027" className="card">
-                <div className="imgwrap"><div className="img ph-a"><div className="duo"></div><div className="duo2"></div></div><div className="scrim"></div><span className="datechip">{SEMINARS.bootcamp!.dates.toUpperCase()}</span><span className="loc">TAMPA BAY <span>&middot; FL</span></span></div>
+                <div className="imgwrap"><div className="img ph-a"><div className="duo"></div><div className="duo2"></div></div><div className="scrim"></div><span className="datechip">{dates.bootcamp.toUpperCase()}</span><span className="loc">TAMPA BAY <span>&middot; FL</span></span></div>
                 <div className="bd">
                   <h3>AdvO Bootcamp</h3>
                   <div className="meta">5 DAYS &middot; <b>ALL LEVELS</b></div>

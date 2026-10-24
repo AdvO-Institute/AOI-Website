@@ -15,11 +15,15 @@ import { roster, committees } from '@/lib/queries/member'
 import type { RosterRow } from '@/lib/queries/member'
 import { insert, remove } from '@/lib/supabase'
 import { ROLE_LABEL } from '@/lib/access'
+import { roleChipClass } from '@/lib/chips'
 
 type Committee = { id: number; key: string; name: string }
 
-/** Roles that stand alone. */
-const PLAIN_ROLES = ['executive_director', 'board_member', 'instructor'] as const
+/** Roles that stand alone, in two rows: the officers, then Board seat and instructor. */
+const OFFICER_ROLES = ['executive_director', 'board_chair', 'vice_chair', 'treasurer', 'secretary'] as const
+const PLAIN_ROLES = ['board_member', 'instructor'] as const
+/** Past seats are history, not access; this screen shows current ones only. */
+const isPast = (k: string) => k.startsWith('past_')
 /** Roles that need a committee. */
 const COMMITTEE_ROLES = ['committee_chair', 'committee_cochair', 'committee_member'] as const
 
@@ -34,7 +38,7 @@ export default function RolesPanel() {
 
   const load = useCallback(async (term: string) => {
     const [people, cs] = await Promise.all([roster(term), committees()])
-    setRows(people)
+    setRows(term.trim() ? people : people.filter((p) => (p.person_roles ?? []).some((r) => !isPast(r.role_key))))
     setComs(cs)
   }, [])
 
@@ -125,7 +129,25 @@ export default function RolesPanel() {
           <p className="ma-empty">No one matched that search.</p>
         ) : (
           rows.map((person) => {
-            const roles = person.person_roles ?? []
+            const roles = (person.person_roles ?? []).filter((r) => !isPast(r.role_key))
+            // The Treasurer's seat hangs on the Treasurer committee, as it always has.
+            const treasuryId = coms.find((c) => c.key === 'treasury')?.id ?? null
+            const seatOf = (k: string) => (k === 'treasurer' ? treasuryId : null)
+            const plainButton = (roleKey: string) => {
+              const on = has(person, roleKey, seatOf(roleKey))
+              return (
+                <button
+                  type="button"
+                  key={roleKey}
+                  className={`b sm ${on ? 'p-btn' : 's-btn on-light'}`}
+                  disabled={busy}
+                  aria-pressed={on}
+                  onClick={() => void toggle(person, roleKey, seatOf(roleKey), on)}
+                >
+                  {ROLE_LABEL[roleKey]}
+                </button>
+              )
+            }
             const isOpen = open === person.id
             return (
               <div className="ma-row" key={person.id} style={{ alignItems: 'flex-start' }}>
@@ -136,14 +158,15 @@ export default function RolesPanel() {
                   <span>{person.email ?? 'No email on file'}</span>
                   <div className="ma-chips" style={{ marginTop: '6px' }}>
                     {roles.length === 0 ? (
-                      <span className="rolechip">NO ROLES</span>
+                      <span className="cpill">NO ROLES</span>
                     ) : (
                       roles.map((r, i) => (
-                        <span className="rolechip gold" key={i}>
-                          {(ROLE_LABEL[r.role_key] ?? r.role_key).toUpperCase()}
-                          {r.committee_id
-                            ? ` · ${(coms.find((c) => c.id === r.committee_id)?.name ?? '').replace(/ Committee.*/, '')}`
-                            : ''}
+                        <span className={roleChipClass(r.role_key)} key={i}>
+                          {/* Committee first: "Curriculum Chair", "Certification Co-chair". */}
+                          {(r.committee_id && !['treasurer', 'research_director'].includes(r.role_key)
+                            ? `${(coms.find((c) => c.id === r.committee_id)?.name ?? '').replace(/ Committee.*/, '')} ${ROLE_LABEL[r.role_key] ?? r.role_key}`
+                            : ROLE_LABEL[r.role_key] ?? r.role_key
+                          ).toUpperCase()}
                         </span>
                       ))
                     )}
@@ -152,26 +175,15 @@ export default function RolesPanel() {
                   {isOpen && (
                     <div style={{ marginTop: '14px' }}>
                       <div className="flabel">INSTITUTE ROLES</div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                        {OFFICER_ROLES.map(plainButton)}
+                      </div>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                        {PLAIN_ROLES.map((roleKey) => {
-                          const on = has(person, roleKey, null)
-                          return (
-                            <button
-                              type="button"
-                              key={roleKey}
-                              className={`b sm ${on ? 'p-btn' : 's-btn on-light'}`}
-                              disabled={busy}
-                              aria-pressed={on}
-                              onClick={() => void toggle(person, roleKey, null, on)}
-                            >
-                              {ROLE_LABEL[roleKey]}
-                            </button>
-                          )
-                        })}
+                        {PLAIN_ROLES.map(plainButton)}
                       </div>
 
                       <div className="flabel">COMMITTEE SEATS</div>
-                      {coms.map((committee) => (
+                      {coms.filter((c) => c.key !== 'treasury').map((committee) => (
                         <div
                           key={committee.id}
                           style={{

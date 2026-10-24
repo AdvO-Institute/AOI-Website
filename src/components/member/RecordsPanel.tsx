@@ -5,6 +5,7 @@
  *   Committee reports  every filed report, by committee and month
  * The database decides what each person can see; this only lays it out.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useState } from 'react'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useToast } from '@/components/ui/Toast'
@@ -17,7 +18,7 @@ import { calendar as loadCalendar, startDay, dayLabel } from '@/lib/queries/cale
 import type { CalEvent } from '@/lib/queries/calendar'
 import { dayET, monthLabel, fmtD, addDays } from '@/lib/queries/meetings'
 import { logActivity } from '@/lib/queries/attention'
-import { Pill, Modal, Head, Sec, friendly } from './opsUi'
+import { Pill, Modal, Head, Sec, friendly, askConfirm } from './opsUi'
 import { ReportBody } from './ReportsPanel'
 
 type FolderKey = Folder
@@ -41,15 +42,15 @@ export default function RecordsPanel() {
 
   const load = useCallback(async () => {
     const [r, rep, c, cal] = await Promise.all([loadRecords(), loadReports(), loadCommittees(), loadCalendar()])
-    setError(r.error ? `Records could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `Records could not be read. ${friendlyError(r.error)}` : null)
     setRecs(r.rows); setReports(rep.rows); setComs(c); setMeetings(cal.rows.filter((e) => e.event_type === 'board')); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
 
   const open = async (r: Record_) => { if (!r.storage_path) return; const u = await fileUrl(r.storage_path); if (u) window.open(u, '_blank', 'noopener'); else toast('That file could not be opened — you may not have access to it.') }
-  const del = async (r: Record_) => { if (!confirm(`Remove “${r.title}” from Records?`)) return; const x = await removeRecord(r); if (x.error) return toast(friendly(x.error)); await load(); toast('Removed') }
+  const del = async (r: Record_) => { if (!(await askConfirm(`Remove “${r.title}” from Records?`, { ok: 'Remove', danger: true }))) return; const x = await removeRecord(r); if (x.error) return toast(friendly(x.error)); await load(); toast('Removed') }
   const fileRow = (r: Record_) => <div key={r.id} className="recrow"><button type="button" className="rdoc" onClick={() => void open(r)}>📄 {r.title}<small>{KIND_LABEL[r.kind] ?? r.kind} · {r.file_name}{r.size_bytes ? ` · ${fmtSize(r.size_bytes)}` : ''} · {r.uploaded_by_name ?? '—'} · {fmtTs(r.created_at)}</small></button>{oversight && <button type="button" className="x" aria-label="Remove" onClick={() => void del(r)}>×</button>}</div>
-  const uploader = (label: string, folderKey: Folder, sub: string, meta: Parameters<typeof upload>[3], key: string) => <label className="b s-btn on-light xs" style={{ cursor: 'pointer' }}>{uploading === key ? 'Uploading…' : label}<input type="file" hidden accept="application/pdf,image/*,.docx,.xlsx,.csv" disabled={!!uploading} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; setUploading(key); const r = await upload(folderKey, sub, f, meta, who); setUploading(null); if (r.error) return toast('Upload failed: ' + r.error.slice(0, 160)); await load(); toast('Filed'); void logActivity('write', 'records', { folder: folderKey, kind: meta.kind }) }} /></label>
+  const uploader = (label: string, folderKey: Folder, sub: string, meta: Parameters<typeof upload>[3], key: string) => <label className="b s-btn on-light xs" style={{ cursor: 'pointer' }}>{uploading === key ? 'Uploading…' : label}<input type="file" hidden accept="application/pdf,image/*,.docx,.xlsx,.csv" disabled={!!uploading} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; setUploading(key); const r = await upload(folderKey, sub, f, meta, who); setUploading(null); if (r.error) return toast('The upload failed. ' + friendlyError(r.error)); await load(); toast('Filed'); void logActivity('write', 'records', { folder: folderKey, kind: meta.kind }) }} /></label>
 
   if (loading) return <><h1>Records</h1><div className="ma-sub">Opening the archive…</div><div className="ma-panel"><p className="ma-empty">One moment.</p></div></>
   const treasury = coms.find((c) => c.key === 'treasury')
@@ -75,7 +76,7 @@ export default function RecordsPanel() {
         {oversight && <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>{uploader('+ Agenda', 'board_meetings', d, { kind: 'agenda', title: `Agenda — ${fmtD(d)}`, event_id: m.id, meeting_date: d }, `ag-${m.id}`)}{uploader('+ Minutes', 'board_meetings', d, { kind: 'minutes', title: `Minutes — ${fmtD(d)}`, event_id: m.id, meeting_date: d }, `mi-${m.id}`)}{uploader('+ Other', 'board_meetings', d, { kind: 'other', title: `Document — ${fmtD(d)}`, event_id: m.id, meeting_date: d }, `ot-${m.id}`)}</div>}</div> })}
       {oversight && <><Sec r="meetings that pre-date the calendar">Archived meetings</Sec>
         {recs.filter((r) => r.folder === 'board_meetings' && !r.event_id && !meetings.some((m) => startDay(m) === r.meeting_date)).map(fileRow)}
-        <div style={{ marginTop: 8 }}><ArchiveUpload onUpload={async (date, kind, f) => { setUploading('arch'); const r = await upload('board_meetings', date, f, { kind, title: `${KIND_LABEL[kind]} — ${fmtD(date)}`, meeting_date: date }, who); setUploading(null); if (r.error) return toast('Upload failed: ' + r.error.slice(0, 160)); await load(); toast('Filed') }} busy={uploading === 'arch'} /></div></>}
+        <div style={{ marginTop: 8 }}><ArchiveUpload onUpload={async (date, kind, f) => { setUploading('arch'); const r = await upload('board_meetings', date, f, { kind, title: `${KIND_LABEL[kind]} — ${fmtD(date)}`, meeting_date: date }, who); setUploading(null); if (r.error) return toast('The upload failed. ' + friendlyError(r.error)); await load(); toast('Filed') }} busy={uploading === 'arch'} /></div></>}
     </>}
 
     {folder === 'committee_reports' && <>

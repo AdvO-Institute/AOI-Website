@@ -6,24 +6,33 @@
  * -------------------------------------------------------------------------- */
 
 import {
-  INTENSIVE_RULES, BOOTCAMP_RULE, nextOccurrence, longRange, eventSlug, zoomSeason, zoomDates, HUDDLE_SLUG, listDates,
+  AS_OF, INTENSIVE_RULES, BOOTCAMP_RULE, nextOccurrence, longRange, eventSlug, zoomSeason, zoomDates, HUDDLE_SLUG, listDates,
 } from './calendar'
 import { SEMINAR_COPY } from './seminarCopy'
 
 /* Dates that follow the Board's calendar rules are computed, not typed: the
  * next three Intensive weekends, the next Bootcamp, and this year's member
- * Zoom calls. See `./calendar.ts`. */
-const TODAY = new Date()
+ * Zoom calls. See `./calendar.ts`.
+ *
+ * They are reckoned from the day the site was built (`AS_OF`), not from each
+ * visitor's clock, so the browser's first render matches the prerendered
+ * HTML. A page that wants today's answer calls `datesAsOf(new Date())` after
+ * mount; the daily rebuild keeps the built values within a day of it. */
+const TODAY = AS_OF
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-const INTENSIVES = INTENSIVE_RULES.map((r) => ({ r, o: nextOccurrence(r, TODAY) }))
+/** The next three Intensive weekends as of a day, soonest first. */
+const intensivesAsOf = (today: Date) => INTENSIVE_RULES.map((r) => ({ r, o: nextOccurrence(r, today) }))
   .sort((a, b) => a.o.start.getTime() - b.o.start.getTime())
+const INTENSIVES = intensivesAsOf(TODAY)
 const BOOTCAMP = nextOccurrence(BOOTCAMP_RULE, TODAY)
 const ZOOM_SEASON = zoomSeason(TODAY)
 const regKey = (id: string) => id.replace('-', ':')
 /** An agenda line's date ("OCT 13" over "TUE · 9 PM ET · ZOOM"), from this year's Huddle dates. */
 function huddleDay(part: string, i: number) {
   const d = zoomDates(part, ZOOM_SEASON)[i]
-  return { t: d ? `${MON[d.getMonth()]} ${d.getDate()}` : `PART ${i + 1}`, ap: 'TUE · 9 PM ET · ZOOM' }
+  // `on` lets a session in the Monthly Huddle event name this date's instructor.
+  const on = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : undefined
+  return { t: d ? `${MON[d.getMonth()]} ${d.getDate()}` : `PART ${i + 1}`, ap: 'TUE · 9 PM ET · ZOOM', on }
 }
 
 /** "Feb, Apr & Aug 2027", or "Apr & Aug 2027 · Feb 2028" across a new year. */
@@ -35,12 +44,22 @@ function monthsLine(list: typeof INTENSIVES): string {
     .join(' · ')
 }
 
+/** The Intensive and Bootcamp date lines as of a given day — the same strings
+ *  as `SEMINARS.intensive.dates` and `SEMINARS.bootcamp.dates`, which are
+ *  these for the build date. For a component that shows today's dates after
+ *  mount while the prerendered ones stand in. */
+export function datesAsOf(today: Date): { intensive: string; bootcamp: string } {
+  return { intensive: monthsLine(intensivesAsOf(today)), bootcamp: longRange(nextOccurrence(BOOTCAMP_RULE, today)) }
+}
+
 export type SeminarTier = {
   k: string
   p: string
   n: string
   hi?: boolean
   flag?: string
+  /** The tier a signed-in member is in; the only card shown once they RSVP. */
+  member?: boolean
 }
 
 export type RegBand = {
@@ -83,7 +102,7 @@ export type SeminarStory = {
   data?: { h: string; lede?: string; items: { n: string; t: string; k?: string }[]; note: string }
   steps?: { h: string; items: { h: string; p: string }[] }
   voices?: { h: string; lede?: string; quotes: { q: string; who: string; cred?: string }[] }
-  fit?: { h: string; yes: string[]; no: string[] }
+  fit?: { h: string; yes: string[]; no: string[]; expect?: string[] }
   faq?: { q: string; a: string }[]
 }
 
@@ -108,6 +127,8 @@ export type Seminar = {
   studentPrice?: number
   facultyFree?: boolean
   mbText?: string
+  /** The second line of the membership bar under the hero. */
+  mbSub?: string
   sessions: string[][]
   hideSess?: boolean
   regBand?: RegBand
@@ -119,7 +140,9 @@ export type Seminar = {
   ctaH: string
   spk?: string[]
   /** Sponsors shown with their logos. `light` puts a logo made for white on a white tile. */
-  sponsors?: { name: string; logo: string; url: string; light?: boolean }[]
+  /** `w`/`h` are the image file's pixel size, so the logo reserves its space before it loads.
+   *  `logo` is a `.webp` in public/images unless it names its own extension. */
+  sponsors?: { name: string; logo: string; url: string; light?: boolean; w: number; h: number }[]
   agenda?: unknown
   ce?: SeminarCE
   story?: SeminarStory
@@ -173,12 +196,12 @@ export const SEMINARS = {
     learn:['Why Advanced Orthogonal: what the technique is built on and the outcomes it measures','The patient history: findings that point to upper cervical involvement','The exam: supine leg check, muscle balance, arm strength, head rotation and palpation','X-ray setup for the sagittal, axial, frontal and horizontal views','CBCT setup','The Advanced Orthogonal terminology'],
     sched:[['OCT–JAN',`${listDates(zoomDates('fund1', ZOOM_SEASON))}, 9:00 pm Eastern, live on Zoom: why AdvO, the history and exam, and setting up the X-ray series, then open time for your cases and questions.`],['HANDS-ON','Not part of the Zoom sessions: attend an AdvO Intensive, whose hands-on training covers all three Fundamentals.']],
     ctaH:'Begin the Fundamentals Series.', ctaP:'Members only · live on Zoom, recorded for later', ctaBtn:'RSVP for the Monthly Huddle',
-    spk:['cs','jk'], keynote:null,
+    spk:['beadle'], keynote:null,
     agenda:[{day:null,items:[
-      {...huddleDay('fund1', 0),title:'Introduction — Why AdvO',desc:'What the technique is built on, the outcomes it measures, and the atlas subluxation.',who:['cs']},
-      {...huddleDay('fund1', 1),title:'History & Exam',desc:'The patient history and the exam: supine leg check, muscle balance, arm strength, head rotation and palpation.',who:['cs']},
-      {...huddleDay('fund1', 2),title:'X-Ray Setup — Sagittal & Axial',desc:'Positioning basics, then the sagittal and axial views: why each is taken and how to get a reliable X-ray.',who:['jk']},
-      {...huddleDay('fund1', 3),title:'X-Ray Setup — Frontal, Horizontal & CBCT',desc:'The frontal and horizontal views, controlling tilt and rotation, and CBCT setup.',who:['cs','jk']}]}]
+      {...huddleDay('fund1', 0),title:'Introduction — Why AdvO',desc:'What the technique is built on, the outcomes it measures, and the atlas subluxation.',who:['beadle']},
+      {...huddleDay('fund1', 1),title:'History & Exam',desc:'The patient history and the exam: supine leg check, muscle balance, arm strength, head rotation and palpation.',who:['beadle']},
+      {...huddleDay('fund1', 2),title:'X-Ray Setup — Sagittal & Axial',desc:'Positioning basics, then the sagittal and axial views: why each is taken and how to get a reliable X-ray.',who:['beadle']},
+      {...huddleDay('fund1', 3),title:'X-Ray Setup — Frontal, Horizontal & CBCT',desc:'The frontal and horizontal views, controlling tilt and rotation, and CBCT setup.',who:['beadle']}]}]
   },
   fund2:{
     photo:'analyze',
@@ -194,12 +217,12 @@ export const SEMINARS = {
     learn:['Digital X-ray line drawing and analysis software','Measuring CBCT studies and using them to verify the X-ray analysis','Measuring displacement against the patient\'s own normal','Accounting for genetic anomalies in the analysis','Deriving the correction vector from the misalignment variables','Inter- and intra-examiner reliability protocols','Analysis case reviews with real patient X-rays'],
     sched:[['FEB–MAY',`${listDates(zoomDates('fund2', ZOOM_SEASON))}, 9:00 pm Eastern, live on Zoom: analyzing the sagittal, axial, frontal and horizontal X-rays, the correction vector, and misalignment patterns, plus CBCT analysis, worked through on real patient cases.`],['HANDS-ON','Not part of the Zoom sessions: attend an AdvO Intensive, whose hands-on training covers all three Fundamentals.']],
     ctaH:'Continue the series.', ctaP:'Members only · live on Zoom, recorded for later', ctaBtn:'RSVP for the Monthly Huddle',
-    spk:['jk','cs'], keynote:null,
+    spk:['beadle'], keynote:null,
     agenda:[{day:null,items:[
-      {...huddleDay('fund2', 0),title:'X-Ray Analysis — Sagittal & Axial',desc:'Templates and the analysis software, then the sagittal and axial measurements.',who:['jk']},
-      {...huddleDay('fund2', 1),title:'X-Ray Analysis — Frontal',desc:'Marking the frontal X-ray and measuring the cranium, atlas and axis lines.',who:['jk']},
-      {...huddleDay('fund2', 2),title:'X-Ray Analysis — Horizontal & Vectors',desc:'The horizontal X-ray, then turning the measurements into the correction vector.',who:['cs']},
-      {...huddleDay('fund2', 3),title:'Misalignment Patterns',desc:'Contralateral and ipsilateral patterns and their biomechanics, with time for case review.',who:['jk','cs']}]}]
+      {...huddleDay('fund2', 0),title:'X-Ray Analysis — Sagittal & Axial',desc:'Templates and the analysis software, then the sagittal and axial measurements.',who:['beadle']},
+      {...huddleDay('fund2', 1),title:'X-Ray Analysis — Frontal',desc:'Marking the frontal X-ray and measuring the cranium, atlas and axis lines.',who:['beadle']},
+      {...huddleDay('fund2', 2),title:'X-Ray Analysis — Horizontal & Vectors',desc:'The horizontal X-ray, then turning the measurements into the correction vector.',who:['beadle']},
+      {...huddleDay('fund2', 3),title:'Misalignment Patterns',desc:'Contralateral and ipsilateral patterns and their biomechanics, with time for case review.',who:['beadle']}]}]
   },
   fund3:{
     photo:'adjust',
@@ -215,12 +238,12 @@ export const SEMINARS = {
     learn:['Five-step table placement and mastoid support','Measuring the head height angle and aligning the Y vector','Contralateral and ipsilateral misalignment patterns','The percussive instrument: aligning the vectors and leading the stylus','Evaluating the patient before and after the adjustment','Preparing for Level 1 Certification'],
     sched:[['JUN–SEP',`${listDates(zoomDates('fund3', ZOOM_SEASON))}, 9:00 pm Eastern, live on Zoom: corrective setup, the adjustment, leading the stylus, and upper cervical biomechanics.`],['HANDS-ON','Not part of the Zoom sessions: attend an AdvO Intensive, whose hands-on training covers all three Fundamentals.']],
     ctaH:'Complete your foundation.', ctaP:'Members only · live on Zoom, recorded for later', ctaBtn:'RSVP for the Monthly Huddle',
-    spk:['cs','jk'], keynote:null,
+    spk:['beadle'], keynote:null,
     agenda:[{day:null,items:[
-      {...huddleDay('fund3', 0),title:'Corrective Setup — Presetting & Patient Setup',desc:'Presetting the table and placing the patient: head placement, mastoid support and a neutral spine.',who:['cs']},
-      {...huddleDay('fund3', 1),title:'Corrective Setup — Table Setup & Verification',desc:'Headpiece and shoulder settings, then verifying the patient before the adjustment.',who:['cs']},
-      {...huddleDay('fund3', 2),title:'The Adjustment — Instrument & Finding the TP',desc:'The percussion instrument, aligning the vectors, and finding the transverse process.',who:['cs','jk']},
-      {...huddleDay('fund3', 3),title:'Leading the Stylus, Biomechanics & Wrap-Up',desc:'Leading the stylus through real cases, upper cervical biomechanics, and bringing the series together.',who:['jk']}]}]
+      {...huddleDay('fund3', 0),title:'Corrective Setup — Presetting & Patient Setup',desc:'Presetting the table and placing the patient: head placement, mastoid support and a neutral spine.',who:['beadle']},
+      {...huddleDay('fund3', 1),title:'Corrective Setup — Table Setup & Verification',desc:'Headpiece and shoulder settings, then verifying the patient before the adjustment.',who:['beadle']},
+      {...huddleDay('fund3', 2),title:'The Adjustment — Instrument & Finding the TP',desc:'The percussion instrument, aligning the vectors, and finding the transverse process.',who:['beadle']},
+      {...huddleDay('fund3', 3),title:'Leading the Stylus, Biomechanics & Wrap-Up',desc:'Leading the stylus through real cases, upper cervical biomechanics, and bringing the series together.',who:['beadle']}]}]
   },
   intensive:{
     photo:'instrument',
@@ -235,7 +258,7 @@ export const SEMINARS = {
     overview:'<p>The AdvO Intensive is where the technique becomes hands-on. Day one walks through the whole procedure — history and exam, X-ray and CBCT setup and analysis, pattern understanding, corrective setup and the adjustment — with instructors demonstrating each step. Day two is supervised practice of every step, from the exam through simple and advanced corrective setups, finishing with case studies and your questions.</p><p>Its hands-on training covers all three Fundamentals, so it is the in-person companion to the monthly Fundamentals Zoom sessions. It runs three weekends a year, in St. Petersburg, Florida, and Orem, Utah.</p>',
     learn:['The history and exam, demonstrated and practiced','X-ray and CBCT setup','X-ray and CBCT analysis','Pattern understanding and corrective setup, simple and advanced','The adjustment','Review and case studies with instructors'],
     sched:[['DAY 1','Instruction and demonstration: the exam, X-ray and CBCT, corrective setup and the adjustment.'],['DAY 2','Supervised practice of every step, then case studies and Q&A.']],
-    ctaH:'Two days. Hands-on, start to finish.', ctaP:'Offered three times a year · each registration is one weekend', ctaBtn:'Choose Your Intensive Weekend',
+    ctaH:'Two days. Hands-on, start to finish.', ctaP:'Offered three times a year · each registration is one weekend', ctaBtn:'Register for an Intensive',
     spk:['cs','jk'], keynote:null,
     agenda:[
       {day:'Day 1',date:'FRIDAY',items:[
@@ -296,28 +319,28 @@ export const SEMINARS = {
       {title:'Cone-Beam CT in Upper Cervical Practice',who:'colavita',when:'SAT · 9:00 AM',day:1,desc:'What CBCT shows that plain X-ray cannot, which cases call for it, patient safety and dose, and what adopting it takes in a working clinic.'},
       {title:'Upper Cervical Misalignments in Operator Syndrome',who:'hulsey',when:'FRI · 11:20 AM',day:0,desc:'Clinical lessons from caring for combat veterans, with a detailed case and a nonprofit care pathway for veterans.'},
       {title:'Practice-Based Research',who:'cs',when:'SAT · 3:45 PM',day:1,desc:'How the Institute’s research project works inside a working practice, and how you can take part and add your cases.'}], kicker:'Inflection Point · The Homecoming of the AOI Community', img:'ph-c',
-    sub:'Two days of advanced clinical training, imaging, research, and case studies with the doctors moving this work forward — November 6–7 at the Pierce Clinic of Chiropractic, St. Petersburg.',
+    sub:'Two days of advanced clinical training, imaging, research, and case studies with the doctors moving this work forward.',
     dates:'November 6–7, 2026', ruleNote:'From 2027, the Annual Conference is held the third Friday–Saturday of October every year. Subject to change.', loc:'St. Petersburg, FL', level:'All Levels', format:'2 Days · 8 AM–6 PM', price:'$797',
     fullPrice:797, memPrice:0, studentPrice:347, facultyFree:true,
-    mbSub:'Membership is $799 a year and includes the Annual Conference, a $797 value.', mbText:'Conference registration is INCLUDED with AOI membership — a $797 value. Sign in when you register and the fee is waived.',
+    mbSub:'Membership is $799 a year and includes the Annual Conference, a $797 value.', mbText:'Conference registration is INCLUDED with AOI membership, a $797 value. Sign in when you register and the fee is waived.',
     sessions:[], hideSess:true,
     regBand:{
       h:'Register for the Annual Conference',
       sub:'November 6–7, 2026 · 8:00 AM–6:00 PM both days · Pierce Clinic of Chiropractic, St. Petersburg, FL · 14 CE hours through Sherman College of Chiropractic.',
       btn:'Register for the Conference',
       tiers:[
-        {k:'Doctor',p:'$797',n:'Practicing chiropractors and everyone outside the tiers below.'},
+        {k:'AOI Member',p:'INCLUDED',n:'Part of your membership. Sign in when you register and the fee is waived. Add CE credit for $50.',hi:true,member:true},
+        {k:'Doctor',p:'$797',n:'Practicing chiropractors and everyone outside the other tiers.'},
         {k:'Student',p:'$347',n:'Currently enrolled chiropractic students.'},
-        {k:'AOI Member',p:'FREE',n:'Included with your membership — sign in when you register and the fee is waived. Add CE credit for $50.',hi:true,flag:'INCLUDED'},
         {k:'College Faculty',p:'FREE',n:'Faculty of chiropractic colleges. Register as faculty and the Institute confirms your seat.',hi:true}
       ],
-      note:'Members and chiropractic college faculty still register — the fee comes off at checkout. Members: sign in first so we can see your membership.'
+      note:'Members and chiropractic college faculty still register; the fee comes off at checkout. Members: sign in first so we can see your membership.'
     },
     member:'Registration is INCLUDED with AOI membership. Members add the 14 hours of CE credit for $50.',
     h2:'This year’s theme: Inflection Point.',
-    overview:'<p>An inflection point is the place on a curve where its direction changes. The Institute and the technique are at one: modernizing the work while building on the foundation that brought us here. Across two days at the Pierce Clinic of Chiropractic — the home of Advanced Orthogonal — the program takes that on directly: cone-beam CT and three-dimensional reference frames, updated terminology and corrective positioning, Sonus: Blueprint, the practice-based research project, and the clinical questions that decide whether a correction holds.</p><p>Thirteen presenters, fourteen instructional hours, and the case studies that only this community can share. It is also the Institute’s working weekend — the research initiative, the instructor pathway, and the announcements for 2027 — where the membership’s voice shapes the year ahead.</p>',
-    learn:['Cervical-vestibular-ocular rehabilitation after the correction','Sorting the dizzy patient at the bedside — lecture and hands-on lab','Operator Syndrome in combat veterans, with a full case study','Why the correction doesn’t hold: suboccipital analysis and soft-tissue reactivation','Updated AdvO terminology, corrective positioning, and Sonus worksheets','Cone-beam CT: three-dimensional analysis, case selection, and reference frames','Finding and clearing fibrous adhesion in the cervical spine','Upper cervical case studies from three practices','Teaching as a clinical skill — protecting procedural fidelity','The Institute’s practice-based research project and how to take part'],
-    sched:[['FRIDAY','Vestibular-ocular rehab, the dizzy patient, Operator Syndrome, suboccipital muscle analysis, and the updated AdvO protocol with a supervised lab.'],['SATURDAY','CBCT and 3D reference frames, scar tissue and the atlas, case studies, teaching as a clinical skill, and the practice-based research project.']],
+    overview:'<p>An inflection point is the place on a curve where its direction changes. The Institute and the technique are at one: modernizing the work while building on the foundation that brought us here. Across two days at the Pierce Clinic of Chiropractic, the home of Advanced Orthogonal, the program takes that on directly: cone-beam CT and three-dimensional analysis of anatomical position and spatial relationships; updated terminology and corrective positioning; Sonus: Blueprint; the practice-based research project; and the myodural bridge research that is reshaping upper cervical thinking.</p><p>Thirteen presenters, fourteen instructional hours, and the case studies that only this community can share. It is also the Institute’s working weekend, where the membership’s voice shapes the year ahead: the research initiative, the instructor pathway, and the announcements for 2027.</p>',
+    learn:['Cervical-vestibular-ocular rehabilitation after the correction','Sorting the dizzy patient at the bedside: lecture and hands-on lab','Operator Syndrome in combat veterans, with a full case study','The myodural bridge: what links the upper neck to the dura, and what it means for care','Updated AdvO terminology, corrective positioning, and Sonus worksheets','Cone-beam CT: three-dimensional analysis of anatomical position and spatial relationships, and case selection','Finding and clearing fibrous adhesion in the cervical spine','Upper cervical case studies from three practices','Teaching as a clinical skill: protecting procedural fidelity','The Institute’s practice-based research project and how to take part'],
+    sched:[['FRIDAY','Vestibular-ocular rehab, the dizzy patient, Operator Syndrome, the myodural bridge, and the updated AdvO protocol with a supervised lab.'],['SATURDAY','CBCT and 3D analysis, scar tissue and the atlas, case studies, teaching as a clinical skill, and the practice-based research project.']],
     ce:{
       hours:'14.0', sponsor:'Sherman College of Chiropractic, Office of Continuing Education',
       note:'Live, in-person instruction only. Sixty minutes of instruction counts as one CE hour; sign in and out of every session, with photo ID, to receive credit. No partial credit within a block.',
@@ -329,9 +352,9 @@ export const SEMINARS = {
       special:[['Mississippi','Sherman does not apply to Mississippi; attendees may apply to the Mississippi Board directly as a licensed DC.'],['Tennessee','Sherman does not apply to Tennessee; the hosting organization applies to the TN board directly.'],['Alberta','Attendees are responsible for confirming the activity meets provincial requirements.'],['New Brunswick','The NBCA no longer pre-approves courses; eligibility rests with the member.']],
       disclaimer:'Sherman College is a CCE-accredited college, so applications are not made to states listed as Auto Approval or DC Self; check with your board that the content falls within its scope requirements. Missouri: approval of this course is not a ruling by the Board that the methods taught are the appropriate practice of chiropractic as defined in Section 331.010, RSMo. The opinions and statements of the speakers do not necessarily reflect those of Sherman College.'
     },
-    ctaH:'Be in the room in St. Petersburg.', ctaP:'Free with AOI membership · two days at the home of Advanced Orthogonal', ctaBtn:'Reserve Your Seat',
-    spk:['silver','billiris','hulsey','wooden','beadle','colavita','miranda','bollen','jobarah','pavlovic','corsello','fowler','cs'], keynote:null,
-    sponsors:[{name:'Anode Imaging',logo:'sponsor-anode',url:'https://anodeimaging.com/'},{name:'Sonus: Blueprint',logo:'sponsor-sonus',url:'https://sonusblueprint.com/'},{name:'Spinalight',logo:'sponsor-spinalight',url:'https://www.spinalight.com/',light:true}],
+    ctaH:'Be in the room in St. Petersburg.', ctaP:'Included with AOI membership · two days at the home of Advanced Orthogonal', ctaBtn:'Register for the Conference',
+    spk:['silver','billiris','hulsey','miller','beadle','colavita','miranda','bollen','jobarah','pavlovic','corsello','fowler','cs'], keynote:null,
+    sponsors:[{name:'Anode Imaging',logo:'sponsor-anode',url:'https://anodeimaging.com/',w:640,h:159},{name:'Sonus: Blueprint',logo:'sponsor-sonus',url:'https://sonusblueprint.com/',w:420,h:182},{name:'Spinalight',logo:'sponsor-spinalight',url:'https://www.spinalight.com/',light:true,w:317,h:240},{name:'The Adjustment Bureau Systems',logo:'sponsor-tabs-mpr',url:'https://adjustmentbureausystems.com/',w:1200,h:187}],
     agenda:[
       {day:'Day 1',date:'FRI NOV 6',items:[
         {t:'7:00',ap:'AM · DOORS',title:'Registration, Breakfast & Vendor Hall',desc:'Check-in with photo ID, coffee, and the vendor floor opens. Breakfast from 8:00.',who:[]},
@@ -340,7 +363,7 @@ export const SEMINARS = {
         {t:'10:20',ap:'AM · CLINICAL · CE 1.0',title:'Clarifying the Dizzy Factor — Part 1',desc:'A hands-on approach to getting to the right diagnosis, fast: the short chain of questions that narrows the field, then the bedside tests that separate BPPV, vestibular, cardiovascular, central, and cervicogenic causes.',who:['billiris']},
         {t:'11:20',ap:'AM · CLINICAL · CE 1.0',title:'Upper Cervical Misalignments in Operator Syndrome',desc:'Clinical insights and case-based approaches for treating combat veterans, including a detailed case of Multiple System Atrophy with dysautonomia and a nonprofit care pathway for veterans.',who:['hulsey']},
         {t:'12:20',ap:'PM · LUNCH',title:'Vendor-Sponsored Lunch',desc:'Lunch in the vendor hall.',who:[]},
-        {t:'1:30',ap:'PM · CLINICAL · CE 1.0',title:'Why the Correction Doesn’t Hold',desc:'Upper cervical muscle analysis and soft-tissue reactivation: a structured analysis of suboccipital muscle, ligament, and capsule, and a reactivation technique aimed at restoring normal tone and mechanoreceptor input.',who:['wooden']},
+        {t:'1:30',ap:'PM · RESEARCH · CE 1.0',title:'The Bridge between Bone and Brain: The Myodural Bridge and Upper Cervical Pathophysiology',desc:'The myodural bridge is a band of connective tissue that links the suboccipital muscles and the ligaments around them directly to the spinal dura at the top of the neck. This session reviews the current science on this structure: its anatomy, how it was discovered, and the proposed roles it plays in dural tension, cerebrospinal fluid movement and head and neck pain. It then looks at what the research means in clinical practice. That includes how upper cervical misalignment may affect the dura through this link, how the findings update the cord-distortion hypothesis, and where the evidence is strong and where it is still emerging.',who:['miller']},
         {t:'2:30',ap:'PM · HANDS-ON · CE 1.0',title:'Clarifying the Dizzy Factor — Part 2',desc:'Supervised hands-on laboratory. Participants work in pairs to practice each bedside test from Part 1 until the sequence is reliable.',who:['billiris']},
         {t:'3:30',ap:'PM · BREAK',title:'Vendor Break',desc:'Thirty minutes on the vendor floor.',who:[]},
         {t:'4:00',ap:'PM · PROTOCOL · CE 1.0',title:'Updated Terminology, Corrective Positioning & Sonus Worksheets — Part 1',desc:'The updated Advanced Orthogonal terminology and each step of the corrective setup, with worksheets completed and reviewed in session.',who:['beadle']},
@@ -404,9 +427,6 @@ export const REG_SLUG: Record<string, string> = {
   bootcamp: 'advo-bootcamp',
   'bootcamp:week': 'advo-bootcamp',
 }
-
-/** Fallback event ids used only when the live sync request fails. */
-export const DB_ID: Record<string, number | null> = {intro:7,fund1:null,fund2:9,fund3:10,intensive:null,bootcamp:null,conference:13,internship:null}
 
 /** Seminar key -> public route slug. `internship` has no DB row, so it gets a
  *  hand-written slug; every other route slug IS the database slug, which keeps

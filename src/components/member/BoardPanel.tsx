@@ -4,6 +4,7 @@
  * when), seating with a hard seat limit, past directors, and the director
  * record: service trail, reviews, documents, board-only notes.
  * -------------------------------------------------------------------------- */
+import { friendlyError } from '@/lib/friendlyError'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Chips } from './PersonChips'
 import { CERT_LABEL, roleChips } from '@/lib/chips'
@@ -16,6 +17,7 @@ import {
   SEATS_PER_TERM, ELIGIBILITY, PROCESS, fullName, initials, isCurrentMember, hasLevel1, eligDone, procDone, stepDone, isReady, nextTermLabel, seatedIn, fmtD,
 } from '@/lib/queries/board'
 import type { Term, Review, Doc, BoardNote, Hit, AuditEntry } from '@/lib/queries/board'
+import { askConfirm, askText } from './opsUi'
 
 function Pill({ kind = '', children }: { kind?: string; children: React.ReactNode }) { return <span className={`cpill ${kind}`}>{children}</span> }
 const Verified = ({ a }: { a?: AuditEntry }) => (a ? <small>Verified by {a.by === 'system' ? 'the database (membership & certification records)' : a.by} · {fmtD(a.at)}</small> : null)
@@ -35,7 +37,7 @@ export default function BoardPanel() {
 
   const load = useCallback(async () => {
     const r = await loadTerms()
-    setError(r.error ? `The board record could not be read — the database answered: ${r.error.slice(0, 200)}` : null)
+    setError(r.error ? `The board record could not be read. ${friendlyError(r.error)}` : null)
     setRows(r.rows); setLoading(false)
   }, [])
   useEffect(() => { void load() }, [load])
@@ -150,8 +152,8 @@ export default function BoardPanel() {
 }
 
 function friendly(err: string): string {
-  if (/row-level security/.test(err)) return 'The database did not allow that — only board, the executive director and the Nominations & Elections chair can change board records.'
-  return 'The database refused the change: ' + err.slice(0, 160)
+  if (/row-level security/.test(err)) return 'You don’t have permission for that. Only board, the executive director and the Nominations & Elections chair can change board records.'
+  return friendlyError(err)
 }
 
 /* ------------------------------------------------------------ add nominee -- */
@@ -224,7 +226,7 @@ function DirectorCard({ t, all, who, canManage, onClose, onChanged }: { t: Term;
               <div style={{ fontSize: 12.5, color: 'var(--color-content-muted)' }}>{fmtD(x.term_start)} – {fmtD(x.term_end)}{x.resignation_date ? ` · resigned ${fmtD(x.resignation_date)}` : x.end_reason === 'term_ended' ? ' · term ended' : ''}{x.nominated_by ? ` · nominated by ${x.nominated_by}` : ''}</div>
               <ul>{PROCESS.map((s) => <li key={s.key} className={stepDone(x, s.key) ? 'ok' : ''}><i /><span>{s.label}{x[s.date] ? ` · ${fmtD(x[s.date])}` : ''}{a[s.key] ? <small>verified by {a[s.key]!.by} · {fmtD(a[s.key]!.at)}</small> : (x.status === 'past' || x.status === 'active') && !stepDone(x, s.key) ? <small>not recorded (pre-dates this system)</small> : null}</span></li>)}
                 {a.seated && <li className="ok"><i /><span>Seated<small>by {a.seated.by} · {fmtD(a.seated.at)}</small></span></li>}{a.ended && <li className="ok"><i /><span>Service ended<small>by {a.ended.by} · {fmtD(a.ended.at)}</small></span></li>}</ul>
-              {canManage && (x.status === 'active' || x.status === 'seated') && <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" className="b s-btn on-light xs" onClick={() => setEnding(x)}>End board service</button>{!x.service_start && <button type="button" className="b s-btn on-light xs" onClick={() => { const y = window.prompt('Year first seated on the board', (x.term_start ?? '').slice(0, 4)); if (y) void act(setServiceStart(x, y.trim()), 'Service start recorded') }}>Add service start year</button>}</div>}
+              {canManage && (x.status === 'active' || x.status === 'seated') && <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" className="b s-btn on-light xs" onClick={() => setEnding(x)}>End board service</button>{!x.service_start && <button type="button" className="b s-btn on-light xs" onClick={async () => { const y = await askText('Add service start year', { label: 'Year first seated on the board', initial: (x.term_start ?? '').slice(0, 4), placeholder: 'e.g. 2019', required: true }, { ok: 'Save' }); if (y) void act(setServiceStart(x, y.trim()), 'Service start recorded') }}>Add service start year</button>}</div>}
             </div>) })}
           <div className="sec">Reviews <span className="r">{rv.length}</span></div>
           {rv.length === 0 && <p className="muted">No reviews on file.</p>}
@@ -234,7 +236,7 @@ function DirectorCard({ t, all, who, canManage, onClose, onChanged }: { t: Term;
             : <button type="button" className="b s-btn on-light xs" onClick={() => setRvForm(true)}>+ Add review</button>)}
           <div className="sec">Documents <span className="r">{docs.length}</span></div>
           {docs.length === 0 && <p className="muted">No documents. Contracts, agreements and conflict-of-interest disclosures live here, attached to the director record.</p>}
-          <div className="bdocs">{docs.map((d) => <div key={d.id} className="bdoc"><div className="ic">{d.kind ?? 'FILE'}</div><div><b>{d.label}</b><small>{fmtD(d.doc_date)}{d.uploaded_by_name ? ` · uploaded by ${d.uploaded_by_name}` : ''}</small></div><div style={{ display: 'flex', gap: 8 }}><button type="button" className="flink" onClick={async () => { const u = await documentUrl(d); if (u) window.open(u, '_blank', 'noopener'); else toast('Could not open that file') }}>Open</button>{canManage && <button type="button" className="flink" style={{ color: 'var(--color-status-danger)' }} onClick={() => { if (window.confirm(`Delete “${d.label}”? This cannot be undone.`)) void act(deleteDocument(d), 'Document deleted') }}>Delete</button>}</div></div>)}</div>
+          <div className="bdocs">{docs.map((d) => <div key={d.id} className="bdoc"><div className="ic">{d.kind ?? 'FILE'}</div><div><b>{d.label}</b><small>{fmtD(d.doc_date)}{d.uploaded_by_name ? ` · uploaded by ${d.uploaded_by_name}` : ''}</small></div><div style={{ display: 'flex', gap: 8 }}><button type="button" className="flink" onClick={async () => { const u = await documentUrl(d); if (u) window.open(u, '_blank', 'noopener'); else toast('Could not open that file') }}>Open</button>{canManage && <button type="button" className="flink" style={{ color: 'var(--color-status-danger)' }} onClick={async () => { if (await askConfirm(`Delete “${d.label}”?`, { body: 'The file is removed from the board documents. This cannot be undone.', ok: 'Delete', danger: true })) void act(deleteDocument(d), 'Document deleted') }}>Delete</button>}</div></div>)}</div>
           {canManage && pid && (dcForm
             ? <div className="baddform"><div className="g2"><div><label className="flabel">LABEL</label><input className="fi" value={dcL} onChange={(e) => setDcL(e.target.value)} placeholder="Board member agreement 2026–2029" /></div><div><label className="flabel">DATE</label><input className="fi" type="date" value={dcD} onChange={(e) => setDcD(e.target.value)} /></div></div><label className="flabel">FILE</label><input className="fi" type="file" accept=".pdf,.doc,.docx,image/*" onChange={(e) => setDcF(e.target.files?.[0] ?? null)} /><div className="r"><button type="button" className="b s-btn on-light xs" onClick={() => setDcForm(false)}>Cancel</button><button type="button" className="b p-btn xs" disabled={busy || !dcL.trim() || !dcF} onClick={async () => { if (dcF && await act(uploadDocument(pid, t.id, dcF, dcL.trim(), dcD || null, who), 'Document uploaded')) { setDcForm(false); setDcL(''); setDcF(null) } }}>{busy ? 'Uploading…' : 'Upload'}</button></div></div>
             : <button type="button" className="b s-btn on-light xs" style={{ marginTop: 8 }} onClick={() => setDcForm(true)}>+ Upload document</button>)}
@@ -243,7 +245,7 @@ function DirectorCard({ t, all, who, canManage, onClose, onChanged }: { t: Term;
           {notes.map((n) => <div key={n.id} className="ctc-note">{n.text}<small>{n.by_name ?? 'Board'} · {fmtD(n.created_at)}</small></div>)}
           {canManage && pid && <div className="ctc-noteform"><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a board note…" /><div className="r"><button type="button" className="b s-btn on-light sm" disabled={busy || !note.trim()} onClick={async () => { if (await act(addBoardNote(pid, note.trim(), who), 'Note added')) setNote('') }}>Add note</button></div></div>}
         </div>
-        <div className="mf evt-foot"><div className="r"><a className="flink" href="#contacts" onClick={(e) => { e.preventDefault(); window.location.hash = 'leads'; onClose() }}>Open full contact record →</a></div><div className="r"><button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div></div>
+        <div className="mf evt-foot"><div className="r"><a className="flink" href="#directory" onClick={(e) => { e.preventDefault(); window.location.hash = 'directory'; onClose() }}>Open full contact record →</a></div><div className="r"><button type="button" className="b p-btn sm" onClick={onClose}>Close</button></div></div>
         {ending && (
           <div className="cert-veil" onClick={(e) => e.target === e.currentTarget && setEnding(null)}>
             <div className="cert-modal" role="dialog" aria-modal="true">

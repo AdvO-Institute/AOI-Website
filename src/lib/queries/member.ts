@@ -7,9 +7,10 @@
  * row, Postgres does not return it. The capability check in the UI decides
  * whether to ask; RLS decides whether to answer.
  * -------------------------------------------------------------------------- */
-import { select, searchSelect, session } from '@/lib/supabase'
+import { select, searchSelect, patch, session, SB_URL, SB_KEY } from '@/lib/supabase'
 
 export type Registration = {
+  id?: number
   payment_status?: string
   registration_status?: string
   price_paid_cents?: number
@@ -42,6 +43,12 @@ export type PublicEvent = {
   location?: string | null
   price?: number | string | null
   seats_remaining?: number | string | null
+  /** The rest arrive with `select=*`; each is absent if the view does not carry it. */
+  timezone?: string | null
+  member_price?: number | string | null
+  free_with_membership?: boolean | null
+  /** Timed sessions (the Monthly Huddle's monthly calls), once the view carries them. */
+  sessions?: { starts_at?: string | null; ends_at?: string | null }[] | null
 }
 
 export type CommitteeReport = {
@@ -79,10 +86,34 @@ const uid = () => session.user?.id ?? ''
 export async function myRegistrations(): Promise<Registration[]> {
   const q = await select<Registration>(
     'event_registrations',
-    'select=payment_status,registration_status,price_paid_cents,created_at,discount_applied,reg_type,ce_credits,' +
+    'select=id,payment_status,registration_status,price_paid_cents,created_at,discount_applied,reg_type,ce_credits,' +
       `events(title,starts_at,location,slug)&auth_user_id=eq.${uid()}&order=created_at.desc`,
   )
   return q.data ?? []
+}
+
+/** A member cancels their own free RSVP. The row stays, marked canceled, so
+ * the seat count and the history are both right. Paid registrations go
+ * through `requestCancellation` instead — a refund is the Institute's call. */
+export async function cancelMyRegistration(id: number): Promise<{ ok?: true; error?: string }> {
+  return patch('event_registrations', `id=eq.${id}&auth_user_id=eq.${uid()}`, { registration_status: 'cancelled' })
+}
+
+/** Sends a cancellation request for a paid seminar through the contact form's
+ * function, so it lands where the Institute already reads its mail. */
+export async function requestCancellation(opts: { name: string; email: string; eventTitle: string; reason: string }): Promise<{ ok?: true; error?: string }> {
+  const res = await fetch(`${SB_URL}/functions/v1/contact-submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: `Bearer ${session.token ?? SB_KEY}` },
+    body: JSON.stringify({
+      full_name: opts.name, email: opts.email,
+      subject: `Cancellation request: ${opts.eventTitle}`,
+      message: `${opts.name} would like to cancel their registration for ${opts.eventTitle}.${opts.reason ? `\n\nReason: ${opts.reason}` : ''}\n\nSent from the members area.`,
+      company: '', page_url: window.location.origin + window.location.pathname,
+    }),
+  })
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+  return res.ok && data.ok ? { ok: true } : { error: data.error ?? `status ${res.status}` }
 }
 
 export async function myCertifications(personId: string): Promise<Certification[]> {
@@ -101,10 +132,18 @@ export async function myCompletions(personId: string): Promise<Completion[]> {
   return q.data ?? []
 }
 
+/** An event's Zoom link, asked for on its own so a refusal never blanks the
+ *  rest of the Overview. Null when there is none or this person can't see it. */
+export async function eventZoom(slug: string): Promise<string | null> {
+  const q = await select<{ zoom_url: string | null }>('events', `select=zoom_url&slug=eq.${encodeURIComponent(slug)}&limit=1`)
+  return q.data?.[0]?.zoom_url || null
+}
+
 export async function upcomingEvents(): Promise<PublicEvent[]> {
   const q = await select<PublicEvent>(
     'v_public_events',
-    'select=id,slug,title,starts_at,ends_at,location,price,seats_remaining&order=starts_at',
+    // Every column the view has, so timed sessions come along whenever it carries them.
+    'select=*&order=starts_at',
   )
   return q.data ?? []
 }

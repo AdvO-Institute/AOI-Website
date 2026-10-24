@@ -33,6 +33,7 @@ export default function SeminarCard({ id }: { id: string }) {
       </div>
       <div className="bd">
         <h3>{seminar.title}</h3>
+        <div className="when">{seminar.dates} · {seminar.loc}</div>
         <div className="meta">
           {seminar.format.toUpperCase()} · <b>{CATEGORY_LABEL[seminar.cat]}</b>
         </div>

@@ -12,15 +12,18 @@
  * flagged it as scaffolding to remove before public launch, and the site is now
  * public.
  * -------------------------------------------------------------------------- */
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Link } from '@/lib/router'
-import { signIn, sendMagicLink, linkError, clearLinkError } from '@/lib/supabase'
+import { signIn, linkError, clearLinkError } from '@/lib/supabase'
+import { activateAccount } from '@/lib/queries/access'
 import { useAccess } from '@/lib/queries/AccessProvider'
-import MemberShell from '@/components/member/MemberShell'
-import { useToast } from '@/components/ui/Toast'
+
+/* The members area is the heaviest part of the site and only this page uses it,
+   so it is a separate file the browser fetches once someone is signed in. Public
+   pages never download it. */
+const MemberShell = lazy(() => import('@/components/member/MemberShell'))
 
 export default function AccountPage() {
-  const toast = useToast()
   const { signedIn, loading, refresh } = useAccess()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,23 +49,32 @@ export default function AccountPage() {
     setBusy(false)
   }
 
-  async function handleMagicLink() {
+  const [setup, setSetup] = useState(false)
+  const [setupEmail, setSetupEmail] = useState('')
+  const [setupSent, setSetupSent] = useState(false)
+
+  /** First time here: a current member sets up their own account. */
+  async function handleSetup(event: React.FormEvent) {
+    event.preventDefault()
     setError(null)
-    if (!email.trim()) {
-      setError('Enter your email address first and we will send you a link.')
-      return
-    }
+    if (!setupEmail.trim()) { setError('Enter the email address the Institute has for you.'); return }
     setBusy(true)
     try {
-      await sendMagicLink(email.trim(), `${window.location.origin}/account`)
-      toast('Check your email — a sign-in link is on its way.')
-    } catch (err) {
-      setError((err as Error).message || 'Could not send the link.')
+      await activateAccount(setupEmail.trim())
+      setSetupSent(true)
+    } catch {
+      setError('Could not reach the Institute just now. Please try again in a moment.')
     }
     setBusy(false)
   }
 
-  if (signedIn) return <MemberShell />
+  if (signedIn) {
+    return (
+      <Suspense fallback={null}>
+        <MemberShell />
+      </Suspense>
+    )
+  }
 
   return (
     <>
@@ -144,27 +156,64 @@ export default function AccountPage() {
                 >
                   {busy ? 'One moment…' : 'Sign In'}
                 </button>
-                <button
-                  type="button"
-                  className="b s-btn on-light"
-                  style={{ justifyContent: 'center' }}
-                  onClick={() => void handleMagicLink()}
-                  disabled={busy}
-                >
-                  Email Me a Sign-In Link
-                </button>
                 <Link className="t-link acct-reset" to="/reset-password">
                   Forgot your password?
                 </Link>
               </div>
             </form>
-            <p className="acct-help">
-              Accounts are created automatically when you register for an event or course. Trouble
-              signing in?{' '}
-              <Link className="t-link" style={{ fontSize: '11px' }} to="/contact">
-                Contact us
-              </Link>
-            </p>
+            <div className="acct-setup">
+              {setupSent ? (
+                <p className="acct-help">
+                  If that address belongs to a current member, a link to choose your password is on
+                  its way. If you already have an account, the email will say so and the link sets a
+                  new password. It can take a few minutes — check your spam folder if you don&apos;t
+                  see it.
+                </p>
+              ) : setup ? (
+                <form onSubmit={handleSetup}>
+                  <h3 style={{ marginTop: 4 }}>
+                    First time here<span className="gr" />
+                  </h3>
+                  <p className="acct-help" style={{ marginTop: 0, marginBottom: 10 }}>
+                    Your member profile is already set up — this adds a password so you can sign in.
+                    Enter the email address the Institute has for you and we&apos;ll send a link to
+                    choose your password.
+                  </p>
+                  <input
+                    id="setup-email"
+                    className="fi"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@yourpractice.com"
+                    value={setupEmail}
+                    onChange={(e) => setSetupEmail(e.target.value)}
+                  />
+                  <button type="submit" className="b s-btn on-light" style={{ justifyContent: 'center', width: '100%', marginTop: 10 }} disabled={busy}>
+                    {busy ? 'One moment…' : 'Send my setup link'}
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <p className="acct-help" style={{ marginTop: 0, marginBottom: 10 }}>
+                    First time signing in? Members already have a profile — just add a password.
+                  </p>
+                  <button
+                    type="button"
+                    className="b s-btn on-light"
+                    style={{ justifyContent: 'center', width: '100%' }}
+                    onClick={() => { setSetup(true); setSetupEmail(email) }}
+                  >
+                    Set Up My Account
+                  </button>
+                  <p className="acct-help">
+                    Trouble signing in?{' '}
+                    <Link className="t-link" style={{ fontSize: '11px' }} to="/contact">
+                      Contact us
+                    </Link>
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>

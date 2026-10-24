@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from '@/lib/router'
+import { refundLine } from '@/lib/refund'
 import { SEMINARS, SLUG_TO_SEMINAR } from '@/content/seminars'
 import type { Seminar } from '@/content/seminars'
 import { PEOPLE, HEADSHOTS } from '@/content/people'
-import { Avatar, SpeakerPill, useBio } from '@/components/blocks/BioDialog'
+import { SpeakerPill, useBio } from '@/components/blocks/BioDialog'
 import SeminarCard from '@/components/blocks/SeminarCard'
 import { StoryGoals, StoryProblem, StorySolution, StoryWhy, StoryBenefits, StoryData, StorySteps, StoryVoices, StoryFit, StoryFaq } from '@/components/blocks/SeminarStory'
 import { useRegistration } from '@/components/blocks/RegistrationDialog'
@@ -11,6 +12,8 @@ import { useToast } from '@/components/ui/Toast'
 import { useAccess } from '@/lib/queries/AccessProvider'
 import { useCatalog } from '@/lib/queries/CatalogProvider'
 import { myRegistrations } from '@/lib/queries/member'
+import type { PublicEvent } from '@/lib/queries/events'
+import { HUDDLE_SLUG } from '@/content/calendar'
 import NotFoundPage from './NotFoundPage'
 
 type Session = {
@@ -29,7 +32,7 @@ type Session = {
   /** Only signed-in members can RSVP; everyone else is pointed to membership. */
   members?: boolean
 }
-type AgendaItem = { t: string; ap: string; title: string; desc: string; who?: string[] }
+type AgendaItem = { t: string; ap: string; title: string; desc: string; who?: string[]; on?: string }
 type AgendaDay = { day: string; date?: string; items: AgendaItem[] }
 type NoSess = {
   kick?: string
@@ -40,6 +43,43 @@ type NoSess = {
   primary?: boolean
   /** Set when the button should start registration rather than go to Contact. */
   act?: string
+}
+
+/* The Monthly Huddle's instructors come from its event in the members area. A
+ * session on an agenda line's date names that line's instructor; otherwise the
+ * event's speaker list stands for every line. Names match the site's people by
+ * first and last name ("Dr." and credentials ignored); a name with no bio on the
+ * site is left off. With nothing usable, the page keeps its own list. */
+const plainName = (n: string) => n.toLowerCase().replace(/^dr\.?\s+/, '').replace(/[^a-z' -]/g, '').replace(/\s+/g, ' ').trim()
+const PERSON_BY_NAME = new Map(Object.entries(PEOPLE).map(([id, p]) => [plainName(p.name), id]))
+function peopleNamed(names: string): string[] {
+  return names.split(/\s*(?:,|&|\band\b)\s*/i).map((n) => PERSON_BY_NAME.get(plainName(n))).filter((id): id is string => !!id)
+}
+function dayIn(iso: string, tz: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+  } catch {
+    return null
+  }
+}
+function liveInstructors(event: PublicEvent | undefined, agenda: AgendaDay[], fallback: string[]) {
+  if (!event || event.slug !== HUDDLE_SLUG) return { agenda, speakers: fallback }
+  const listed = [...new Set([...(event.speakers ?? [])].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)).flatMap((x) => peopleNamed(x.name ?? '')))]
+  const byDay = new Map<string, string[]>()
+  for (const x of event.sessions ?? []) {
+    const day = x.starts_at ? dayIn(x.starts_at, event.timezone || 'America/New_York') : null
+    const ids = x.speaker ? peopleNamed(x.speaker) : []
+    if (day && ids.length) byDay.set(day, ids)
+  }
+  if (!listed.length && !byDay.size) return { agenda, speakers: fallback }
+  const next = agenda.map((day) => ({
+    ...day,
+    items: day.items.map((it) => ({ ...it, who: (it.on && byDay.get(it.on)) || (listed.length ? listed : it.who) })),
+  }))
+  const taught = [...new Set(next.flatMap((day) => day.items.flatMap((it) => it.who ?? [])))]
+  return { agenda: next, speakers: listed.length ? [...new Set([...listed, ...taught])] : taught }
 }
 
 const money = (n: number) => n.toLocaleString()
@@ -76,8 +116,12 @@ export default function SeminarPage({ param }: { param?: string }) {
   const openBio = useBio()
   const register = useRegistration()
   const toast = useToast()
-  const { access, signedIn } = useAccess()
+  const { access, signedIn, loading } = useAccess()
   const catalog = useCatalog()
+  /* The page is prerendered signed out, so the first client render has to match
+   * it; `mounted` flips after that frame (the same guard the header uses). */
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const [agendaDay, setAgendaDay] = useState(0)
   const [presenter, setPresenter] = useState<string | null>(null)
   /* On phones the agenda folds behind a button; computers always show it. */
@@ -121,6 +165,10 @@ export default function SeminarPage({ param }: { param?: string }) {
   const overlay = key ? catalog.byKey[key] : undefined
   const freeWithMembership = overlay?.event?.free_with_membership === true || (!catalog.synced && seminar?.memPrice === 0 && (seminar?.fullPrice ?? 0) > 0)
   const rsvpMode = signedIn && access.tier === 'member' && freeWithMembership
+  /* A signed-in visitor whose membership has not come back yet: hold the
+   * non-member prices out of sight so a member never sees them flip to RSVP. */
+  const checking = mounted && signedIn && loading
+  const soldOut = overlay?.soldOut === true
   useEffect(() => {
     if (!signedIn || !overlay?.event?.slug) { setAttending(null); return }
     let cancelled = false
@@ -154,7 +202,7 @@ export default function SeminarPage({ param }: { param?: string }) {
       : s.cat === 'internship'
         ? 'MEMBER PRIORITY'
         : s.memPrice === 0 && s.fullPrice > 0
-          ? 'FREE FOR MEMBERS'
+          ? 'INCLUDED IN MEMBERSHIP'
           : save > 0
             ? `MEMBERS: $${money(s.memPrice ?? 0)}`
             : ''
@@ -168,12 +216,13 @@ export default function SeminarPage({ param }: { param?: string }) {
         : 'AOI membership connects you with the full Institute community.')
 
   const sessions = (s.sessions ?? []) as unknown as Session[]
-  const agenda = (s.agenda ?? []) as unknown as AgendaDay[]
-  const speakers = s.spk ?? []
+  const { agenda, speakers } = liveInstructors(overlay?.event, (s.agenda ?? []) as unknown as AgendaDay[], s.spk ?? [])
   const keynote = s.keynote
   const rest = speakers.filter((id) => id !== keynote)
 
-  const regLabel = (fallback: string) => attending ? '\u2713 You\u2019re attending' : rsvpMode ? 'RSVP \u2014 Free with Membership' : fallback
+  /* One verb per action: a member's free seat is an RSVP, so "Register for
+   * the Conference" reads "RSVP for the Conference" for them. */
+  const regLabel = (fallback: string) => attending ? '\u2713 You\u2019re attending' : rsvpMode ? (/^(Register|RSVP) for /.test(fallback) ? fallback.replace(/^Register /, 'RSVP ') : `RSVP for ${s.title}`) : fallback
   const onRegister = () => { if (attending) { toast('You are already on the attendee list for this event.'); return } register(key) }
 
   const scrollToRegistration = () => {
@@ -275,9 +324,10 @@ export default function SeminarPage({ param }: { param?: string }) {
                   const soon = x.reg ? live?.open !== true : x.soon
                   const membersOnly = x.members === true && !(signedIn && access.tier === 'member')
                   const flag = live?.seatFlag ?? x.flag
+                  const full = live?.soldOut === true
                   return (
                   <div className={`sess${soon ? ' soon' : ''}`} key={`${x.city}-${i}`}>
-                    {flag && <span className="flag">{flag}</span>}
+                    {flag && <span className={`flag${full ? ' sold' : ''}`}>{flag}</span>}
                     <div className="top">
                       <div className="cal">
                         <div className="mo">{x.mo}</div>
@@ -327,7 +377,7 @@ export default function SeminarPage({ param }: { param?: string }) {
                       </div>
                       <div className="seats">
                         <b>{soon ? x.seats : (live?.seats ?? x.seats)}</b>
-                        <span>{soon ? 'OPENING SOON' : 'UPDATED WEEKLY'}</span>
+                        <span>{soon ? 'OPENING SOON' : catalog.synced && live?.seats ? 'LIVE SEAT COUNT' : 'UPDATED WEEKLY'}</span>
                       </div>
                     </div>
                     <div className="bot">
@@ -346,6 +396,10 @@ export default function SeminarPage({ param }: { param?: string }) {
                       ) : x.apply ? (
                         <Link className="b sm p-btn" to="/contact">
                           Apply Now
+                        </Link>
+                      ) : full && !attending ? (
+                        <Link className="b sm s-btn on-light" to="/contact">
+                          Sold out — join the waiting list
                         </Link>
                       ) : membersOnly ? (
                         <Link className="b sm s-btn on-light" to="/membership">
@@ -447,8 +501,10 @@ export default function SeminarPage({ param }: { param?: string }) {
                   <span>{attending ? 'Your RSVP is confirmed. Details and reminders will follow as the date approaches.' : 'RSVP for yourself below. The only optional charge is the CE credit certificate.'}</span>
                 </div>
               )}
-              <div className="rb-tiers" style={rsvpMode ? { opacity: .55 } : undefined}>
-                {s.regBand.tiers.map((tier) => (
+              {/* A member sees only their own card; while membership is still
+               * being checked the cards keep their space but stay out of sight. */}
+              <div className={`rb-tiers${checking ? ' checking' : ''}`}>
+                {(rsvpMode ? s.regBand.tiers.filter((tier) => tier.member) : s.regBand.tiers).map((tier) => (
                   <div className={`rt${tier.hi ? ' hi' : ''}`} key={tier.k}>
                     {tier.flag && <span className="rt-flag">{tier.flag}</span>}
                     <div className="rt-k">{tier.k}</div>
@@ -458,10 +514,16 @@ export default function SeminarPage({ param }: { param?: string }) {
                 ))}
               </div>
               <div className="rb-go">
-                <button type="button" className="b lg p-btn" onClick={onRegister} disabled={Boolean(attending)}>
-                  {regLabel(s.regBand.btn ?? 'Register Now')}
-                </button>
-                {!rsvpMode && s.regBand.note && <p className="rb-note">{s.regBand.note}</p>}
+                {soldOut && !attending ? (
+                  <Link className="b lg s-btn on-dark" to="/contact">
+                    Sold out — join the waiting list
+                  </Link>
+                ) : (
+                  <button type="button" className="b lg p-btn" onClick={onRegister} disabled={Boolean(attending)}>
+                    {regLabel(s.regBand.btn ?? 'Register Now')}
+                  </button>
+                )}
+                {!rsvpMode && !checking && s.regBand.note && <p className="rb-note">{s.regBand.note}</p>}
               </div>
             </div>
           </div>
@@ -574,10 +636,10 @@ export default function SeminarPage({ param }: { param?: string }) {
               Thank you to this year’s sponsors
             </h2>
             <div className="goldrule" />
-            <div className="spons">
+            <div className="spons two">
               {s.sponsors.map((x) => (
                 <a className={`spon${x.light ? ' light' : ''}`} key={x.name} href={x.url} target="_blank" rel="noopener noreferrer">
-                  <img src={`/images/${x.logo}.webp`} alt={x.name} loading="lazy" decoding="async" />
+                  <img src={`/images/${x.logo.includes('.') ? x.logo : `${x.logo}.webp`}`} alt={x.name} width={x.w} height={x.h} loading="lazy" decoding="async" />
                 </a>
               ))}
             </div>
@@ -797,6 +859,7 @@ export default function SeminarPage({ param }: { param?: string }) {
           </div>
         </div>
         {s.ruleNote && <p className="rulenote">{s.ruleNote}</p>}
+        {s.cat !== 'free' && s.cat !== 'internship' && s.fullPrice > 0 && <p className="rulenote">{refundLine(overlay?.event?.starts_at)}</p>}
 
         <div className="memberbar">
           <div>
@@ -804,7 +867,7 @@ export default function SeminarPage({ param }: { param?: string }) {
             {s.mbSub && <div className="mb-s">{s.mbSub}</div>}
           </div>
           <Link className="b sm" to="/membership">
-            Become a Member &amp; Save
+            Join the Institute
           </Link>
         </div>
       </div>

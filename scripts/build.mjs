@@ -3,8 +3,14 @@
  *
  * Four steps, in order:
  *   1. bundle the client                  -> dist/client/assets/client-[hash].js
+ *      plus chunk-[hash].js for code loaded on demand (the members area,
+ *      which only /account imports)
  *   2. bundle the server renderer         -> dist/server/entry-server.js
- *   3. render every public route to disk  -> dist/client/<route>/index.html
+ *   3. render every public route to disk  -> dist/client/<route>.html
+ *      (`/` alone is index.html). Cloudflare Pages serves `about.html` at
+ *      `/about` and redirects `/about/` back to it, so the served URL is the
+ *      canonical one. The old `<route>/index.html` layout did the opposite:
+ *      every canonical, sitemap entry and link was a 308 to the slash form.
  *   4. generate sitemap.xml / llms.txt / robots.txt
  *
  * Step 3 is the one that decides whether this site exists to ChatGPT, Claude
@@ -15,12 +21,22 @@ import { build } from 'esbuild'
 import { createHash } from 'node:crypto'
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const clientDir = join(root, 'dist', 'client')
 const serverDir = join(root, 'dist', 'server')
+
+/* The build's date in Eastern time (the Institute's time zone; public pages
+ * say "ET"), stamped into both bundles as `__BUILD_DATE__` so the
+ * browser works out the same calendar dates the prerender did (see `AS_OF` in
+ * src/content/calendar.ts). The same value goes into both bundles; if they
+ * differed, the client's first render would not match the HTML. `AOI_BUILD_DATE`
+ * overrides it, to build "as of" another day and watch the browser catch up. */
+const buildDate = /^\d{4}-\d{2}-\d{2}$/.test(process.env.AOI_BUILD_DATE ?? '')
+  ? process.env.AOI_BUILD_DATE
+  : new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 
 /** Resolves the `@/` alias the way tsconfig paths does, trying each extension. */
 const alias = {
@@ -50,6 +66,8 @@ await mkdir(clientDir, { recursive: true })
 
 console.log('▸ stylesheet')
 const css =
+  (await readFile(join(root, 'src/styles/fonts.css'), 'utf-8')) +
+  '\n' +
   (await readFile(join(root, 'src/styles/tokens.css'), 'utf-8')) +
   '\n' +
   (await readFile(join(root, 'src/styles/components.css'), 'utf-8'))
@@ -58,6 +76,8 @@ const cssMin = await build({
   bundle: true,
   minify: true,
   write: false,
+  // The font files are copied from public/ as-is; leave their URLs alone.
+  external: ['/fonts/*'],
 })
 const cssOut = cssMin.outputFiles[0].text
 const cssHash = createHash('sha256').update(cssOut).digest('hex').slice(0, 8)
@@ -77,25 +97,34 @@ const clientBuild = await build({
   target: ['es2022'],
   jsx: 'automatic',
   minify: true,
-  sourcemap: true,
+  // No source map in production: it would publish the full members-area source
+  // next to the bundle and double the size of dist/client/assets.
+  sourcemap: false,
   write: false,
-  outfile: join(clientDir, 'assets', 'client.js'),
-  define: { 'process.env.NODE_ENV': '"production"' },
+  // Code splitting: every `import()` becomes its own chunk, fetched only when
+  // that code runs. The entry keeps the `client-` prefix the HTML shell
+  // references; chunks import each other by relative path, which resolves
+  // against /assets/ whatever page URL they were loaded from.
+  splitting: true,
+  outdir: join(clientDir, 'assets'),
+  entryNames: 'client-[hash]',
+  chunkNames: 'chunk-[hash]',
+  define: { 'process.env.NODE_ENV': '"production"', __BUILD_DATE__: JSON.stringify(buildDate) },
   plugins: [alias],
   loader: { '.md': 'text' },
 })
-const jsFile = clientBuild.outputFiles.find((f) => !f.path.endsWith('.map'))
-const mapFile = clientBuild.outputFiles.find((f) => f.path.endsWith('.map'))
-if (!jsFile) {
+const jsOutputs = clientBuild.outputFiles.filter((f) => f.path.endsWith('.js'))
+const jsEntry = jsOutputs.find((f) => basename(f.path).startsWith('client-'))
+if (!jsEntry) {
   throw new Error(
-    `esbuild produced no JS output. Files: ${clientBuild.outputFiles.map((f) => f.path).join(', ')}`,
+    `esbuild produced no client entry. Files: ${clientBuild.outputFiles.map((f) => f.path).join(', ')}`,
   )
 }
-const jsHash = createHash('sha256').update(jsFile.text).digest('hex').slice(0, 8)
-const jsName = `assets/client-${jsHash}.js`
-await writeFile(join(clientDir, jsName), jsFile.text, 'utf-8')
-if (mapFile) await writeFile(join(clientDir, `${jsName}.map`), mapFile.text, 'utf-8')
-console.log(`  ${jsName}  ${(jsFile.text.length / 1024).toFixed(1)} kB`)
+const jsName = `assets/${basename(jsEntry.path)}`
+for (const f of jsOutputs) {
+  await writeFile(join(clientDir, 'assets', basename(f.path)), f.text, 'utf-8')
+  console.log(`  assets/${basename(f.path)}  ${(f.text.length / 1024).toFixed(1)} kB`)
+}
 
 /* ---------------------------------------------------------------- server */
 
@@ -109,7 +138,7 @@ await build({
   target: ['node20'],
   jsx: 'automatic',
   outfile: join(serverDir, 'entry-server.js'),
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: { 'process.env.NODE_ENV': '"production"', __BUILD_DATE__: JSON.stringify(buildDate) },
   plugins: [alias],
   loader: { '.md': 'text' },
   packages: 'external',
@@ -131,12 +160,8 @@ const shell = (head, html) => `<!DOCTYPE html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap"
-    />
+    <link rel="preload" href="/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/${cssName}" />
     ${head}
   </head>
@@ -147,14 +172,15 @@ const shell = (head, html) => `<!DOCTYPE html>
 </html>
 `
 
+/** `/` -> index.html; every other route -> `<route>.html` (see the header). */
+const fileFor = (path) =>
+  path === '/' ? join(clientDir, 'index.html') : join(clientDir, `${path.replace(/^\//, '')}.html`)
+
 let written = 0
 for (const path of manifest.paths) {
   const { html, head } = render(path)
   const page = shell(head, html)
-  const outFile =
-    path === '/'
-      ? join(clientDir, 'index.html')
-      : join(clientDir, path.replace(/^\//, ''), 'index.html')
+  const outFile = fileFor(path)
   await mkdir(dirname(outFile), { recursive: true })
   await writeFile(outFile, page, 'utf-8')
   console.log(`  ${path.padEnd(52)} ${(Buffer.byteLength(page) / 1024).toFixed(1)} kB`)
@@ -164,7 +190,7 @@ for (const path of manifest.paths) {
 // Client-only routes still need a shell so a direct hit does not 404.
 for (const entry of manifest.entries.filter((e) => !e.prerender)) {
   const { head } = render(entry.path)
-  const outFile = join(clientDir, entry.path.replace(/^\//, ''), 'index.html')
+  const outFile = fileFor(entry.path)
   await mkdir(dirname(outFile), { recursive: true })
   await writeFile(outFile, shell(head, ''), 'utf-8')
   console.log(`  ${entry.path.padEnd(52)} (client-only shell)`)
@@ -179,7 +205,7 @@ console.log(`\n✓ ${written} routes prerendered`)
 /* ------------------------------------------------------------- SEO files */
 
 const origin = String(manifest.origin).replace(/\/$/, '')
-const today = new Date().toISOString().slice(0, 10)
+const today = buildDate
 const indexable = manifest.entries.filter((e) => e.prerender && !e.meta.noindex)
 
 await writeFile(

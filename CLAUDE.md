@@ -37,13 +37,24 @@ rendering contract, the route manifest and why both matter.
 
 The database, the edge functions (payments, email, check-in) and every secret
 live in Supabase and take effect the moment they are changed. No branch, no
-review, no undo. They belong to the Executive Director.
+review, no undo. The project is in the AOI account; the Executive Director has
+the final say over it.
 
-- Only Chris's sessions change Supabase: SQL, edge function deploys, secrets,
-  Auth settings. A change James needs there goes through Chris.
+- Chris's or James's sessions change Supabase (SQL, edge function deploys,
+  secrets, Auth settings), each for their own pull requests (agreed in #218).
+  James's sessions keep to these:
+  1. Additive only. Nothing is renamed or dropped.
+  2. One change at a time. Check each one on the preview address before making
+     the next. The preview uses the live database, so a change is live the
+     moment it runs.
+  3. The SQL and function code go in the pull request first, so there is a
+     record before anything runs.
+  4. Nothing in Chris's pull requests or Supabase work changes without asking
+     him.
+  5. Secrets stay in Supabase. No key ever goes in the repo.
 - The repo copies of the edge functions under `supabase/functions/` are the
   record of what is deployed. Edit them in a pull request like any other file;
-  deploying them is Chris's step.
+  deploying them is the step of whoever owns that pull request.
 - Database changes are additive. Never rename or drop an existing table, column
   or function without explicit permission, even when it looks unused.
 - Never put a password, API key, token, or member's personal information in the
@@ -58,16 +69,17 @@ review, no undo. They belong to the Executive Director.
 npm install          # once
 npm run build        # prerenders every route; fails if a page loses its metadata
 npm run serve        # preview the built site at http://localhost:4173
-npx tsc --noEmit -p tsconfig.json --ignoreDeprecations 6.0   # type check
+npx tsc --noEmit -p tsconfig.json   # type check
 ```
 
 - `npm run build` must pass before a pull request. `verify-prerender.mjs` is part
   of it and is the gate that keeps pages readable to crawlers that never run
   JavaScript.
-- The type check reports a set of pre-existing errors in files nobody has touched
-  (TS7026, TS7006, TS7016, TS2503, TS7031, and missing `key` props). Do not
-  "fix" those in an unrelated pull request. Any *new* error in a file you edited
-  is yours.
+- The type check must be clean: zero errors. The GitHub Action in
+  `.github/workflows/check.yml` runs the build and the type check on every pull
+  request, so an error in a file you edited is yours to fix before review.
+- `package-lock.json` is committed so every build installs the same versions.
+  Commit it whenever `package.json` changes.
 - `tools/preview/*-harness.mjs` build standalone pages that render one members-area
   panel against sample data, for screenshots without a login.
 
@@ -81,8 +93,9 @@ npx tsc --noEmit -p tsconfig.json --ignoreDeprecations 6.0   # type check
 - Person and status chips use the `.cpill` classes and the helpers in
   `src/lib/chips.ts`. Gold is reserved for a person's highest certification.
 - Emails all render through `supabase/functions/_email/email.ts` (the "Obsidian"
-  layout). Copies of it live in each function folder that sends mail; keep them
-  identical.
+  layout). It is meant to be copied into each function folder that sends mail,
+  and the copies kept identical; no copies are in the repo yet (see
+  `OPERATIONS-TODO.md`).
 - Write for the reader, not the system: "Members awaiting RSVP", not
   "unconfirmed registrations".
 

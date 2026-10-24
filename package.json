@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs && node scripts/verify-prerender.mjs",
+    "check:catalog": "node scripts/check-catalog.mjs",
     "typecheck": "tsc --noEmit",
     "serve": "node scripts/serve.mjs"
   },
